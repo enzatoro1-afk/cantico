@@ -416,7 +416,8 @@ PROMPT_INTERPRETAZIONE = """Sei un assistente biblico di dottrina Cristiana Evan
 Prendi il seguente riferimento: {riferimento}
 {testo_versetto}Estrai il testo intero se e' presente solo il capitolo.
 Fornisci una breve interpretazione teologica focalizzata sui temi della lode, della fede, del ravvedimento o della consolazione spirituale.
-Infine, estrai le 3 parole chiave spirituali piu' forti (es. 'Fortezza', 'Salvezza', 'Fedelta') derivate da questa interpretazione."""
+NON citare canzoni, inni o titoli di brani: le canzoni le cerca l'applicazione da sola, tu curi solo il significato.
+Alla fine scrivi una riga finale con le 3 parole chiave spirituali piu' forti, separate da virgola (es. 'Parole chiave: Fortezza, Salvezza, Fedelta')." """
 
 # lessico spirituale pesato: dal piu' forte al piu' generico
 LESSICO_SPIRITUALE = (

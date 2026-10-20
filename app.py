@@ -23,6 +23,7 @@ from datetime import date, datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
 
+from ai_client import chiave_da_secrets, interpreta_con_ia, link_chatgpt
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search import (NOME_TRADUZIONE, cerca_versetti,
                         testo_versetto_pulito, trova_versetto)
@@ -404,6 +405,8 @@ def _studia_versetto() -> None:
 
     # --- FASE 2: query musicale forzata ---
     parole_spirituali = interpretazione["parole_chiave"][:3]
+    if not parole_spirituali:
+        parole_spirituali = ["fede", "lode", "consolazione"]
     rif_breve = _riferimento_breve(riferimento)
     query_stretta = (f"{rif_breve} {' '.join(parole_spirituali)} "
                      f"{FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
@@ -454,6 +457,39 @@ for chiave, valore in (
 
 if st.session_state["archivio"] is None:
     st.session_state["archivio"] = carica_archivio()
+
+
+# --------------------------------------------------------------------------
+# Sidebar: interpretazione con IA (facoltativa) + spiegazione
+# --------------------------------------------------------------------------
+
+with st.sidebar:
+    st.markdown("### \U0001F9E0 Interpretazione con IA")
+    st.markdown(
+        "<div class=\"note\">L'interpretazione dottrinale puo' arrivare da tre "
+        "luoghi:<br>"
+        "<b>1)</b> dalle <b>predicazioni reali</b> che l'app trova su YouTube "
+        "(funziona senza account)<br>"
+        "<b>2)</b> da <b>ChatGPT</b> con la tua chiave API<br>"
+        "<b>3)</b> dall'<b>IA che hai sul telefono</b>: l'app ti copia il "
+        "prompt gia' pronto e tu lo incolli qui<br><br>"
+        "<b>Le canzoni le cerca sempre l'app</b> (brani reali, filtro "
+        "pentecostale): ChatGPT non consiglia mai titoli di canzoni.</div>",
+        unsafe_allow_html=True,
+    )
+    _chiave_ia = st.text_input(
+        "Chiave API OpenAI (opzionale)",
+        value=chiave_da_secrets(),
+        type="password",
+        help="Lasciala vuota se preferisci le predicazioni reali o l'IA del "
+             "telefono. Va in .streamlit/secrets.toml per non riscriverla.",
+        key="chiave_ia",
+    )
+    st.markdown(
+        "<div class=\"note\">La chiave resta nel server di Streamlit. "
+        "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -838,6 +874,24 @@ elif studio and studio.get("versetto"):
             unsafe_allow_html=True,
         )
 
+    # se l'utente ha incollato una nuova interpretazione, ricalcolo le canzoni
+    if st.session_state.get("_ria_fase2"):
+        st.session_state["_ria_fase2"] = False
+        _rif = studio.get("riferimento", {})
+        _kw = parole or ["fede", "lode", "consolazione"]
+        _rif_breve = _riferimento_breve(_rif) if _rif else ""
+        _q = (f"{_rif_breve} {' '.join(_kw)} {FILTRO_PENTECOSTALE} "
+              f"{KEYWORD_NEGATIVE}")
+        with st.spinner("Rifaccio la ricerca della canzone con le nuove parole chiave..."):
+            try:
+                _ris = ricerca_cached((_q,), 5, tuple(_kw), DURATA_MAX_SEC)
+            except Exception:
+                _ris = []
+        st.session_state["risultati"] = _ris
+        st.session_state["query_usate"] = [_q]
+        st.session_state["scelta"] = None
+        st.rerun()
+
     with st.expander("Le interpretazioni che ho trovato (esposizioni, studi, prediche)"):
         for i, r in enumerate(studio.get("interpretazioni", []), start=1):
             with st.container(border=True):
@@ -879,6 +933,83 @@ elif studio and studio.get("versetto"):
                             st.session_state[chiave_tr] = _t["testo"]
                         else:
                             st.warning("Questo video non ha una trascrizione disponibile.")
+
+    # ---- 3 MODI PER AVERE L'INTERPRETAZIONE ----
+    _prompt_attuale = PROMPT_INTERPRETAZIONE.format(
+        riferimento=studio.get("riferimento", {}).get("riferimento", ""),
+        testo_versetto=(v.get("testo_pulito", "") + "\n\n"),
+    )
+    st.markdown("#### Da dove vuoi l'interpretazione?")
+
+    c_m1, c_m2, c_m3 = st.columns(3)
+    with c_m1:
+        if st.button("\U0001F9E0 Interpreta con ChatGPT",
+                     key="ia_api", use_container_width=True,
+                     help="Usa la tua chiave API OpenAI (se inserita)."):
+            st.session_state["_ia_richiesta"] = "api"
+    with c_m2:
+        if st.button("\U0001F4AC Chiedi a ChatGPT",
+                     key="ia_link", use_container_width=True,
+                     help="Copia il prompt e apre ChatGPT (o la tua IA sul "
+                          "telefono) gia' pronto."):
+            st.session_state["_ia_richiesta"] = "link"
+    with c_m3:
+        st.markdown(
+            "<div class=\"note\">Oppure incolla sotto l'interpretazione che "
+            "ti ha dato l'IA.</div>",
+            unsafe_allow_html=True,
+        )
+
+    if st.session_state.get("_ia_richiesta") == "api":
+        st.session_state["_ia_richiesta"] = None
+        with st.spinner("Sto chiedendo all'IA..."):
+            _ris = interpreta_con_ia(_prompt_attuale, chiave=_chiave_ia)
+        if _ris.get("errore"):
+            st.warning(_ris["errore"])
+            st.info("Nessun problema: l'app usa comunque le predicazioni reali "
+                    "che ha trovato su YouTube.")
+        elif _ris.get("testo"):
+            from studio_biblico import estrai_parole_chiave_spirituali
+            st.session_state["versetto_studio"]["interpretazione"] = {
+                "testo": _ris["testo"],
+                "parole_chiave": estrai_parole_chiave_spirituali(_ris["testo"])[:3],
+                "fonte": _ris.get("fonte", "ChatGPT (API)"),
+                "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
+            }
+            st.rerun()
+
+    if st.session_state.get("_ia_richiesta") == "link":
+        st.session_state["_ia_richiesta"] = None
+        blocco_copia(_prompt_attuale, "copia_prompt_ia",
+                     "\U0001F4CB Copia il prompt")
+        st.link_button("\U0001F4AC Apri ChatGPT con il prompt",
+                       link_chatgpt(_prompt_attuale), use_container_width=True)
+        st.markdown(
+            "<div class=\"note\">Incolla qui sotto la risposta dell'IA e premi "
+            '"Usa questa interpretazione": l\'app ci mette dentro le 3 parole '
+            "chiave e rifiinisce la ricerca della canzone.</div>",
+            unsafe_allow_html=True,
+        )
+
+    _incollata = st.text_area(
+        "Incolla qui l'interpretazione",
+        value=st.session_state.get("_interp_incollata", ""),
+        height=140,
+        key="interp_incollata_area",
+    )
+    if st.button("\U0001F50D Usa questa interpretazione",
+                 use_container_width=True):
+        if _incollata.strip():
+            from studio_biblico import estrai_parole_chiave_spirituali
+            _kw = estrai_parole_chiave_spirituali(_incollata)[:3]
+            st.session_state["versetto_studio"]["interpretazione"] = {
+                "testo": _incollata,
+                "parole_chiave": _kw,
+                "fonte": "la tua IA",
+                "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
+            }
+            st.session_state["_ria_fase2"] = True
+            st.rerun()
 
     with st.expander("Il prompt per l'interpretazione (per ChatGPT, ecc.)"):
         _prompt = PROMPT_INTERPRETAZIONE.format(
@@ -1043,9 +1174,11 @@ if risultati:
                 st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
 
             st.link_button(
-                "\U0001F50D Cerca l'audio su TikTok",
+                "\U0001F50D Verifica l'audio su TikTok",
                 link_ricerca_audio(r.titolo),
                 use_container_width=True,
+                help="Apre la ricerca dei suoni di TikTok con questo titolo: "
+                     "vedi subito se l'audio e' disponibile per i tuoi video.",
             )
             if st.button(f"\u2B50 Scegli questa canzone per il post", key=f"scelta{i}",
                          use_container_width=True):
