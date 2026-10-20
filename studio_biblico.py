@@ -431,6 +431,15 @@ LESSICO_SPIRITUALE = (
     ("salvatore", 6), ("sacrificio", 6), ("croce", 6), ("pazienza", 5),
     ("umiltà", 5), ("povertà", 5), ("zelo", 5), ("missione", 5),
     ("testimonianza", 5), ("fratellanza", 5),
+    ("comandamento", 7), ("comandamenti", 7), ("prossimo", 7), ("cuore", 6),
+    ("anima", 5), ("mente", 5), ("forza", 5), ("giustizia", 6), ("regno", 6),
+    ("alleanza", 6), ("patto", 5), ("eredità", 5), ("vocazione", 6),
+    ("chiamata", 5), ("annuncio", 6), ("vangelo", 6), ("tempio", 5),
+    ("pane", 5), ("vino", 5), ("mensa", 5), ("sangue", 5), ("ascensione", 6),
+    ("liberazione", 7), ("riscatto", 7), ("espiazione", 7), ("propiziazione", 6),
+    ("intercessione", 7), ("mediatore", 7), ("avvocato", 6), ("passione", 6),
+    ("ministero", 6), ("ufficio", 5), ("cenacolo", 6), ("doni", 5),
+    ("parola", 5), ("verbo", 5), ("confessione", 7), ("lode", 6),
 )
 
 
@@ -475,7 +484,11 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
     """
     parole_chiave = parole_chiave or []
     if versetto:
-        testo_versetto = versetto.get("testo_pulito") or versetto.get("testo", "")
+        # se e' un passaggio o un capitolo, uso TUTTO il testo
+        testo_versetto = (versetto.get("testo_passaggio")
+                          or versetto.get("testo_capitolo")
+                          or versetto.get("testo_pulito")
+                          or versetto.get("testo", ""))
         riferimento = versetto.get("riferimento", "")
     else:
         testo_versetto = ""
@@ -491,44 +504,103 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
             "riferimento": riferimento,
         }
 
-    # 2) interpretazione di studio costruita dall'app (solo il tema pertinente)
+    # 2) interpretazione di studio COMPLETA, strutturata come uno studio biblico
     tema = tema or "Salvezza"
     frasi_tema = {
-        "Consolazione": "Per la consolazione: e' un invito a poggiare su Dio "
-                        "nei momenti di prova, perche Egli non abbandona il suo popolo.",
-        "Proclamazione": "Per la lode: questo versetto viene cantato per esaltare "
-                         "Dio e chiamare l'assemblea all'adorazione.",
-        "Salvezza": "Per la salvezza: annuncia la grazia di Dio e chiama alla "
-                    "conversione, perche solo in Cristo c'e' salvezza.",
-        "Amore": "Per l'amore: mostra l'amore che Dio porta a ciascuno dei suoi "
-                 "figli, anche quando falliscono.",
-        "Fede": "Per la fede: e' un invito a credere e a fidarsi di Dio anche "
+        "Consolazione": "Per la CONSOLAZIONE: e' un invito a poggiare su Dio nei "
+                        "momenti di prova, perche' Egli non abbandona il suo popolo. "
+                        "Nella lode si canta questo perche' Dio e' la nostra "
+                        "speranza quando la terra trema.",
+        "Proclamazione": "Per la LODE: questo passaggio viene cantato per esaltare "
+                         "Dio e chiamare l'assemblea all'adorazione. E' un "
+                         "inno di vittoria, non un'inno di circostanza.",
+        "Salvezza": "Per la SALVEZZA: annuncia la grazia di Dio e chiama alla "
+                    "conversione, perche' solo in Cristo c'e' salvezza.",
+        "Amore": "Per l'AMORE: mostra l'amore che Dio porta a ciascuno dei suoi "
+                 "figli, anche quando falliscono: e' un amore che non si "
+                 "ritira.",
+        "Fede": "Per la FEDE: e' un invito a credere e a fidarsi di Dio anche "
                 "quando non si capisce il percorso.",
-        "Preghiera": "Per la preghiera: e' un invito a pregare e a cercare Dio "
-                     "in ogni momento.",
-        "Coraggio": "Per il coraggio: e' un invito a non temere e ad affrontare "
-                    "le prove con fortezza.",
-        "Guarigione": "Per la guarigione: annuncia la guarigione che viene da "
+        "Preghiera": "Per la PREGHIERA: e' un invito a pregare e a cercare Dio "
+                     "in ogni momento, come gli apostoli che gli chiesero: "
+                     "'Signore, insegnaci a pregare'.",
+        "Coraggio": "Per il CORAGGIO: e' un invito a non temere e ad affrontare "
+                    "le prove con fortezza, sapendo che Dio cammina con noi.",
+        "Guarigione": "Per la GUARIGIONE: annuncia la guarigione che viene da "
                       "Dio, del corpo e dello spirito.",
-        "Speranza": "Per la speranza: e' l'invito a non perdere la fiducia in "
-                    "Dio, perche le sue promesse sono certe.",
-        "Umiltà": "Per l'umiltà: richiama all'umiltà e al servizio umile.",
-        "Paternità": "Per la paternità: ricorda il cuore di Dio come Padre.",
-        "Servizio": "Per il servizio: chiama a servire e a portare il messaggio "
+        "Speranza": "Per la SPERANZA: e' l'invito a non perdere la fiducia in "
+                    "Dio, perche' le sue promesse sono certe.",
+        "Umiltà": "Per l'UMILTA': richiama all'umiltà e al servizio, come Gesù "
+                  "che si è fatto servo.",
+        "Paternità": "Per la PATERNITA': ricorda il cuore di Dio come Padre, che "
+                     "prende cura dei suoi figli.",
+        "Servizio": "Per il SERVIZIO: chiama a servire e a portare il messaggio "
                     "a chi non lo conosce.",
-        "Battesimo": "Per il battesimo: parla del nuovo inizio in Cristo.",
+        "Battesimo": "Per il BATTESIMO: parla del nuovo inizio in Cristo, che "
+                     "si riceve per fede e si vive in santita'.",
     }
     frase = frasi_tema.get(tema, frasi_tema["Salvezza"])
     nucleo = ", ".join(parole_chiave[:3]) if parole_chiave else "la fiducia in Dio"
+
+    # contesto reale (versetti vicini), se disponibili
+    contesto_txt = ""
+    if isinstance(versetto, dict):
+        _vicini = (versetto.get("contesto_prima", []) +
+                   versetto.get("contesto_dopo", []))
+        if _vicini:
+            contesto_txt = ("\n\n".join(
+                f'{c["riferimento"]}  {c["testo"]}' for c in _vicini[:3]))
+    if not contesto_txt:
+        contesto_txt = ("Leggi i versetti che precedono e seguono: il testo non "
+                        "si capisce da solo, perche' nasce dentro una "
+                        "conversazione viva con il popolo di Dio.")
+
     corpo = (
-        f"Questo passo parla di {tema.lower()}. Nella dottrina evangelica "
-        f"pentecostale il punto centrale e' questo: Dio agisce per primo e "
-        f"l'uomo risponde con fede. Il nucleo spirituale del testo sta in "
-        f"{nucleo}. {frase}"
+        f"{riferimento}\n"
+        f"{'=' * (len(riferimento) + 2)}\n\n"
+
+        f"1. IL TESTO\n"
+        f"{'-' * 9}\n"
+        f"{testo_versetto}\n\n"
+
+        f"2. IL CONTESTO (i versetti vicini)\n"
+        f"{'-' * 37}\n"
+        f"{contesto_txt}\n\n"
+
+        f"3. IL SIGNIFICATO (dottrina evangelica pentecostale)\n"
+        f"{'-' * 50}\n"
+        f"Questo passo parla di {tema.lower()}. Il punto centrale, nella "
+        f"dottrina evangelica pentecostale, e' questo: Dio agisce per primo e "
+        f"l'uomo risponde con fede. Non e' l'uomo a muoversi per primo, e' Dio "
+        f"che prende l'iniziativa; la nostra risposta e' la fede, cioe' "
+        f"affidarsi a Lui con tutto il cuore.\n\n"
+        f"Il nucleo spirituale di questo testo sta in {nucleo}. "
+        f"Leggendo il passaggio con questa lente, si capisce perche' la "
+        f"Chiesa lo ha sempre cantato e predicato: non come uno spettacolo, ma "
+        f"come la dichiarazione di una fiducia che regge anche nella notte.\n\n"
+
+        f"4. L'APPLICAZIONE (le 4 domande dello studio induttivo)\n"
+        f"{'-' * 47}\n"
+        f"- Che cosa dice il testo? Chi parla, a chi, e che cosa afferma?\n"
+        f"- Che cosa significa per me, qui e adesso? Cosa mi chiede di credere?\n"
+        f"- Che cosa devo smettere di fare e che cosa devo cominciare a fare?\n"
+        f"- Chi devo ringraziare e a chi devo portare questa parola?\n\n"
+
+        f"5. PER LA LODE, IL RAVVEDIMENTO E LA CONSOLAZIONE\n"
+        f"{'-' * 44}\n"
+        f"{frase}\n\n"
+
+        f"LE 3 PAROLE CHIAVE SPIRITUALI DI QUESTO PASSAGGIO\n"
+        f"{'-' * 47}\n"
+        f"{nucleo}\n"
     )
+
     return {
         "testo": corpo,
-        "parole_chiave": estrai_parole_chiave_spirituali(corpo),
+        "parole_chiave": (estrai_parole_chiave_spirituali(testo_versetto)[:3]
+                           or estrai_parole_chiave_spirituali(corpo)[:3]
+                           or parole_chiave[:3]),
         "fonte": "studio (dottrina evangelica pentecostale)",
         "riferimento": riferimento,
     }
+

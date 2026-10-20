@@ -627,7 +627,14 @@ if riferimento_verso and not studio.get("errore"):
                 '(66 libri = canon protestante evangelico).</div>',
                 unsafe_allow_html=True,
             )
-            for c in versetto_esatto.get("capitolo_versetti", []):
+            _cap = versetto_esatto.get("capitolo_versetti", [])
+            st.markdown(
+                f'<div class="note">{len(_cap)} versetti: questo e\' tutto il '
+                'capitolo. Per un passaggio preciso scrivi es. '
+                '"Marco 12,28-31".</div>',
+                unsafe_allow_html=True,
+            )
+            for c in _cap:
                 st.markdown(
                     f'<div class="box" style="margin-bottom:6px;">'
                     f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',
@@ -655,11 +662,11 @@ if riferimento_verso and not studio.get("errore"):
                 '(66 libri = canon protestante evangelico).</div>',
                 unsafe_allow_html=True,
             )
-        st.markdown(
-            f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
-            f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>',
-            unsafe_allow_html=True,
-        )
+            st.markdown(
+                f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
+                f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>',
+                unsafe_allow_html=True,
+            )
 
         contesto = [] if solo_capitolo else (
             versetto_esatto.get("contesto_prima", []) +
@@ -671,6 +678,31 @@ if riferimento_verso and not studio.get("errore"):
             st.markdown(
                 f'<div class="box box-warn"><b>Contesto (versetti vicini)</b>{righe}</div>',
                 unsafe_allow_html=True,
+            )
+
+        # testo completo da copiare (passaggio / capitolo / versetto)
+        if versetto_esatto.get("e_passaggio"):
+            testo_da_copiare = "\n\n".join(
+                f'{c["riferimento"]}  {c["testo"]}'
+                for c in versetto_esatto.get("passaggio", []))
+        elif solo_capitolo:
+            testo_da_copiare = "\n\n".join(
+                f'{c["riferimento"]}  {c["testo"]}'
+                for c in versetto_esatto.get("capitolo_versetti", []))
+        else:
+            testo_da_copiare = (f'{versetto_esatto["riferimento"]}  '
+                                f'{versetto_esatto["testo_pulito"]}')
+
+        col_c, col_d = st.columns(2)
+        with col_c:
+            blocco_copia(testo_da_copiare, "copia_testo_verso",
+                         "\U0001F4CB Copia il testo")
+        with col_d:
+            st.link_button(
+                "\U0001F4AC Apri ChatGPT",
+                "https://chatgpt.com/",
+                use_container_width=True,
+                help="Incolla il testo copiato e chiedi un Approfondimento",
             )
 
         col_a, col_b = st.columns(2)
@@ -687,7 +719,7 @@ if riferimento_verso and not studio.get("errore"):
                 key="canzone_da_versetto",
                 use_container_width=True,
                 on_click=_imposta_testo,
-                args=(versetto_esatto["testo_pulito"],),
+                args=(testo_da_copiare,),
             )
 
 # --- esito dello studio: interpretazione + parole chiave + spiegazioni ---
@@ -781,14 +813,22 @@ elif studio and studio.get("versetto"):
                         else:
                             st.warning("Questo video non ha una trascrizione disponibile.")
 
-    with st.expander("Il prompt per l'interpretazione (copialo se vuoi usare ChatGPT)"):
-        st.code(
-            PROMPT_INTERPRETAZIONE.format(
-                riferimento=studio.get("riferimento", {}).get("riferimento", ""),
-                testo_versetto=(v.get("testo_pulito", "") + "\n\n"),
-            ),
-            language="text",
+    with st.expander("Il prompt per l'interpretazione (per ChatGPT, ecc.)"):
+        _prompt = PROMPT_INTERPRETAZIONE.format(
+            riferimento=studio.get("riferimento", {}).get("riferimento", ""),
+            testo_versetto=(v.get("testo_pulito", "") + "\n\n"),
         )
+        st.code(_prompt, language="text")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            blocco_copia(_prompt, "copia_prompt",
+                         "\U0001F4CB Copia il prompt")
+        with col_p2:
+            st.link_button(
+                "\U0001F4AC Apri ChatGPT",
+                "https://chatgpt.com/",
+                use_container_width=True,
+            )
 
 
 # --------------------------------------------------------------------------
