@@ -1,7 +1,6 @@
 # 🎵 Assistente Canzoni Pentecostali per TikTok
 
-Web app (Python + Streamlit) che aiuta i creator cristiani a preparare video
-per TikTok a tema religioso: scrivi un versetto o una riflessione evangelica,
+Web app (Python + Streamlit) per i creator cristiani: dalla Parola alla Lode. scrivi un versetto o una riflessione evangelica,
 l'app trova la **canzone di musica evangelica pentecostale** più adatta, te la
 spiega, e prepara tutto il post (caption, hashtag, testo a schermo, data e
 ora di pubblicazione).

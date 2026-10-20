@@ -74,7 +74,7 @@ BUILD = __import__("datetime").datetime.fromtimestamp(
     __import__("os").path.getmtime(__file__)).strftime("%Y-%m-%d %H:%M")
 
 st.set_page_config(
-    page_title="Canzoni Pentecostali per TikTok",
+    page_title="CANTICO - Dalla Parola alla Lode",
     page_icon="🎵",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -463,9 +463,11 @@ if st.session_state["archivio"] is None:
 st.markdown(
     """
     <div class="hero">
-      <h1>\U0001F3B5 Assistente Canzoni Pentecostali</h1>
-      <p>Scrivi il tuo versetto: l'app cerca la canzone evangelica giusta,
-         ti spiega perché è adatta e prepara il post per TikTok.</p>
+      <h1>\U0001F3B5 CANTICO</h1>
+      <p><b>Dalla Parola alla Lode.</b> Scrivi un versetto o un pensiero:
+         l'app trova il testo biblico, lo studia con la dottrina evangelica
+         pentecostale, cerca la canzone giusta e ti prepara il post
+         per TikTok.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -504,7 +506,7 @@ elif correzione:
     st.info("\u2705 Il tuo testo è già corretto: nessun errore rilevato.")
 
 testo = st.text_area(
-    "Versetto biblico o riflessione evangelica",
+    "Versetto, capitolo o pensiero (es. Marco 12,28-31)",
     placeholder=(
         "Es. «Il Signore è il mio pastore: nulla mi mancherà.»\n"
         "Oppure: «Dio, per il tuo amore io Ti ringrazio»"
