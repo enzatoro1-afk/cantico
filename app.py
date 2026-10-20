@@ -811,11 +811,19 @@ elif studio and studio.get("versetto"):
         f'{esc(testo_interp)}</div>',
         unsafe_allow_html=True,
     )
-    if len(testo_interp) < totale:
+
+    # COPIA l'interpretazione (sempre) + SCARICALA
+    _nome_file = (f"interpretazione_{v.get('riferimento', 'versetto')}"
+                  .replace(" ", "_").replace(",", "-").replace(":", "-"))
+    col_i1, col_i2 = st.columns(2)
+    with col_i1:
+        blocco_copia(interp.get("testo", ""), "copia_interp",
+                     "\U0001F4CB Copia l'interpretazione")
+    with col_i2:
         st.download_button(
-            "\U0001F4E4 Scarica l'interpretazione completa (.txt)",
+            "\U0001F4E4 Scarica (.txt)",
             data=interp.get("testo", ""),
-            file_name=f"interpretazione_{v.get('riferimento', 'versetto').replace(' ', '_').replace(',', '-')}.txt",
+            file_name=f"{_nome_file}.txt",
             mime="text/plain",
             key="dl_interp",
         )
