@@ -345,16 +345,25 @@ def _studia_versetto() -> None:
             f"Non trovo {riferimento['riferimento']} nel testo biblico.")}
         return
 
+    # se l'utente ha scritto solo il SALMO/CAPITOLO (es. "Salmo 23"),
+    # studio e mostro il CAPITOLO INTERO
+    testo_intero = versetto["testo_pulito"]
+    if not riferimento.get("versetto"):
+        capitolo = versetto.get("capitolo_versetti", [])
+        testo_intero = " ".join(c["testo"] for c in capitolo)
+        versetto["testo_capitolo"] = testo_intero
+        versetto["e_capitolo_intero"] = True
+
     # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
     interpretazioni = cerca_interpretazioni(
         riferimento["libro"], riferimento["capitolo"], riferimento["versetto"],
-        riferimento["riferimento"], versetto["testo_pulito"], 5)
+        riferimento["riferimento"], testo_intero, 5)
 
     # la spiegazione scritta: trascrizione di una predicazione che parla
     # DAVVERO del versetto (controllo di pertinenza sulle parole chiave)
     trascrizione = None
     parole_verso = [p.lower() for p in
-                    estrai_parole_chiave(versetto["testo_pulito"], 6)]
+                    estrai_parole_chiave(testo_intero, 8)]
     for r in interpretazioni[:4]:
         t = estrai_spiegazione(r.video_id)
         if not t or len(t["testo"]) < 250:
@@ -369,7 +378,7 @@ def _studia_versetto() -> None:
     analisi = st.session_state.get("analisi") or {}
     temi = analisi.get("temi") or ["Salvezza"]
     interpretazione = interpretazione_dotrinale(
-        versetto, temi[0], estrai_parole_chiave(versetto["testo_pulito"], 3))
+        versetto, temi[0], estrai_parole_chiave(testo_intero, 4))
 
     # --- FASE 2: query musicale forzata ---
     parole_spirituali = interpretazione["parole_chiave"][:3]
@@ -596,22 +605,41 @@ if riferimento_verso and not studio.get("errore"):
         riferimento_verso["libro"], riferimento_verso["capitolo"],
         riferimento_verso["versetto"] or 1)
 
+    solo_capitolo = not riferimento_verso.get("versetto")
+
     if versetto_esatto:
-        st.markdown(
-            '<div class="step">IL VERSETTO ESATTO</div>'
-            f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
-            f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
-            '(66 libri = canon protestante evangelico).</div>',
-            unsafe_allow_html=True,
-        )
+        if solo_capitolo:
+            st.markdown(
+                '<div class="step">IL SALMO/CAPITOLO INTERO</div>'
+                f'<h3>\U0001F4D6 {esc(riferimento_verso["libro"])} '
+                f'{esc(str(riferimento_verso["capitolo"]))}</h3>'
+                f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
+                '(66 libri = canon protestante evangelico).</div>',
+                unsafe_allow_html=True,
+            )
+            for c in versetto_esatto.get("capitolo_versetti", []):
+                st.markdown(
+                    f'<div class="box" style="margin-bottom:6px;">'
+                    f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.markdown(
+                '<div class="step">IL VERSETTO ESATTO</div>'
+                f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
+                f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
+                '(66 libri = canon protestante evangelico).</div>',
+                unsafe_allow_html=True,
+            )
         st.markdown(
             f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
             f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>',
             unsafe_allow_html=True,
         )
 
-        contesto = versetto_esatto.get("contesto_prima", []) + \
-            versetto_esatto.get("contesto_dopo", [])
+        contesto = [] if solo_capitolo else (
+            versetto_esatto.get("contesto_prima", []) +
+            versetto_esatto.get("contesto_dopo", []))
         if contesto:
             righe = "".join(
                 f'<br><span class="note"><b>{esc(c["riferimento"])}</b> '
@@ -652,8 +680,8 @@ elif studio and studio.get("versetto"):
     )
     lunghezza = st.radio(
         "Quanto vuoi leggere dell'interpretazione?",
-        ["Breve (riassunto)", "Media", "Completa (tutto il testo)"],
-        index=1,
+        ["Completa (tutto il testo)", "Media", "Breve (riassunto)"],
+        index=0,
         horizontal=True,
         key="lunghezza_interp",
     )
@@ -662,6 +690,7 @@ elif studio and studio.get("versetto"):
         testo_interp = testo_interp[:700]
     elif lunghezza == "Media":
         testo_interp = testo_interp[:2200]
+    # "Completa" -> testo integro, senza tagli
     totale = len(interp.get("testo", ""))
     st.markdown(
         f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
