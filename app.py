@@ -913,14 +913,3 @@ st.markdown(
     'Fatto per i creator cristiani \U0001F49F</div>',
     unsafe_allow_html=True,
 )
-
-# --- DIAGNOSTICA TEMPORANEA (verifica scraping da Cloud) ---
-if not st.session_state.get("_diag"):
-    st.session_state["_diag"] = True
-    try:
-        _r = ricerca_cached(("musica evangelica pentecostale lode",), 3, ("lode",))
-        st.session_state["_diag_esito"] = f"DIAG: {len(_r)} risultati | " + (
-            _r[0].titolo[:60] if _r else "NESSUN RISULTATO (YouTube blocca?)")
-    except Exception as _e:
-        st.session_state["_diag_esito"] = f"DIAG ERRORE: {_e}"
-st.markdown(f"### {st.session_state.get('_diag_esito', 'DIAG: ...')}")
