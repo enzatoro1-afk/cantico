@@ -300,6 +300,7 @@ def _imposta_testo(testo: str) -> None:
 
 def esegui_ricerca(testo: str) -> None:
     """Cerca la canzone adatta al testo e aggiorna lo stato dell'app."""
+    st.session_state.pop("riferimento_forzato", None)
     testo_pulito = (testo or "").strip()
     if not testo_pulito:
         st.warning("Incolla prima un versetto o una riflessione \U0001F4D8")
@@ -663,7 +664,8 @@ if analisi:
 # IL VERSETTO ESATTO indicato dall'utente (Fase 1 -> Fase 2)
 # --------------------------------------------------------------------------
 
-riferimento_verso = rileva_riferimento(testo or "")
+riferimento_verso = (st.session_state.get("riferimento_forzato")
+                      or rileva_riferimento(testo or ""))
 studio = st.session_state.get("versetto_studio") or {}
 
 if riferimento_verso and not studio.get("errore"):
@@ -705,6 +707,23 @@ if riferimento_verso and not studio.get("errore"):
                 f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
                 '(66 libri = canon protestante evangelico).</div>')
             _cap = versetto_esatto.get("capitolo_versetti", [])
+            # vuoi solo una parte del capitolo? (es. "prendi dal 18 al 31")
+            _intervallo = st.text_input(
+                "Vuoi solo alcuni versetti di questo capitolo?",
+                value="",
+                placeholder="es. 18-31  (oppure: dal 18 al 31)",
+                key="intervallo_capitolo",
+            )
+            if st.button("Applica l'intervallo", key="applica_intervallo",
+                         use_container_width=True):
+                _rif = rileva_riferimento(
+                    f"{riferimento_verso['libro']} {riferimento_verso['capitolo']} "
+                    f"{_intervallo}")
+                if _rif and _rif.get("versetto"):
+                    st.session_state["riferimento_forzato"] = _rif
+                    st.rerun()
+                else:
+                    st.warning("Scrivi l'intervallo, es. 18-31")
             html(
                 f'<div class="note">{len(_cap)} versetti: questo e\' tutto il '
                 'capitolo. Per un passaggio preciso scrivi es. '

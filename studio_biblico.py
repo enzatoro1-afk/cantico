@@ -117,9 +117,14 @@ PATTERN_RIFERIMENTO_TEMPLATO = (
     r"\s*\.?\s*"
     r"(?:capitolo\s+|cap\.?\s*)?"
     r"(?P<cap>\d{{1,3}})"
-    # "versetti dal 28 al 31" / "dal 28 al 31" / "vv. 28-31" / "28,31" / "28-31"
-    r"(?:\s*(?:,|[:;]|versetti?\s*(?:dal)?|dal|vv\.?\s*(?:dal)?)\s*(?P<vers>\d{{1,3}}))?"
-    r"(?:\s*(?:[-–—]|al|alla|a)\s*(?P<fine>\d{{1,3}}))?"
+    # separatori capitolo/versetto:  ","  ":"  ";"  "."  "v."  "vv."  "versetto(i)"
+    # "dal"  oppure uno SPAZIO
+    # l'intervallo finale:  "-"  "–"  "—"  "al"  "alla"  "a"  oppure uno SPAZIO
+    r"(?:"
+    r"(?:\s*(?:,|[:;.]|versett[io]?\s*(?:dal)?|dal|vv?\.?\s*(?:dal)?)\s*|\s+)"
+    r"(?P<vers>\d{{1,3}})"
+    r"(?:(?:\s*(?:[-–—]|al|alla|a)\s*|\s+)(?P<fine>\d{{1,3}}))?"
+    r")?"
 )
 
 
