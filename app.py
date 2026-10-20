@@ -355,6 +355,15 @@ def _studia_versetto() -> None:
     """
     testo = st.session_state.get("testo_input", "") or ""
     riferimento = rileva_riferimento(testo)
+
+    # l'utente puo' scegliere QUANTI versetti studiare (es. "18-21")
+    _sotto = (st.session_state.get("sotto_passaggio") or "").strip()
+    if riferimento and _sotto:
+        _r2 = rileva_riferimento(
+            f"{riferimento['libro']} {riferimento['capitolo']} {_sotto}")
+        if _r2 and _r2.get("versetto"):
+            riferimento = _r2
+
     if not riferimento:
         st.session_state["versetto_studio"] = {"errore": (
             "Non riconosco un riferimento biblico. Scrivilo cosi': "
@@ -743,21 +752,17 @@ if riferimento_verso and not studio.get("errore"):
                     f'<div class="box" style="margin-bottom:6px;">'
                     f'<b>{esc(c["riferimento"])}</b><br>'
                     f'{esc(_testo_versetto(c["testo"]))}</div>')
-            # vuoi studiare un SOLO versetto del passaggio? sceglilo qui
-            _opzioni = [("Tutto il passaggio", 0)] + [
-                (c["riferimento"], int(c["riferimento"].split(",")[-1]))
-                for c in versetto_esatto.get("passaggio", [])
-                if "," in c["riferimento"]
-            ]
-            if len(_opzioni) > 1:
-                st.selectbox(
-                    "Studiare in profondita' solo un versetto?",
-                    _opzioni,
-                    index=0,
-                    format_func=lambda x: x[0],
-                    key="verso_selezionato",
-                    help="Scegli un versetto se vuoi l'interpretazione di quel "
-                         "singolo versetto invece che dell'intero passaggio.",
+            # vuoi studiare solo QUALSI versetto del passaggio?
+            # (puo' essere uno solo o un intervallo: "18-21")
+            _n = len(versetto_esatto.get("passaggio", []))
+            if _n > 1:
+                st.text_input(
+                    "Studiare in profondita' solo questi versetti?",
+                    value="",
+                    placeholder="es. 18-21   (lascia vuoto = tutto il passaggio)",
+                    key="sotto_passaggio",
+                    help="Puoi scrivere un versetto solo (18) o un intervallo "
+                         "(18-21). Se lasci vuoto, studia tutto il passaggio.",
                 )
         else:
             html(
@@ -806,10 +811,10 @@ if riferimento_verso and not studio.get("errore"):
 
         col_a, col_b = st.columns(2)
         with col_a:
-            _etichetta = "\U0001F50E Studia questo versetto"
-            _sc = st.session_state.get("verso_selezionato")
-            if _sc and _sc[1]:
-                _etichetta = f"\U0001F50E Studia solo {_sc[0]}"
+            _etichetta = "\U0001F50E Studia questo passaggio"
+            _sotto = (st.session_state.get("sotto_passaggio") or "").strip()
+            if _sotto:
+                _etichetta = f"\U0001F50E Studia solo {_sotto}"
             st.button(
                 _etichetta,
                 key="studia_versetto",
