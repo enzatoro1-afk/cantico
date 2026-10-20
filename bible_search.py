@@ -252,7 +252,8 @@ class MotoreBibbia:
 
     def __init__(self):
         self.versetti: list[dict] = []
-        self.indice: dict[str, list[int]] = {}
+        self.indice: dict[str, list[int]] = []
+        self.versetti_per_capitolo: dict[tuple[str, int], list[int]] = {}
         self.chiavi_ordinate: list[str] = []
         self.caricato = False
         self.errore: str | None = None
@@ -274,6 +275,10 @@ class MotoreBibbia:
                 for s in set(v["stemi"]):
                     self.indice.setdefault(s, []).append(i)
             self.chiavi_ordinate = sorted(self.indice)
+            self.versetti_per_capitolo = {}
+            for i, v in enumerate(self.versetti):
+                chiave = (v["libro"], v["capitolo"])
+                self.versetti_per_capitolo.setdefault(chiave, []).append(i)
             self.caricato = True
             self.errore = None
             return True
@@ -427,3 +432,92 @@ def motore() -> MotoreBibbia:
 def cerca_versetti(testo: str, max_risultati: int = 5) -> list[dict]:
     """Comodo: cerca i versetti più adatti a un testo."""
     return motore().cerca(testo, max_risultati)
+
+
+# --------------------------------------------------------------------------
+# Versetto ESATTO: dato un riferimento (es. Giovanni 3,16) restituisce
+# il testo integrale del versetto e il contesto (prima/dopo).
+# --------------------------------------------------------------------------
+
+# intestazioni poetiche della Riveduta (da staccare dal testo del versetto)
+SUPERSCRIZIONI = (
+    "salmo di", "di davide", "maestro del coro", "per il maestro", "cantico di",
+    "di asaf", "di mosè", "di salomone", "di giuda", "di core", "di aggeo",
+    "di zaccaria", "di gioele", "di amos", "di abacuc", "di naum", "di sofonia",
+    "di gesù", "di davide.", "cervo", "cerva dell'aurora", "alabastro",
+    "offerta", "epitaffio", "maschile", "silloge", "preghiera di",
+    "di perugia", "di giosafat", "di ecc.",
+)
+
+
+def testo_versetto_pulito(testo: str) -> str:
+    """
+    Toglie le intestazioni poetiche (es. "Salmo di Davide.") lasciando
+    il testo integrale del versetto.
+    """
+    testo = (testo or "").strip()
+    frasi = testo.split(". ")
+    while len(frasi) > 1:
+        prima = frasi[0].strip().lower()
+        if any(marca in prima for marca in SUPERSCRIZIONI) or (
+                prima.endswith(("salmo", "canto", "inno", "poema", "preghiera"))
+                and len(prima) < 40):
+            frasi = frasi[1:]
+            testo = " ".join(frasi)
+        else:
+            break
+    return testo.strip()
+
+
+def trova_versetto(libro: str, capitolo: int, versetto: int,
+                   contesto: int = 2) -> dict | None:
+    """
+    Restituisce il versetto ESATTO richiesto, con il testo integrale e
+    i versetti di contesto (prima e dopo).
+
+    Esempio: trova_versetto("Giovanni", 3, 16)
+    """
+    m = motore()
+    if not m.caricato and not m.carica():
+        return None
+
+    indici = m.versetti_per_capitolo.get((libro, capitolo))
+    if not indici:
+        # prova varianti di scrittura del nome del libro
+        def _norm(x):
+            return (x or "").lower().replace("'", "").replace(" ", "").strip()
+
+        for (lib, cap), idxs in m.versetti_per_capitolo.items():
+            if cap == capitolo and _norm(lib) == _norm(libro):
+                indici = idxs
+                libro = lib
+                break
+    if not indici:
+        return None
+
+    posizione = None
+    for k, idx in enumerate(indici):
+        if m.versetti[idx]["versetto"] == versetto:
+            posizione = k
+            break
+    if posizione is None:
+        return None
+
+    v = m.versetti[indici[posizione]]
+    prima = [m.versetti[i] for i in indici[max(0, posizione - contesto):posizione]]
+    dopo = [m.versetti[i] for i in indici[posizione + 1:posizione + 1 + contesto]]
+
+    return {
+        "riferimento": f"{libro} {capitolo},{versetto}",
+        "libro": libro,
+        "capitolo": capitolo,
+        "versetto": versetto,
+        "testo": v["testo"],
+        "testo_pulito": testo_versetto_pulito(v["testo"]),
+        "contesto_prima": [{"riferimento": x["riferimento"], "testo": x["testo"]}
+                           for x in prima],
+        "contesto_dopo": [{"riferimento": x["riferimento"], "testo": x["testo"]}
+                          for x in dopo],
+        "capitolo_versetti": [{"riferimento": m.versetti[i]["riferimento"],
+                                "testo": m.versetti[i]["testo"]} for i in indici],
+    }

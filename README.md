@@ -10,19 +10,6 @@ Funziona da browser, quindi è **perfetta per il telefono**.
 
 ---
 
-## 🌐 App online
-
-**https://canzoni-pentecostali-enzo.streamlit.app**
-
-Pubblicata il 20/10/2026 13:29 su Streamlit
-Community Cloud (gratis). Repository: <https://github.com/enzatoro1-afk/canzoni-tiktok>
-
-Per aggiornare l'app: modifica i file e fai `git push` -> Streamlit Cloud
-ricostruisce e rilancia da solo.
-
-
----
-
 ## ✅ Cosa fa
 
 | # | Funzione | Come funziona |

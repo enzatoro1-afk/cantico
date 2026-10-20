@@ -24,7 +24,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from archivio import aggiungi_post, carica_archivio, elimina_post
-from bible_search import NOME_TRADUZIONE, cerca_versetti
+from bible_search import NOME_TRADUZIONE, cerca_versetti, trova_versetto
 from post_generator import (
     FORMATI_POST,
     genera_hashtag,
@@ -39,7 +39,15 @@ from tiktok_sounds import (
     cerca_suoni_tiktok,
     link_ricerca_audio,
 )
-from studio_biblico import genera_passi, query_studio, rileva_riferimento
+from studio_biblico import (
+    PROMPT_INTERPRETAZIONE,
+    estrai_parole_chiave_spirituali,
+    estrai_spiegazione,
+    genera_passi,
+    interpretazione_dotrinale,
+    query_studio,
+    rileva_riferimento,
+)
 from text_tools import (
     analizza_testo,
     correggi_testo,
@@ -47,8 +55,11 @@ from text_tools import (
     spiega_canzone,
 )
 from youtube_search import (
+    FILTRO_PENTECOSTALE,
+    KEYWORD_NEGATIVE,
     ErroreRicerca,
     STILI,
+    cerca_interpretazioni,
     costruisci_query,
     estrai_parole_chiave,
     ricerca_multipla,
@@ -234,11 +245,17 @@ def render_html(html: str, height: int) -> None:
         components.html(html, height=height)
 
 
+DURATA_MAX_SEC = 420          # 7 minuti: scarto compilazioni e culti
+DURATA_MAX_BIBLIA_SEC = 1800    # 30 minuti: per le spiegazioni/prediche
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def ricerca_cached(query_list: tuple[str, ...], n: int,
-                   parole_chiave: tuple[str, ...]) -> list:
+                   parole_chiave: tuple[str, ...],
+                   max_durata: int = DURATA_MAX_SEC) -> list:
     return ricerca_multipla(list(query_list), max_risultati=n,
-                            parole_chiave=list(parole_chiave))
+                            parole_chiave=list(parole_chiave),
+                            max_durata=max_durata)
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -268,7 +285,8 @@ def esegui_ricerca(testo: str) -> None:
 
     parole_chiave = estrai_parole_chiave(testo_pulito, max_parole=3)
     st.session_state["analisi"] = analizza_testo(testo_pulito, parole_chiave)
-    query = costruisci_query(parole_chiave, "Lodi pentecostali / ADI")
+    stile_scelto = st.session_state.get("stile_lode", "Lodi pentecostali / ADI")
+    query = costruisci_query(testo_pulito, stile_scelto)
     st.session_state["query_usate"] = query
 
     with st.spinner("\U0001F50D Sto cercando le canzoni piu' adatte..."):
@@ -295,6 +313,91 @@ def esegui_ricerca(testo: str) -> None:
     st.session_state["cronologia"] = st.session_state["cronologia"][:8]
 
 
+
+def _riferimento_breve(rif: dict) -> str:
+    """Es. {'libro': 'Salmi', 'capitolo': 23} -> 'Salmo 23' (forma YouTube)."""
+    libro = (rif.get("libro") or "").strip()
+    if libro.lower().startswith("sal"):
+        libro = "Salmo"
+    cap = rif.get("capitolo")
+    return f"{libro} {cap}".strip()
+
+
+def _studia_versetto() -> None:
+    """
+    FASE 1: interpretazione dottrinale pentecostale del versetto
+            (esposizioni/predicazioni reali + parole chiave spirituali)
+    FASE 2: ricerca musicale forzata = [riferimento] + [3 parole chiave]
+            + filtro pentecostale + parole negative.
+    """
+    testo = st.session_state.get("testo_input", "") or ""
+    riferimento = rileva_riferimento(testo)
+    if not riferimento:
+        st.session_state["versetto_studio"] = {"errore": (
+            "Non riconosco un riferimento biblico. Scrivilo cosi': "
+            "Giovanni 3,16  oppure  Salmo 23:1")}
+        return
+
+    versetto = trova_versetto(riferimento["libro"], riferimento["capitolo"],
+                               riferimento["versetto"] or 1)
+    if not versetto:
+        st.session_state["versetto_studio"] = {"errore": (
+            f"Non trovo {riferimento['riferimento']} nel testo biblico.")}
+        return
+
+    # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
+    interpretazioni = cerca_interpretazioni(
+        riferimento["libro"], riferimento["capitolo"], riferimento["versetto"],
+        riferimento["riferimento"], versetto["testo_pulito"], 5)
+
+    # la spiegazione scritta: trascrizione di una predicazione che parla
+    # DAVVERO del versetto (controllo di pertinenza sulle parole chiave)
+    trascrizione = None
+    parole_verso = [p.lower() for p in
+                    estrai_parole_chiave(versetto["testo_pulito"], 6)]
+    for r in interpretazioni[:4]:
+        t = estrai_spiegazione(r.video_id)
+        if not t or len(t["testo"]) < 250:
+            continue
+        basso = t["testo"].lower()
+        pertinenti = sum(1 for p in parole_verso if p and p in basso)
+        if pertinenti >= 2:
+            trascrizione = t["testo"]
+            break
+
+    versetto["trascrizione"] = trascrizione
+    analisi = st.session_state.get("analisi") or {}
+    temi = analisi.get("temi") or ["Salvezza"]
+    interpretazione = interpretazione_dotrinale(
+        versetto, temi[0], estrai_parole_chiave(versetto["testo_pulito"], 3))
+
+    # --- FASE 2: query musicale forzata ---
+    parole_spirituali = interpretazione["parole_chiave"][:3]
+    rif_breve = _riferimento_breve(riferimento)
+    query_stretta = (f"{rif_breve} {' '.join(parole_spirituali)} "
+                     f"{FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
+    query_larga = (f"{' '.join(parole_spirituali)} inno pentecostale lode ADI "
+                   f"{FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
+    query = [query_stretta, query_larga]
+    try:
+        risultati = ricerca_cached(tuple(query), 5, tuple(parole_spirituali),
+                                    DURATA_MAX_SEC)
+    except Exception:
+        risultati = []
+
+    st.session_state["versetto_studio"] = {
+        "riferimento": riferimento,
+        "versetto": versetto,
+        "interpretazione": interpretazione,
+        "interpretazioni": interpretazioni,
+        "query": query,
+        "parole_spirituali": parole_spirituali,
+    }
+    st.session_state["risultati"] = risultati
+    st.session_state["query_usate"] = query
+    st.session_state["scelta"] = None
+
+
 # --------------------------------------------------------------------------
 # Stato
 # --------------------------------------------------------------------------
@@ -313,6 +416,7 @@ for chiave, valore in (
     ("riferimento", None),
     ("versetti", []),
     ("_cerca_subito", False),
+    ("versetto_studio", None),
 ):
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
@@ -380,6 +484,15 @@ testo = st.text_area(
     label_visibility="collapsed",
 )
 
+stile_scelto = st.selectbox(
+    "Stile della lode cercata",
+    list(STILI.keys()),
+    index=0,
+    help="Sceglie il filtro che viene aggiunto alla tua ricerca. "
+         "Consigliato: 'Lodi pentecostali / ADI'.",
+    key="stile_lode",
+)
+
 if testo and len(testo) > 1900:
     st.markdown('<div class="note">Testo troncato a 2000 caratteri '
                 '(per non rallentare la ricerca).</div>', unsafe_allow_html=True)
@@ -436,18 +549,29 @@ if analisi:
             f'<br><b>\U0001F4D6 Salmo rilevato:</b> {esc(salmo["riferimento"])}'
             f' &mdash; {esc(salmo["titolo"])}'
         )
+    riga_mood = ""
+    try:
+        from text_tools import rileva_mood
+        _mood = rileva_mood(testo or "")
+        if _mood:
+            riga_mood = (f'<br><b>Atmosfera:</b> {esc(_mood["etichetta"])} '
+                         f'(musica: {esc(", ".join(_mood["parole"]))})')
+    except Exception:
+        pass
+
     st.markdown(
         f'<div class="box"><b>\U0001F9EA Analisi del testo</b><br>'
         f'<b>Temi:</b> {temi}<br>'
         f'<b>Tono:</b> {esc(analisi["tono"])}<br>'
         f'<b>Durata video consigliata:</b> {esc(analisi["durata_video"])}'
-        f'{riga_salmo}</div>',
+        f'{riga_mood}{riga_salmo}</div>',
         unsafe_allow_html=True,
     )
 
     if salmo:
         if st.button("\U0001F4D6 Aggiungi anche gli inni sul Salmo", use_container_width=True):
-            query = costruisci_query(estrai_parole_chiave(testo, 3), "Lodi pentecostali / ADI")
+            query = costruisci_query(testo, stile_scelto)
+            query += query_per_salmo(salmo)
             query += query_per_salmo(salmo)
             st.session_state["query_usate"] = query
             with st.spinner("\U0001F50D Cerco gli inni dedicati a questo Salmo..."):
@@ -459,6 +583,112 @@ if analisi:
             st.session_state["risultati"] = risultati
             st.session_state["scelta"] = None
             st.rerun()
+
+# --------------------------------------------------------------------------
+# IL VERSETTO ESATTO indicato dall'utente (Fase 1 -> Fase 2)
+# --------------------------------------------------------------------------
+
+riferimento_verso = rileva_riferimento(testo or "")
+studio = st.session_state.get("versetto_studio") or {}
+
+if riferimento_verso and not studio.get("errore"):
+    versetto_esatto = studio.get("versetto") or trova_versetto(
+        riferimento_verso["libro"], riferimento_verso["capitolo"],
+        riferimento_verso["versetto"] or 1)
+
+    if versetto_esatto:
+        st.markdown(
+            '<div class="step">IL VERSETTO ESATTO</div>'
+            f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
+            f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
+            '(66 libri = canon protestante evangelico).</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
+            f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+        contesto = versetto_esatto.get("contesto_prima", []) + \
+            versetto_esatto.get("contesto_dopo", [])
+        if contesto:
+            righe = "".join(
+                f'<br><span class="note"><b>{esc(c["riferimento"])}</b> '
+                f'{esc(c["testo"][:160])}</span>' for c in contesto)
+            st.markdown(
+                f'<div class="box box-warn"><b>Contesto (versetti vicini)</b>{righe}</div>',
+                unsafe_allow_html=True,
+            )
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.button(
+                "\U0001F50E Studia questo versetto",
+                key="studia_versetto",
+                use_container_width=True,
+                on_click=_studia_versetto,
+            )
+        with col_b:
+            st.button(
+                "\U0001F3B5 Canzone per questo versetto",
+                key="canzone_da_versetto",
+                use_container_width=True,
+                on_click=_imposta_testo,
+                args=(versetto_esatto["testo_pulito"],),
+            )
+
+# --- esito dello studio: interpretazione + parole chiave + spiegazioni ---
+if studio and studio.get("errore"):
+    st.warning(studio["errore"])
+elif studio and studio.get("versetto"):
+    v = studio["versetto"]
+    interp = studio["interpretazione"]
+
+    st.markdown(
+        '<div class="step">FASE 1 - INTERPRETAZIONE</div>'
+        "<h3>\U0001F4D3 L'interpretazione del versetto</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b><br>'
+        f'{esc(interp.get("testo", ""))}</div>',
+        unsafe_allow_html=True,
+    )
+    parole = interp.get("parole_chiave", [])[:3]
+    if parole:
+        st.markdown(
+            '<div class="note" style="margin-top:6px;">'
+            '<b>Le 3 parole chiave spirituali (usate nella ricerca musicale):</b></div>'
+            + "".join(f'<span class="chip">{esc(p)}</span>' for p in parole),
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("Le interpretazioni che ho trovato (esposizioni, studi, prediche)"):
+        for i, r in enumerate(studio.get("interpretazioni", []), start=1):
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="badge">#{i}</div>'
+                    f'<div class="card-title">{esc(r.titolo)}</div>'
+                    f'<div class="card-meta">{esc(r.canale)}'
+                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>',
+                    unsafe_allow_html=True,
+                )
+                c1, c2 = st.columns(2)
+                with c1:
+                    blocco_copia(r.titolo, f"interp{i}")
+                with c2:
+                    st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
+
+    with st.expander("Il prompt per l'interpretazione (copialo se vuoi usare ChatGPT)"):
+        st.code(
+            PROMPT_INTERPRETAZIONE.format(
+                riferimento=studio.get("riferimento", {}).get("riferimento", ""),
+                testo_versetto=(v.get("testo_pulito", "") + "\n\n"),
+            ),
+            language="text",
+        )
+
 
 # --------------------------------------------------------------------------
 # I versetti biblici trovati (dal pulsante "Trova il testo adatto")

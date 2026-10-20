@@ -120,6 +120,54 @@ SUFFISSI_GENRE = (
 
 
 # --------------------------------------------------------------------------
+# Filtro di confessione: l'app serve contenuti EVANGELICI / PENTECOSTALI.
+# I contenuti cattolici (liturgia, santuari, mariani, catechismo) vengono
+# scartati; quelli pentecostali/evangelici vengono privilegiati.
+# --------------------------------------------------------------------------
+
+TERMINI_CATTOLICI = (
+    "cattolic", "cattolico", "cattolica", "cattolici", "vaticano", "vatican",
+    "papa ", "parrocchia", "liturgia", "mariano", "mariana", "madonna",
+    "santuario", "monaci", "monastero", "suore", "indulgenza", "rosario",
+    "catechismo", "dottrina della chiesa", "viatico", "canonizz", "beatific",
+    "chiesa di roma", "chiesa ortodossa", "chiesa copta", "chiesa cattolica",
+    "vespro", "lauretana", "ave maria", "salve regina", "vescovo", "diocesi",
+    "chiesa madre", "santuari", "madre church",
+)
+
+TERMINI_EVANGELICI = (
+    "pentecostal", "pentecostale", "pentecostali", "chiesa evangelica",
+    "evangelica", "evangelico", "evangelici", "assemblee di dio", "adorazione",
+    "culto", "veglia di preghiera", "vocal", "coro", "inno", "worship",
+    "praise", "christian", "cristiana", "cristiano", "cristianesimo",
+    "battesimo", "evangelizzazione", "biblica", "biblia",
+)
+
+
+def punteggio_confessione(titolo: str, canale: str) -> float:
+    """
+    + se il contenuto e' evangelico/pentecostale, - se e' cattolico.
+    """
+    t = ((titolo or "") + " " + (canale or "")).lower()
+    punteggio = 0.0
+    for termine in TERMINI_EVANGELICI:
+        if termine in t:
+            punteggio += 2.0
+            break
+    for termine in TERMINI_CATTOLICI:
+        if termine in t:
+            punteggio -= 12.0
+            break
+    return punteggio
+
+
+def è_cattolico(titolo: str, canale: str) -> bool:
+    """True se il contenuto è apertamente cattolico (va escluso)."""
+    t = ((titolo or "") + " " + (canale or "")).lower()
+    return any(termine in t for termine in TERMINI_CATTOLICI)
+
+
+# --------------------------------------------------------------------------
 # Modello dati
 # --------------------------------------------------------------------------
 
@@ -227,44 +275,121 @@ def estrai_parole_chiave(testo: str, max_parole: int = 3) -> list[str]:
 
 STILI: dict[str, list[str]] = {
     "Lodi pentecostali / ADI": [
-        "musica evangelica pentecostale lode",
         "inno pentecostale",
+        "canto di lode ADI",
     ],
     "Inni evangelici tradizionali": [
-        "inno evangelico tradizionale lode",
+        "inno evangelico tradizionale",
         "coro evangelico lode",
     ],
     "Canzoni cristiane moderne": [
-        "canzone cristiana lode",
-        "musica cristiana worship",
+        "canzone cristiana worship",
+        "musica cristiana lode moderna",
     ],
     "Mix (tutte le proposte)": [
-        "musica evangelica pentecostale lode",
         "inno pentecostale",
-        "inno evangelico lode",
+        "inno evangelico",
+        "canto di lode ADI",
     ],
 }
 
+# Filtro fisso: va SEMPRE aggiunto alle parole chiave
+FILTRO_PENTECOSTALE = ("musica cristiana evangelica pentecostale "
+                       "lodi ADI cantico evangelico")
 
-def costruisci_query(parole_chiave: Iterable[str], stile: str, extra: str = "") -> list[str]:
+# Keyword negative: il "-" di YouTube esclude i risultati non pertinenti
+# (canzoni mondane, liturgia/cantici cattolici, cori gregoriani, remix...)
+KEYWORD_NEGATIVE = ("-cattolica -cattolico -messa -mondana -pop -remix "
+                     "-gregoriano -mariano")
+
+# Riconosce "Salmo 23", "Salmi 91", "Psalm 23"
+RE_SALMO = re.compile(r"\b(?:salmi?|salmos?|psalms?)\s*\.?\s*(\d{1,3})", re.IGNORECASE)
+
+# Riconosce "Giovanni 3", "1 Corinzi 13", "Proverbi 3"
+RE_LIBRO_CAPITOLO = re.compile(
+    r"\b(?:[1-3]\s+)?([A-Za-z\u00c0-\u00ff]{3,14})\s*\.?\s+(\d{1,3})"
+    r"(?:\s*[:,]\s*\d{1,3})?", re.IGNORECASE
+)
+
+
+def _riferimento_prioritario(testo: str) -> str | None:
     """
-    Unisce le parole chiave estratte con il suffisso di genere scelto.
+    Se il testo contiene un libro+capitolo (es. "Salmo 23", "Giovanni 3"),
+    restituisce la stringa da mettere in TESTA alla query, cosi' la ricerca
+    si concentra sulla lode di quel capitolo preciso.
+    """
+    testo = testo or ""
+    m = RE_SALMO.search(testo)
+    if m:
+        return f"Salmo {m.group(1)}"
+
+    try:
+        from studio_biblico import LIBRI
+    except Exception:
+        return None
+
+    for m2 in RE_LIBRO_CAPITOLO.finditer(testo):
+        nome = m2.group(1).strip().lower()
+        for chiave, (italiano, _ing, _ab) in LIBRI.items():
+            parti = chiave.split()
+            base = " ".join(parti[1:]) if parti[0].isdigit() else chiave
+            if nome in (base, chiave):
+                numero_libro = parti[0] if parti[0].isdigit() else ""
+                etichetta = f"{numero_libro} {italiano}" if numero_libro else italiano
+                return f"{etichetta} {m2.group(2)}"
+    return None
+
+
+def costruisci_query(testo: str, stile: str = "Lodi pentecostali / ADI",
+                     extra: str = "", max_parole: int = 5) -> list[str]:
+    """
+    Compone la query finale: [parole chiave] + [filtro pentecostale fisso]
+    + [variante di stile] + [parole negative].
 
     Esempio:
-        ["amore", "fede"] + "inno pentecostale"
-        -> "amore fede inno pentecostale"
-    """
-    base = " ".join(p for p in parole_chiave if p).strip()
-    if extra:
-        base = f"{base} {extra}".strip()
+        "Il Signore e il mio pastore"
+        -> "signore pastore musica cristiana evangelica pentecostale lodi ADI
+            cantico evangelico inno pentecostale -cattolica -messa -pop"
 
-    suffissi = STILI.get(stile, STILI["Mix (tutte le proposte)"])
+    Se il testo contiene un Salmo o un libro+capitolo, la prima query parte
+    da quel riferimento ("Salmo 23 ...") per puntare alla lode precisa.
+    """
+    # pulisco il versetto da eventuali note/strumenti delle Bibbie online
+    try:
+        from text_tools import pulisci_versetto, rileva_mood
+        testo = pulisci_versetto(testo)
+        mood = rileva_mood(testo)
+    except Exception:
+        mood = None
+
+    parole = estrai_parole_chiave(testo, max_parole=max_parole)
+    varianti = STILI.get(stile, STILI["Lodi pentecostali / ADI"])
     query: list[str] = []
-    for suffisso in suffissi:
-        q = f"{base} {suffisso}".strip() if base else suffisso
-        if q not in query:
+
+    def _aggiungi(q: str) -> None:
+        q = " ".join(q.split()).strip()
+        if q and q not in query:
             query.append(q)
-    return query
+
+    # 1) PRIORITA' al capitolo/Salmo indicato
+    riferimento = _riferimento_prioritario(testo)
+    if riferimento:
+        _aggiungi(f"{riferimento} {FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
+
+    # 2) parole chiave + filtro fisso + variante di stile + mood + esclusioni
+    base = " ".join(parole)
+    mood_words = " ".join(mood["parole"]) if mood else ""
+    for variante in varianti:
+        _aggiungi(f"{base} {FILTRO_PENTECOSTALE} {variante} {mood_words} "
+                  f"{KEYWORD_NEGATIVE}".strip())
+
+    # 3) se il testo e' breve, query col testo integrale (piu' precisa)
+    if testo and len(testo) <= 110:
+        _aggiungi(f"{testo} {FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
+
+    if extra:
+        query = [f"{q} {extra}".strip() for q in query]
+    return query[:4]
 
 
 # --------------------------------------------------------------------------
@@ -379,8 +504,13 @@ def _punteggio_video(titolo: str, canale: str, secondi: int | None,
         if s in c:
             punteggio += 1.0
 
+    # confessione: privilegia evangelico/pentecostale, penalizza cattolico
+    punteggio += punteggio_confessione(titolo, canale)
+
     if secondi is not None:
-        if 100 <= secondi <= 900:      # 1:40 - 15:00 -> la durata tipica di un inno
+        if 180 <= secondi <= 330:      # 3:00 - 5:30 -> il brano singolo ideale
+            punteggio += 2.5
+        elif 100 <= secondi <= 900:    # 1:40 - 15:00 -> durata tipica di un inno
             punteggio += 2.0
         elif secondi < 75:              # spezzoni/intro troppo corti
             punteggio -= 3.0
@@ -394,7 +524,9 @@ def _punteggio_video(titolo: str, canale: str, secondi: int | None,
 
 
 def cerca_youtube(query: str, max_risultati: int = 5,
-                  parole_chiave: Iterable[str] = ()) -> list[Risultato]:
+                  parole_chiave: Iterable[str] = (),
+                  max_durata: int | None = None,
+                  min_durata: int | None = None) -> list[Risultato]:
     """
     Esegue una ricerca su YouTube e restituisce i risultati ordinati per
     rilevanza. Non richiede API key.
@@ -407,14 +539,16 @@ def cerca_youtube(query: str, max_risultati: int = 5,
     try:
         risposta = requests.get(
             "https://www.youtube.com/results",
-            params={"search_query": query, "sp": FILTRO_SOLO_VIDEO},
+            # hl=it / gl=IT: forza la ricerca in italiano e sull'area Italia
+            params={"search_query": query, "sp": FILTRO_SOLO_VIDEO,
+                    "hl": "it", "gl": "IT"},
             headers=HEADERS,
             timeout=TIMEOUT,
         )
         risposta.raise_for_status()
     except requests.exceptions.RequestException as exc:
         # piano B: yt-dlp (se installato) oppure messaggio d'errore
-        alternativi = _cerca_con_ytdlp(query, max_risultati)
+        alternativi = _cerca_con_ytdlp(query, max_risultati, max_durata)
         if alternativi:
             return alternativi
         raise ErroreRicerca(
@@ -427,7 +561,7 @@ def cerca_youtube(query: str, max_risultati: int = 5,
 
     dati = _estrai_ytinitialdata(html)
     if dati is None:
-        alternativi = _cerca_con_ytdlp(query, max_risultati)
+        alternativi = _cerca_con_ytdlp(query, max_risultati, max_durata)
         if alternativi:
             return alternativi
         raise ErroreRicerca(
@@ -448,7 +582,16 @@ def cerca_youtube(query: str, max_risultati: int = 5,
         if not titolo:
             continue
         canale = _testo(v.get("ownerText"))
+        # scarto i contenuti cattolici: qui vanno solo evangelici/pentecostali
+        if è_cattolico(titolo, canale):
+            continue
         durata = _testo(v.get("lengthText"))
+        secondi = _durata_secondi(durata)
+        # scarto i video troppo lunghi (compilazioni, culti registrati)
+        if max_durata is not None and secondi is not None and secondi > max_durata:
+            continue
+        if min_durata is not None and secondi is not None and secondi < min_durata:
+            continue
         visti.add(video_id)
         risultati.append(
             Risultato(
@@ -461,14 +604,58 @@ def cerca_youtube(query: str, max_risultati: int = 5,
         )
 
     if not risultati:
-        alternativi = _cerca_con_ytdlp(query, max_risultati)
+        alternativi = _cerca_con_ytdlp(query, max_risultati, max_durata)
         if alternativi:
             return alternativi
+
+    # FALLBACK: query troppo restrittiva (troppe parole chiave/negative)?
+    # riprovo senza le keyword negative: il filtro cattolico resta attivo
+    # lato Python, quindi il risultato resta evangelico.
+    if not risultati and "-" in query:
+        query_meno_negativi = " ".join(
+            w for w in query.split() if not w.startswith("-"))
+        if query_meno_negativi != query:
+            try:
+                risposta2 = requests.get(
+                    "https://www.youtube.com/results",
+                    params={"search_query": query_meno_negativi,
+                            "sp": FILTRO_SOLO_VIDEO, "hl": "it", "gl": "IT"},
+                    headers=HEADERS, timeout=TIMEOUT)
+                risposta2.raise_for_status()
+                risposta2.encoding = "utf-8"
+                dati2 = _estrai_ytinitialdata(risposta2.text)
+                if dati2 is not None:
+                    render2: list[dict] = []
+                    _walk(dati2, "videoRenderer", render2)
+                    visti2: set[str] = set()
+                    for v in render2:
+                        vid = v.get("videoId", "")
+                        if not vid or vid in visti2:
+                            continue
+                        titolo2 = _testo(v.get("title"))
+                        if not titolo2:
+                            continue
+                        canale2 = _testo(v.get("ownerText"))
+                        if è_cattolico(titolo2, canale2):
+                            continue
+                        durata2 = _testo(v.get("lengthText"))
+                        sec2 = _durata_secondi(durata2)
+                        if max_durata is not None and sec2 is not None \
+                                and sec2 > max_durata:
+                            continue
+                        visti2.add(vid)
+                        risultati.append(Risultato(
+                            titolo=titolo2.strip(), video_id=vid,
+                            canale=canale2.strip(), durata=durata2.strip(),
+                            secondi=sec2))
+            except Exception:
+                pass
 
     return ordina_per_rilevanza(risultati, parole_chiave)[:max_risultati]
 
 
-def _cerca_con_ytdlp(query: str, max_risultati: int) -> list[Risultato]:
+def _cerca_con_ytdlp(query: str, max_risultati: int,
+                     max_durata: int | None = None) -> list[Risultato]:
     """Piano di riserva opzionale: usa yt-dlp se è installato."""
     try:
         from yt_dlp import YoutubeDL  # type: ignore
@@ -491,13 +678,19 @@ def _cerca_con_ytdlp(query: str, max_risultati: int) -> list[Risultato]:
             if not e:
                 continue
             durata = e.get("duration")
+            secondi = int(durata) if isinstance(durata, (int, float)) else None
+            # rispetto il filtro durata anche nel metodo di riserva
+            if max_durata is not None and secondi is not None and secondi > max_durata:
+                continue
+            if secondi is None:
+                continue
             risultati.append(
                 Risultato(
                     titolo=(e.get("title") or "").strip(),
                     video_id=e.get("id") or "",
                     canale=(e.get("channel") or e.get("uploader") or "").strip(),
-                    durata=str(durata) if durata else "",
-                    secondi=int(durata) if isinstance(durata, (int, float)) else None,
+                    durata=f"{secondi // 60}:{secondi % 60:02d}",
+                    secondi=secondi,
                 )
             )
         return risultati
@@ -514,7 +707,8 @@ def ordina_per_rilevanza(risultati: list[Risultato],
 
 
 def ricerca_multipla(query_list: list[str], max_risultati: int = 5,
-                      parole_chiave: Iterable[str] = ()) -> list[Risultato]:
+                      parole_chiave: Iterable[str] = (),
+                      max_durata: int | None = None) -> list[Risultato]:
     """
     Esegue più query e unisce i risultati, eliminando i duplicati.
     È questo il cuore del "cervello": il testo genera 2-3 query diverse
@@ -524,10 +718,130 @@ def ricerca_multipla(query_list: list[str], max_risultati: int = 5,
     for query in query_list:
         try:
             for r in cerca_youtube(query, max_risultati=max_risultati,
-                                   parole_chiave=parole_chiave):
+                                   parole_chiave=parole_chiave,
+                                   max_durata=max_durata):
                 if r.video_id not in unici:
                     unici[r.video_id] = r
         except ErroreRicerca:
             continue  # una query fallita non deve bloccare le altre
     risultati = list(unici.values())
     return ordina_per_rilevanza(risultati, parole_chiave)[:max_risultati]
+
+
+# --------------------------------------------------------------------------
+# Ricerca delle INTERPRETAZIONI (commenti, esposizioni, prediche)
+# --------------------------------------------------------------------------
+
+PAROLE_INTERPRETAZIONE = (
+    "commento", "esposizione", "spiegazione", "spiegato", "studio biblico",
+    "sermone", "predica", "interpretazione", "significato", "teologia",
+    "biblico", "biblica", "messaggio", "meditazione", "riflessione",
+    "what does", "meaning", "exposition", "commentary", "study",
+)
+
+PAROLE_CANTO = (
+    "inno", "cantico", "canto", "lode", "adorazione", "hymn", "worship",
+    "praise", "song", "musica", "strumentale", "karaoke", "testo canzone",
+)
+
+
+def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
+                                parole_rif: Iterable[str]) -> float:
+    """
+    parole_rif: ["Salmo 23", "Salmi", "23", ...] - piu' e' pertinente il
+    riferimento, piu' alto e' il punteggio (il video parla proprio di QUEL
+    versetto).
+    """
+    t = (titolo or "").lower()
+    c = (canale or "").lower()
+    punteggio = 0.0
+
+    for p in PAROLE_INTERPRETAZIONE:
+        if p in t:
+            punteggio += 3.5
+            break
+    for p in PAROLE_INTERPRETAZIONE:
+        if p in c:
+            punteggio += 1.5
+            break
+
+    # il titolo cita il versetto indicato? (es. "Salmo 23" in "Salmo 23 - ...")
+    riferimento_pieno = ""
+    for p in parole_rif:
+        if p and " " in p:
+            riferimento_pieno = p.lower()
+            break
+    if riferimento_pieno and riferimento_pieno in t:
+        punteggio += 6.0
+    else:
+        for p in parole_rif:
+            if p and len(p) > 3 and p.lower() in t:
+                punteggio += 2.5
+                break
+        if str(parole_rif[-1]) and str(parole_rif[-1]) in t and len(t) < 90:
+            punteggio += 1.0
+
+    # è un canto, non una spiegazione?
+    e_canto = any(p in t for p in PAROLE_CANTO)
+    if e_canto:
+        punteggio -= 4.0
+        if secondi is not None and secondi < 400:
+            punteggio -= 3.0
+
+    if secondi is not None:
+        if 360 <= secondi <= 2700:      # 6-45 minuti: una vera spiegazione
+            punteggio += 3.0
+        elif 180 <= secondi < 360:      # 3-6 minuti: sintesi
+            punteggio += 1.0
+        elif secondi < 120:
+            punteggio -= 2.0
+        elif secondi > 5400:            # 90+ minuti: predica lunga
+            punteggio -= 1.0
+
+    # solo contenuti evangelici/pentecostali
+    punteggio += punteggio_confessione(titolo, canale)
+
+    return punteggio
+
+
+def query_interpretazioni(libro: str, capitolo: int, versetto: int | None,
+                          riferimento: str, parole_verso: Iterable[str] = ()) -> list[str]:
+    """Query per trovare studi/esposizioni sul versetto indicato."""
+    query = [
+        f"commento {riferimento} pentecostale",
+        f"esposizione {libro} {capitolo} ADI chiesa evangelica",
+        f"studio biblico {riferimento} significato",
+        f"{libro} {capitolo} spiegazione versetto",
+    ]
+    parole = [p for p in parole_verso if p and len(p) > 4]
+    if parole:
+        query.append(f"{riferimento} {' '.join(parole[:3])}")
+    return query[:5]
+
+
+def cerca_interpretazioni(libro: str, capitolo: int, versetto: int | None,
+                          riferimento: str, testo_verso: str = "",
+                          max_risultati: int = 5) -> list[Risultato]:
+    """
+    Cerca le interpretazioni (commenti/esposizioni) del versetto indicato e
+    le ordina per qualità didattica, non per canzone.
+    """
+    parole_verso = [p for p in re.findall(r"[A-Za-zÀ-ÿ]{5,}", testo_verso or "")][:6]
+    query = query_interpretazioni(libro, capitolo, versetto, riferimento, parole_verso)
+    unici: dict[str, Risultato] = {}
+    for q in query:
+        try:
+            for r in cerca_youtube(q, max_risultati=max_risultati,
+                                   parole_chiave=parole_verso):
+                if r.video_id not in unici:
+                    unici[r.video_id] = r
+        except ErroreRicerca:
+            continue
+
+    risultati = list(unici.values())
+    parole_rif = [f"{libro} {capitolo}", libro, str(capitolo)]
+    for r in risultati:
+        r.punteggio = _punteggio_interpretazione(
+            r.titolo, r.canale, r.secondi, parole_rif)
+    risultati.sort(key=lambda x: -x.punteggio)
+    return risultati[:max_risultati]

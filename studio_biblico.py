@@ -330,3 +330,196 @@ def query_studio(riferimento: dict | None, testo: str = "") -> list[str]:
             query.append(f"{frase} spiegazione bibbia pentecostale")
             query.append(f"{frase} insegnamento ADI")
     return query[:5]
+
+
+# --------------------------------------------------------------------------
+# La spiegazione per iscritto: trascrizione della predicazione
+# --------------------------------------------------------------------------
+
+RUMORE_TRASCRIZIONE = re.compile(
+    r"(\[[^\]]{0,40}\])|(>>+)|(\.\.\.)", re.IGNORECASE
+)
+
+
+def _puliscitrascrizione(frammenti: list) -> str:
+    """Unisce i frammenti eliminando i marcatori di musica/applausi."""
+    parti = []
+    for f in frammenti:
+        testo = getattr(f, "text", None)
+        if testo is None:
+            testo = str(f)
+        testo = RUMORE_TRASCRIZIONE.sub(" ", testo)
+        testo = re.sub(r"\s+", " ", testo).strip()
+        if testo:
+            parti.append(testo)
+    return " ".join(parti)
+
+
+def estrai_spiegazione(video_id: str, max_caratteri: int = 1500) -> dict | None:
+    """
+    Scarica la trascrizione di un video di predicazione e restituisce la
+    parte parlata: è la "migliore interpretazione" scritta, presa dalla
+    predicazione stessa.
+
+    Restituisce None se il video non ha trascrizione.
+    """
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except Exception:
+        return None
+
+    try:
+        api = YouTubeTranscriptApi()
+        try:
+            frammenti = api.fetch(video_id, languages=["it", "it-IT", "en"])
+        except Exception:
+            try:
+                frammenti = api.fetch(video_id)
+            except Exception:
+                return None
+    except Exception:
+        return None
+
+    testo = _puliscitrascrizione(frammenti)
+    if len(testo) < 120:
+        return None
+
+    # prendo la parte che espone (scarto eventuali longhe intro musicali)
+    testo = testo[:max_caratteri]
+    if len(testo) > 600:
+        # taglio su una frase intera
+        punto = testo.rfind(". ", 400, 600)
+        if punto > 0:
+            testo = testo[:punto + 1]
+
+    return {
+        "video_id": video_id,
+        "testo": testo.strip(),
+        "caratteri": len(testo),
+    }
+
+
+# --------------------------------------------------------------------------
+# FASE 1: interpretazione dottrinale pentecostale + parole chiave spirituali
+# --------------------------------------------------------------------------
+
+PROMPT_INTERPRETAZIONE = """Sei un assistente biblico di dottrina Cristiana Evangelica Pentecostale (linea ADI / Assemblee di Dio).
+Prendi il seguente riferimento: {riferimento}
+{testo_versetto}Estrai il testo intero se e' presente solo il capitolo.
+Fornisci una breve interpretazione teologica focalizzata sui temi della lode, della fede, del ravvedimento o della consolazione spirituale.
+Infine, estrai le 3 parole chiave spirituali piu' forti (es. 'Fortezza', 'Salvezza', 'Fedelta') derivate da questa interpretazione."""
+
+# lessico spirituale pesato: dal piu' forte al piu' generico
+LESSICO_SPIRITUALE = (
+    ("redenzione", 10), ("salvezza", 10), ("consolazione", 9), ("fortezza", 9),
+    ("rifugio", 9), ("scudo", 9), ("speranza", 8), ("fedeltà", 8),
+    ("fedele", 8), ("misericordia", 8), ("perdono", 8), ("ravvedimento", 8),
+    ("pentecoste", 8), ("spiritualità", 7), ("santificazione", 7),
+    ("confessione", 7), ("obbedienza", 7), ("coraggio", 7), ("protezione", 7),
+    ("sostegno", 7), ("fiducia", 7), ("resurrezione", 7), ("risurrezione", 7),
+    ("vita", 6), ("luce", 6), ("verità", 6), ("grazia", 6), ("amore", 6),
+    ("lode", 6), ("adorazione", 6), ("preghiera", 6), ("pastore", 6),
+    ("salvatore", 6), ("sacrificio", 6), ("croce", 6), ("pazienza", 5),
+    ("umiltà", 5), ("povertà", 5), ("zelo", 5), ("missione", 5),
+    ("testimonianza", 5), ("fratellanza", 5),
+)
+
+
+def estrai_parole_chiave_spirituali(testo: str, numero: int = 3) -> list[str]:
+    """
+    Dall'interpretazione teologica estrae le N parole chiave spirituali piu'
+    forti. Usa un lessico pesato; se non trova niente, prende le parole
+    significative piu' frequenti.
+    """
+    testo_norm = senza_accenti(testo or "")
+    punteggi: dict[str, float] = {}
+
+    for parola, peso in LESSICO_SPIRITUALE:
+        if parola in testo_norm:
+            punteggi[parola] = punteggi.get(parola, 0.0) + peso
+
+    if not punteggi:
+        # fallback prudente: solo parole "solide" (>= 6 lettere, non generiche)
+        parole = [p for p in re.findall(r"[a-z]{6,}", testo_norm)
+                  if p not in ("signore", "questo", "questa", "nostro", "vostro",
+                               "fratello", "sorella", "presente", "passato",
+                               "davvero", "perche", "quando", "mentre", "adesso",
+                               "stesso", "altro", "giorno", "sempre", "ancora",
+                               "insieme", "attorno", "quando", "stato")]
+        conteggio: dict[str, int] = {}
+        for p in parole:
+            conteggio[p] = conteggio.get(p, 0) + 1
+        ordinati = sorted(conteggio.items(), key=lambda kv: -kv[1])
+        return [p for p, _ in ordinati[:numero]]
+
+    ordinati = sorted(punteggi.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [p for p, _ in ordinati[:numero]]
+
+
+def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
+                              parole_chiave: list[str] | None = None) -> dict:
+    """
+    Genera una breve interpretazione teologica di dottrina evangelica
+    pentecostale. Usa, in ordine di preferenza:
+      1. la trascrizione di una predica/esposizione reale trovata su YouTube;
+      2. il motore tematico dell'app (interpretazione di studio).
+    """
+    parole_chiave = parole_chiave or []
+    if versetto:
+        testo_versetto = versetto.get("testo_pulito") or versetto.get("testo", "")
+        riferimento = versetto.get("riferimento", "")
+    else:
+        testo_versetto = ""
+        riferimento = ""
+
+    # 1) interpretazione reale dalla predicazione (se disponibile)
+    if versetto and versetto.get("trascrizione"):
+        testo = versetto["trascrizione"]
+        return {
+            "testo": testo,
+            "parole_chiave": estrai_parole_chiave_spirituali(testo),
+            "fonte": "predicazione (trascrizione reale)",
+            "riferimento": riferimento,
+        }
+
+    # 2) interpretazione di studio costruita dall'app (solo il tema pertinente)
+    tema = tema or "Salvezza"
+    frasi_tema = {
+        "Consolazione": "Per la consolazione: e' un invito a poggiare su Dio "
+                        "nei momenti di prova, perche Egli non abbandona il suo popolo.",
+        "Proclamazione": "Per la lode: questo versetto viene cantato per esaltare "
+                         "Dio e chiamare l'assemblea all'adorazione.",
+        "Salvezza": "Per la salvezza: annuncia la grazia di Dio e chiama alla "
+                    "conversione, perche solo in Cristo c'e' salvezza.",
+        "Amore": "Per l'amore: mostra l'amore che Dio porta a ciascuno dei suoi "
+                 "figli, anche quando falliscono.",
+        "Fede": "Per la fede: e' un invito a credere e a fidarsi di Dio anche "
+                "quando non si capisce il percorso.",
+        "Preghiera": "Per la preghiera: e' un invito a pregare e a cercare Dio "
+                     "in ogni momento.",
+        "Coraggio": "Per il coraggio: e' un invito a non temere e ad affrontare "
+                    "le prove con fortezza.",
+        "Guarigione": "Per la guarigione: annuncia la guarigione che viene da "
+                      "Dio, del corpo e dello spirito.",
+        "Speranza": "Per la speranza: e' l'invito a non perdere la fiducia in "
+                    "Dio, perche le sue promesse sono certe.",
+        "Umiltà": "Per l'umiltà: richiama all'umiltà e al servizio umile.",
+        "Paternità": "Per la paternità: ricorda il cuore di Dio come Padre.",
+        "Servizio": "Per il servizio: chiama a servire e a portare il messaggio "
+                    "a chi non lo conosce.",
+        "Battesimo": "Per il battesimo: parla del nuovo inizio in Cristo.",
+    }
+    frase = frasi_tema.get(tema, frasi_tema["Salvezza"])
+    nucleo = ", ".join(parole_chiave[:3]) if parole_chiave else "la fiducia in Dio"
+    corpo = (
+        f"Questo passo parla di {tema.lower()}. Nella dottrina evangelica "
+        f"pentecostale il punto centrale e' questo: Dio agisce per primo e "
+        f"l'uomo risponde con fede. Il nucleo spirituale del testo sta in "
+        f"{nucleo}. {frase}"
+    )
+    return {
+        "testo": corpo,
+        "parole_chiave": estrai_parole_chiave_spirituali(corpo),
+        "fonte": "studio (dottrina evangelica pentecostale)",
+        "riferimento": riferimento,
+    }

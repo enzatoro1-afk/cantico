@@ -382,3 +382,93 @@ def spiega_canzone(titolo: str, canale: str, durata: str, secondi: int | None,
         motivi.append("è un brano di musica evangelica che può accompagnare il tuo testo")
 
     return motivi[:4]
+
+
+# --------------------------------------------------------------------------
+# Mood: il tono della riflessione guida le parole aggiuntive della ricerca
+# (adorazione profonda per il ravvedimento, lode movimentata per la vittoria...)
+# --------------------------------------------------------------------------
+
+MOOD = {
+    "ravvedimento": {
+        "query": ["ravvedimento", "peccato", "pentimento", "confessione",
+                   "errore", "colpa", "caduta", "contrito", "umiltà", "peccatore"],
+        "extra": ["adorazione profonda", "musica per preghiera",
+                  "inno di ravvedimento"],
+        "etichetta": "ravvedimento e umiltà",
+    },
+    "consolazione": {
+        "query": ["paura", "consola", "sostegno", "pietra", "rifugio",
+                   "tristezza", "lacrime", "affanno", "debolezza", "stanco",
+                   "delusa", "sprezzato"],
+        "extra": ["adorazione profonda", "musica per preghiera",
+                  "inno di consolazione"],
+        "etichetta": "consolazione e sostegno",
+    },
+    "vittoria": {
+        "query": ["vittoria", "gioia", "festa", "trionfo", "esulta", "celebra",
+                  "combattimento", "vince", "trionfa", "corona"],
+        "extra": ["lode movimentata", "coro pentecostale", "inni di vittoria"],
+        "etichetta": "vittoria e gioia",
+    },
+    "lode": {
+        "query": ["lode", "adora", "canta", "celebra", "gloria", "magnifica",
+                  "esalta", "clama"],
+        "extra": ["lode movimentata", "coro pentecostale", "adorazione"],
+        "etichetta": "lode e adorazione",
+    },
+    "zelo": {
+        "query": ["missione", "evangelizza", "zelo", "testimonio", "servizio",
+                  "opera", "porta"],
+        "extra": ["coro pentecostale", "inno di zelo", "lode movimentata"],
+        "etichetta": "zelo e missione",
+    },
+}
+
+
+def rileva_mood(testo: str) -> dict | None:
+    """
+    Riconosce il tono del testo e restituisce:
+      {"mood": "...", "etichetta": "...", "parole": [...]}
+    Le "parole" vanno aggiunte alla query di ricerca musicale.
+    """
+    testo_norm = senza_accenti(testo or "")
+    if not testo_norm:
+        return None
+    punteggi: dict[str, float] = {}
+    for nome, dati in MOOD.items():
+        hits = sum(1 for q in dati["query"] if q in testo_norm)
+        if hits:
+            punteggi[nome] = hits
+    if not punteggi:
+        return None
+    mood = max(punteggi.items(), key=lambda kv: kv[1])[0]
+    dati = MOOD[mood]
+    return {
+        "mood": mood,
+        "etichetta": dati["etichetta"],
+        "parole": list(dati["extra"]),
+    }
+
+
+# --------------------------------------------------------------------------
+# Pulizia dei caratteri speciali nei versetti incollati
+# --------------------------------------------------------------------------
+
+RE_BRACKET = re.compile(r"\[[^\]]{0,12}\]")
+RE_SUPERSCRIPT = re.compile(r"[\u00b9\u00b2\u00b3\u2070-\u209f]")
+RE_PULIZIA = re.compile(r"[\u2022|~*_`\u2014\u2013]+")
+
+
+def pulisci_versetto(testo: str) -> str:
+    """
+    Ripulisce un versetto incollato dalla Bibbia online:
+    toglie note "[a]", numeri di nota in apice, trattini e simboli,
+    e normalizza gli spazi. Mantiene libro, capitolo e testo.
+    """
+    testo = (testo or "").strip()
+    testo = RE_BRACKET.sub(" ", testo)
+    testo = RE_SUPERSCRIPT.sub(" ", testo)
+    testo = RE_PULIZIA.sub(" ", testo)
+    testo = re.sub(r"\s+", " ", testo).strip()
+    return testo
