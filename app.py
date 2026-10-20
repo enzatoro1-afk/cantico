@@ -69,7 +69,8 @@ from youtube_search import (
 # Configurazione pagina
 # --------------------------------------------------------------------------
 
-BUILD = "2026-10-20 16:25"   # timbro: cambia a ogni nuova versione
+BUILD = __import__("datetime").datetime.fromtimestamp(
+    __import__("os").path.getmtime(__file__)).strftime("%Y-%m-%d %H:%M")
 
 st.set_page_config(
     page_title="Canzoni Pentecostali per TikTok",
