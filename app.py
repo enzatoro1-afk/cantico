@@ -69,6 +69,8 @@ from youtube_search import (
 # Configurazione pagina
 # --------------------------------------------------------------------------
 
+BUILD = "2026-10-20 16:25"   # timbro: cambia a ogni nuova versione
+
 st.set_page_config(
     page_title="Canzoni Pentecostali per TikTok",
     page_icon="🎵",
@@ -1216,7 +1218,14 @@ else:
                     st.rerun()
 
 st.markdown(
-    '<div class="note" style="text-align:center;margin-top:18px;">'
-    'Fatto per i creator cristiani \U0001F49F</div>',
+    f'<div class="note" style="text-align:center;margin-top:18px;">'
+    f'Fatto per i creator cristiani \U0001F49F<br>'
+    f'<span style="opacity:.6">versione {BUILD}</span></div>',
     unsafe_allow_html=True,
 )
+
+# pulsante "ricarica" per prendere subito la versione piu' recente
+if st.button("\U0001F504 Ricarica la versione piu' recente", use_container_width=True):
+    st.cache.clear()
+    st.query_params["v"] = BUILD.replace(" ", "-")
+    st.rerun()
