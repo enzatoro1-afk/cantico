@@ -295,3 +295,43 @@ comunque continua a funzionare (l'archivio resta in memoria).
 ---
 
 ## ❤️ Fatto per i creator cristiani
+
+---
+
+## 🔎 Il doppio passaggio (versetto -> interpretazione -> canzone)
+
+Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due fasi:
+
+**FASE 1 - Interpretazione dottrinale pentecostale**
+1. Riconosce il riferimento e porta il **testo integrale** del versetto dalla
+   Sacra Bibbia - Versione Riveduta 2020 (canon protestante, 66 libri), con i
+   versetti di contesto.
+2. Cerca su YouTube le **esposizioni, gli studi e le prediche** di chiese
+   evangeliche/pentecostali su quel passaggio.
+3. Scarica la **trascrizione** della predicazione (solo se parla davvero del
+   versetto) e la usa come interpretazione; in alternativa genera
+   l'interpretazione di studio secondo la dottrina evangelica pentecostale.
+4. Estrae le **3 parole chiave spirituali** (es. *fiducia, luce, pastore*).
+
+**FASE 2 - Ricerca musicale forzata**
+```
+[Salmo 23] + [fiducia luce pastore]
+  + "musica cristiana evangelica pentecostale lodi ADI cantico evangelico"
+  + [-cattolica -cattolico -messa -mondana -pop -remix -gregoriano -mariano]
+```
+
+### Blindaggi applicati
+
+| Regola | Come funziona |
+|--------|---------------|
+| **Solo musica evangelica** | I contenuti cattolici (liturgia, mariani, santuari, catechismo) vengono **scartati in Python**, oltre alle keyword negative |
+| **Localizzazione** | YouTube viene interrogato con `hl=it` e `gl=IT` ( Italiano, area Italia) |
+| **Mood automatico** | Se il testo parla di ravvedimento/consolazione -> "adorazione profonda", "musica per preghiera"; se parla di vittoria/gioia -> "lode movimentata", "coro pentecostale", "inni di vittoria" |
+| **Durata** | Scartati i video oltre 7 minuti (compilazioni, culti registrati); preferiti i brani singoli di 3-5 minuti |
+| **Testo pulito** | Tolte note `[a]`, numeri in apice, simboli e formattazioni delle Bibbie online |
+| **Priorità al capitolo** | Riconosciuto "Salmo 23" o "Giovanni 3" e la ricerca parte da quel riferimento |
+| **Fallback** | Se la query stretta non dà risultati, l'app riprova con la query allargata (il filtro cattolico resta attivo) |
+| **Doppio controllo** | Prima la query esatta, poi la più larga: il risultato migliore vince |
+
+Il prompt per l'interpretazione (per chi vuole usare ChatGPT) si trova
+nell'app, sotto "Il prompt per l'interpretazione".
