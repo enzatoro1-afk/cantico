@@ -24,7 +24,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from archivio import aggiungi_post, carica_archivio, elimina_post
-from bible_search import NOME_TRADUZIONE, cerca_versetti, trova_versetto
+from bible_search import (NOME_TRADUZIONE, cerca_versetti,
+                        testo_versetto_pulito, trova_versetto)
 from post_generator import (
     FORMATI_POST,
     genera_hashtag,
@@ -363,6 +364,18 @@ def _studia_versetto() -> None:
         testo_intero = versetto["testo_passaggio"]
         versetto["e_capitolo_intero"] = True
 
+    # se l'utente ha scelto UN versetto del passaggio, studio solo quello
+    _scelta = st.session_state.get("verso_selezionato")
+    if _scelta:
+        try:
+            _num = int(_scelta[1])
+            _singolo = trova_versetto(riferimento["libro"],
+                                      riferimento["capitolo"], _num)
+            if _singolo:
+                versetto = _singolo
+        except Exception:
+            pass
+
     # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
     interpretazioni = cerca_interpretazioni(
         riferimento["libro"], riferimento["capitolo"], riferimento["versetto"],
@@ -617,6 +630,28 @@ if riferimento_verso and not studio.get("errore"):
 
     solo_capitolo = not riferimento_verso.get("versetto")
 
+    # CONTESTO opzionale: di default vedi SOLO quello che hai chiesto
+    mostra_contesto = st.checkbox(
+        "Mostra anche i versetti vicini (contesto)",
+        value=False,
+        help="Spunta per vedere i 2 versetti prima e dopo quello che hai indicato.",
+        key="mostra_contesto",
+    )
+    # INTESTAZIONI POETICHE (es. "Salmo di Davide"): nascoste di default
+    mostra_intestazioni = st.checkbox(
+        "Mostra anche le intestazioni poetiche (es. 'Salmo di Davide')",
+        value=False,
+        help="Nella Riveduta alcuni Salmi hanno un titolo poetico prima del "
+             "versetto: di default lo nascondo, cosi' vedi solo il testo.",
+        key="mostra_intestazioni",
+    )
+
+    def _testo_versetto(testo: str) -> str:
+        """Solo il testo del versetto, senza intestazioni poetiche."""
+        if mostra_intestazioni:
+            return testo
+        return testo_versetto_pulito(testo)
+
     if versetto_esatto:
         if solo_capitolo:
             st.markdown(
@@ -651,8 +686,25 @@ if riferimento_verso and not studio.get("errore"):
             for c in versetto_esatto.get("passaggio", []):
                 st.markdown(
                     f'<div class="box" style="margin-bottom:6px;">'
-                    f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',
+                    f'<b>{esc(c["riferimento"])}</b><br>'
+                    f'{esc(_testo_versetto(c["testo"]))}</div>',
                     unsafe_allow_html=True,
+                )
+            # vuoi studiare un SOLO versetto del passaggio? sceglilo qui
+            _opzioni = [("Tutto il passaggio", 0)] + [
+                (c["riferimento"], int(c["riferimento"].split(",")[-1]))
+                for c in versetto_esatto.get("passaggio", [])
+                if "," in c["riferimento"]
+            ]
+            if len(_opzioni) > 1:
+                st.selectbox(
+                    "Studiare in profondita' solo un versetto?",
+                    _opzioni,
+                    index=0,
+                    format_func=lambda x: x[0],
+                    key="verso_selezionato",
+                    help="Scegli un versetto se vuoi l'interpretazione di quel "
+                         "singolo versetto invece che dell'intero passaggio.",
                 )
         else:
             st.markdown(
@@ -668,13 +720,13 @@ if riferimento_verso and not studio.get("errore"):
                 unsafe_allow_html=True,
             )
 
-        contesto = [] if solo_capitolo else (
+        contesto = [] if (solo_capitolo or not mostra_contesto) else (
             versetto_esatto.get("contesto_prima", []) +
             versetto_esatto.get("contesto_dopo", []))
         if contesto:
             righe = "".join(
                 f'<br><span class="note"><b>{esc(c["riferimento"])}</b> '
-                f'{esc(c["testo"][:160])}</span>' for c in contesto)
+                f'{esc(_testo_versetto(c["testo"]))}</span>' for c in contesto)
             st.markdown(
                 f'<div class="box box-warn"><b>Contesto (versetti vicini)</b>{righe}</div>',
                 unsafe_allow_html=True,
@@ -683,11 +735,11 @@ if riferimento_verso and not studio.get("errore"):
         # testo completo da copiare (passaggio / capitolo / versetto)
         if versetto_esatto.get("e_passaggio"):
             testo_da_copiare = "\n\n".join(
-                f'{c["riferimento"]}  {c["testo"]}'
+                f'{c["riferimento"]}  {_testo_versetto(c["testo"])}'
                 for c in versetto_esatto.get("passaggio", []))
         elif solo_capitolo:
             testo_da_copiare = "\n\n".join(
-                f'{c["riferimento"]}  {c["testo"]}'
+                f'{c["riferimento"]}  {_testo_versetto(c["testo"])}'
                 for c in versetto_esatto.get("capitolo_versetti", []))
         else:
             testo_da_copiare = (f'{versetto_esatto["riferimento"]}  '
@@ -707,8 +759,12 @@ if riferimento_verso and not studio.get("errore"):
 
         col_a, col_b = st.columns(2)
         with col_a:
+            _etichetta = "\U0001F50E Studia questo versetto"
+            _sc = st.session_state.get("verso_selezionato")
+            if _sc and _sc[1]:
+                _etichetta = f"\U0001F50E Studia solo {_sc[0]}"
             st.button(
-                "\U0001F50E Studia questo versetto",
+                _etichetta,
                 key="studia_versetto",
                 use_container_width=True,
                 on_click=_studia_versetto,
@@ -736,10 +792,11 @@ elif studio and studio.get("versetto"):
     )
     lunghezza = st.radio(
         "Quanto vuoi leggere dell'interpretazione?",
-        ["Completa (tutto il testo)", "Media", "Breve (riassunto)"],
+        ["Completa (tutto il testo)", "Media (abbroncata)", "Breve (riassunto)"],
         index=0,
         horizontal=True,
         key="lunghezza_interp",
+        help="Di default esce TUTTO il testo dell'interpretazione.",
     )
     testo_interp = interp.get("testo", "")
     if lunghezza.startswith("Breve"):

@@ -261,7 +261,7 @@ def genera_passi(testo: str, analisi: dict, riferimento: dict | None) -> list[di
     passi.append({
         "titolo": "1. Il testo",
         "contenuto": (
-            f"«{testo[:220]}{'...' if len(testo) > 220 else ''}»"
+            f"«{testo}»"
             + (f" ({rif})" if riferimento else "")
         ),
         "domanda": "Leggi il passaggio due volte: ad alta voce, poi lentamente. "
@@ -549,7 +549,7 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
                    versetto.get("contesto_dopo", []))
         if _vicini:
             contesto_txt = ("\n\n".join(
-                f'{c["riferimento"]}  {c["testo"]}' for c in _vicini[:3]))
+                f'{c["riferimento"]}  {c["testo"]}' for c in _vicini))
     if not contesto_txt:
         contesto_txt = ("Leggi i versetti che precedono e seguono: il testo non "
                         "si capisce da solo, perche' nasce dentro una "
