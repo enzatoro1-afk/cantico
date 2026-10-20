@@ -470,7 +470,8 @@ def testo_versetto_pulito(testo: str) -> str:
 
 
 def trova_versetto(libro: str, capitolo: int, versetto: int,
-                   contesto: int = 2) -> dict | None:
+                   contesto: int = 2,
+                   versetto_fine: int | None = None) -> dict | None:
     """
     Restituisce il versetto ESATTO richiesto, con il testo integrale e
     i versetti di contesto (prima e dopo).
@@ -488,7 +489,10 @@ def trova_versetto(libro: str, capitolo: int, versetto: int,
             return (x or "").lower().replace("'", "").replace(" ", "").strip()
 
         for (lib, cap), idxs in m.versetti_per_capitolo.items():
-            if cap == capitolo and _norm(lib) == _norm(libro):
+            if cap != capitolo:
+                continue
+            n_lib, n_libro = _norm(lib), _norm(libro)
+            if n_lib == n_libro or n_lib.endswith(n_libro) or n_libro.endswith(n_lib):
                 indici = idxs
                 libro = lib
                 break
@@ -503,12 +507,39 @@ def trova_versetto(libro: str, capitolo: int, versetto: int,
     if posizione is None:
         return None
 
-    v = m.versetti[indici[posizione]]
-    prima = [m.versetti[i] for i in indici[max(0, posizione - contesto):posizione]]
-    dopo = [m.versetti[i] for i in indici[posizione + 1:posizione + 1 + contesto]]
+    # PASSAGGIO: se c'e' un intervallo (es. 28-31) prendo TUTTI i versetti
+    passaggio: list = []
+    if versetto_fine and versetto_fine > (versetto or 1):
+        for i in indici:
+            numero = m.versetti[i]["versetto"]
+            if versetto <= numero <= versetto_fine:
+                passaggio.append(m.versetti[i])
+        if not passaggio:
+            passaggio = [m.versetti[indici[posizione]]]
+    else:
+        passaggio = [m.versetti[indici[posizione]]]
+
+    v = passaggio[0]
+    ultima = passaggio[-1]
+    indice_fine = indici.index(indici[0]) if False else None
+    # contesto: solo se non e' un passaggio
+    if len(passaggio) > 1:
+        prima = []
+        dopo = []
+    else:
+        prima = [m.versetti[i] for i in indici[max(0, posizione - contesto):posizione]]
+        dopo = [m.versetti[i] for i in indici[posizione + 1:posizione + 1 + contesto]]
+
+    riferimento = f"{libro} {capitolo},{versetto}"
+    if len(passaggio) > 1:
+        riferimento += f"-{ultima['versetto']}"
 
     return {
-        "riferimento": f"{libro} {capitolo},{versetto}",
+        "riferimento": riferimento,
+        "passaggio": [{"riferimento": x["riferimento"], "testo": x["testo"]}
+                       for x in passaggio],
+        "testo_passaggio": " ".join(x["testo"] for x in passaggio),
+        "e_passaggio": len(passaggio) > 1,
         "libro": libro,
         "capitolo": capitolo,
         "versetto": versetto,

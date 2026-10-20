@@ -341,19 +341,25 @@ def _studia_versetto() -> None:
         return
 
     versetto = trova_versetto(riferimento["libro"], riferimento["capitolo"],
-                               riferimento["versetto"] or 1)
+                               riferimento["versetto"] or 1,
+                               versetto_fine=riferimento.get("versetto_fine"))
     if not versetto:
         st.session_state["versetto_studio"] = {"errore": (
             f"Non trovo {riferimento['riferimento']} nel testo biblico.")}
         return
 
-    # se l'utente ha scritto solo il SALMO/CAPITOLO (es. "Salmo 23"),
-    # studio e mostro il CAPITOLO INTERO
+    # testo da studiare:
+    #  - solo il capitolo ("Salmo 23")  -> tutto il capitolo
+    #  - un intervallo ("Marco 12,28-31") -> tutto il passaggio
+    #  - un versetto singolo -> il versetto
     testo_intero = versetto["testo_pulito"]
     if not riferimento.get("versetto"):
         capitolo = versetto.get("capitolo_versetti", [])
         testo_intero = " ".join(c["testo"] for c in capitolo)
         versetto["testo_capitolo"] = testo_intero
+        versetto["e_capitolo_intero"] = True
+    elif versetto.get("testo_passaggio"):
+        testo_intero = versetto["testo_passaggio"]
         versetto["e_capitolo_intero"] = True
 
     # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
@@ -605,7 +611,8 @@ studio = st.session_state.get("versetto_studio") or {}
 if riferimento_verso and not studio.get("errore"):
     versetto_esatto = studio.get("versetto") or trova_versetto(
         riferimento_verso["libro"], riferimento_verso["capitolo"],
-        riferimento_verso["versetto"] or 1)
+        riferimento_verso["versetto"] or 1,
+        versetto_fine=riferimento_verso.get("versetto_fine"))
 
     solo_capitolo = not riferimento_verso.get("versetto")
 
@@ -620,6 +627,20 @@ if riferimento_verso and not studio.get("errore"):
                 unsafe_allow_html=True,
             )
             for c in versetto_esatto.get("capitolo_versetti", []):
+                st.markdown(
+                    f'<div class="box" style="margin-bottom:6px;">'
+                    f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',
+                    unsafe_allow_html=True,
+                )
+        elif versetto_esatto.get("e_passaggio"):
+            st.markdown(
+                '<div class="step">IL PASSAGGIO</div>'
+                f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
+                f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
+                '(66 libri = canon protestante evangelico).</div>',
+                unsafe_allow_html=True,
+            )
+            for c in versetto_esatto.get("passaggio", []):
                 st.markdown(
                     f'<div class="box" style="margin-bottom:6px;">'
                     f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',

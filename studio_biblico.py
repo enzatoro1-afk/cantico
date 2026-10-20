@@ -115,9 +115,11 @@ PATTERN_RIFERIMENTO_TEMPLATO = (
     r"(?:(?P<num>\d)\s*)?"
     r"(?P<libro>{libri})"
     r"\s*\.?\s*"
+    r"(?:capitolo\s+|cap\.?\s*)?"
     r"(?P<cap>\d{{1,3}})"
-    r"(?:\s*[:,]\s*(?P<vers>\d{{1,3}}))?"
-    r"(?:\s*[-–]\s*(?P<fine>\d{{1,3}}))?"
+    # "versetti dal 28 al 31" / "dal 28 al 31" / "vv. 28-31" / "28,31" / "28-31"
+    r"(?:\s*(?:,|[:;]|versetti?\s*(?:dal)?|dal|vv\.?\s*(?:dal)?)\s*(?P<vers>\d{{1,3}}))?"
+    r"(?:\s*(?:[-–—]|al|alla|a)\s*(?P<fine>\d{{1,3}}))?"
 )
 
 
@@ -221,14 +223,16 @@ def rileva_riferimento(testo: str) -> dict | None:
         rif = f"{italiano} {capitolo}"
         if versetto:
             rif += f",{versetto}"
-        if verso_fine:
-            rif += f"-{verso_fine}"
+        verso_fine_num = int(verso_fine) if verso_fine else None
+        if verso_fine_num:
+            rif += f"-{verso_fine_num}"
         return {
             "libro": italiano,
             "libro_en": inglese,
             "abbreviazione": abbrev,
             "capitolo": capitolo,
             "versetto": versetto,
+            "versetto_fine": verso_fine_num,
             "riferimento": rif,
             "riferimento_en": f"{inglese} {capitolo}"
                               + (f":{versetto}" if versetto else ""),
