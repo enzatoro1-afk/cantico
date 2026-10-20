@@ -355,7 +355,7 @@ def _puliscitrascrizione(frammenti: list) -> str:
     return " ".join(parti)
 
 
-def estrai_spiegazione(video_id: str, max_caratteri: int = 1500) -> dict | None:
+def estrai_spiegazione(video_id: str, max_caratteri: int = 60000) -> dict | None:
     """
     Scarica la trascrizione di un video di predicazione e restituisce la
     parte parlata: è la "migliore interpretazione" scritta, presa dalla
@@ -384,18 +384,23 @@ def estrai_spiegazione(video_id: str, max_caratteri: int = 1500) -> dict | None:
     if len(testo) < 120:
         return None
 
-    # prendo la parte che espone (scarto eventuali longhe intro musicali)
+    # tengo la trascrizione INTEGRA (fino a un limite di sicurezza generoso)
     testo = testo[:max_caratteri]
-    if len(testo) > 600:
-        # taglio su una frase intera
-        punto = testo.rfind(". ", 400, 600)
+    completo = testo.strip()
+
+    # "intro": la parte che espone davvero (dopo eventuali intro musicali)
+    intro = completo
+    if len(intro) > 900:
+        punto = intro.rfind(". ", 500, 900)
         if punto > 0:
-            testo = testo[:punto + 1]
+            intro = intro[:punto + 1]
 
     return {
         "video_id": video_id,
-        "testo": testo.strip(),
-        "caratteri": len(testo),
+        "testo": completo,        # testo integrale della predicazione
+        "intro": intro,            # parte iniziale leggibile
+        "caratteri": len(completo),
+        "parole": len(completo.split()),
     }
 
 

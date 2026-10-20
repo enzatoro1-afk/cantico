@@ -650,11 +650,33 @@ elif studio and studio.get("versetto"):
         "<h3>\U0001F4D3 L'interpretazione del versetto</h3>",
         unsafe_allow_html=True,
     )
+    lunghezza = st.radio(
+        "Quanto vuoi leggere dell'interpretazione?",
+        ["Breve (riassunto)", "Media", "Completa (tutto il testo)"],
+        index=1,
+        horizontal=True,
+        key="lunghezza_interp",
+    )
+    testo_interp = interp.get("testo", "")
+    if lunghezza.startswith("Breve"):
+        testo_interp = testo_interp[:700]
+    elif lunghezza == "Media":
+        testo_interp = testo_interp[:2200]
+    totale = len(interp.get("testo", ""))
     st.markdown(
-        f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b><br>'
-        f'{esc(interp.get("testo", ""))}</div>',
+        f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
+        f' <span class="note">({totale:,} caratteri totali)</span><br>'
+        f'{esc(testo_interp)}</div>',
         unsafe_allow_html=True,
     )
+    if len(testo_interp) < totale:
+        st.download_button(
+            "\U0001F4E4 Scarica l'interpretazione completa (.txt)",
+            data=interp.get("testo", ""),
+            file_name=f"interpretazione_{v.get('riferimento', 'versetto').replace(' ', '_').replace(',', '-')}.txt",
+            mime="text/plain",
+            key="dl_interp",
+        )
     parole = interp.get("parole_chiave", [])[:3]
     if parole:
         st.markdown(
@@ -679,6 +701,32 @@ elif studio and studio.get("versetto"):
                     blocco_copia(r.titolo, f"interp{i}")
                 with c2:
                     st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
+
+                chiave_tr = f"tr_{r.video_id}"
+                if st.session_state.get(chiave_tr):
+                    with st.expander("\U0001F4C4 Leggi la spiegazione scritta (testo integrale)"):
+                        _tr = st.session_state[chiave_tr]
+                        st.markdown(
+                            f'<div class="box">{esc(_tr)}</div>',
+                            unsafe_allow_html=True,
+                        )
+                        st.download_button(
+                            "\U0001F4E4 Scarica (.txt)",
+                            data=_tr,
+                            file_name=f"spiegazione_{r.video_id}.txt",
+                            mime="text/plain",
+                            key=f"dl_{r.video_id}",
+                        )
+                else:
+                    if st.button("\U0001F4C4 Leggi la spiegazione scritta",
+                                 key=f"leggi_{r.video_id}",
+                                 use_container_width=True):
+                        with st.spinner("Scarico la trascrizione..."):
+                            _t = estrai_spiegazione(r.video_id)
+                        if _t:
+                            st.session_state[chiave_tr] = _t["testo"]
+                        else:
+                            st.warning("Questo video non ha una trascrizione disponibile.")
 
     with st.expander("Il prompt per l'interpretazione (copialo se vuoi usare ChatGPT)"):
         st.code(
