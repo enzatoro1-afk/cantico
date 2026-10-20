@@ -21,7 +21,6 @@ import json
 from datetime import date, datetime, timedelta
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from ai_client import chiave_da_secrets, interpreta_con_ia, link_chatgpt
 from archivio import aggiungi_post, carica_archivio, elimina_post
@@ -66,6 +65,66 @@ from youtube_search import (
     estrai_parole_chiave,
     ricerca_multipla,
 )
+
+
+# script unico: delega i click sui pulsanti .copybtn (Streamlit rimuove
+# gli handler inline "onclick", quindi uso un listener delegato)
+SCRIPT_COPIA = """
+<script>
+(function(){
+  if (window.__canticoCopy) { return; }
+  window.__canticoCopy = true;
+  document.addEventListener('click', function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest('.copybtn') : null;
+    if (!b) { return; }
+    var testo = b.getAttribute('data-copy') || '';
+    var label = b.getAttribute('data-label') || 'Copia';
+    var fatto = function(){
+      b.innerHTML = '\u2705 Copiato!';
+      setTimeout(function(){ b.innerHTML = label; }, 1800);
+    };
+    var metodo = function(){
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = testo;
+        ta.setAttribute('readonly','');
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) { fatto(); }
+      } catch(e) {}
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(testo).then(fatto).catch(metodo);
+    } else {
+      metodo();
+    }
+  });
+})();
+</script>
+"""
+
+def html(contenuto: str, js: bool = False) -> None:
+    """
+    Rende HTML grezzo.
+    Uso st.html() invece di html(): st.html non
+    passa da react-markdown e quindi NON causa il crash frontend
+    "NotFoundError: removeChild ... not a child of this node"
+    (che su Streamlit Cloud interrompeva la pagina).
+    """
+    try:
+        st.html(contenuto, unsafe_allow_javascript=js)
+    except TypeError:      # Streamlit < 1.47
+        html(contenuto)
+    except Exception:
+        html(contenuto)
+
 
 # --------------------------------------------------------------------------
 # Configurazione pagina
@@ -140,6 +199,14 @@ CSS = """
   .box-ok   { background: #f0fdf4; border-left-color: #16a34a; }
   .box-warn { background: #fffbeb; border-left-color: #f59e0b; }
   .note { font-size: .84rem; opacity: .78; line-height: 1.6; }
+  .copybtn {
+      width: 100%; min-height: 48px; border: none; border-radius: 14px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff;
+      font-weight: 700; font-size: .97rem; cursor: pointer;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      box-shadow: 0 4px 14px rgba(79,70,229,.28);
+  }
+  .copybtn:active { transform: translateY(1px); }
   .timeline { font-size: .87rem; line-height: 1.9; }
   hr { margin: 1.3rem 0; opacity: .3; }
 
@@ -151,7 +218,7 @@ CSS = """
   }
 </style>
 """
-st.markdown(CSS, unsafe_allow_html=True)
+html(CSS + SCRIPT_COPIA, js=True)
 
 
 # --------------------------------------------------------------------------
@@ -166,88 +233,38 @@ def _js_string(testo: str) -> str:
     return json.dumps(testo, ensure_ascii=False).replace("</", "<\\/")
 
 
-TEMPLATE_COPIA = """
-<div style="display:flex;align-items:center;gap:8px;width:100%;">
-  <button id="__ID__" style="width:100%;min-height:48px;border:none;border-radius:14px;
-    background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-weight:700;font-size:.95rem;
-    cursor:pointer;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    box-shadow:0 4px 14px rgba(79,70,229,.28);">
-    \U0001F4CB Copia Titolo
-  </button>
-  <span id="__ID__ok" style="display:none;font-weight:700;color:#16a34a;font-size:.85rem;white-space:nowrap;">\u2713 Copiato!</span>
-</div>
-<script>
-(function(){
-  var btn = document.getElementById("__ID__");
-  var ok  = document.getElementById("__ID__ok");
-  var txt = __TESTO__;
-  function feedback(){
-    ok.style.display = "inline-block";
-    btn.textContent = "\u2705 Copiato!";
-    setTimeout(function(){
-      ok.style.display = "none";
-      btn.textContent = "\U0001F4CB Copia Titolo";
-    }, 1900);
-  }
-  function fallback(){
-    try{
-      var ta = document.createElement("textarea");
-      ta.value = txt; ta.setAttribute("readonly","");
-      ta.style.position = "fixed"; ta.style.top = "-1000px"; ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
-      var done = document.execCommand("copy");
-      document.body.removeChild(ta);
-      if (done) feedback();
-    } catch(e){}
-  }
-  btn.addEventListener("click", function(){
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(txt).then(feedback).catch(fallback);
-    } else { fallback(); }
-  });
-})();
-</script>
-"""
+def _esc_attr(testo: str) -> str:
+    """Testo pronto per un attributo HTML (escape di &, <, >, ")."""
+    return (testo.replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def blocco_copia(testo: str, chiave: str, etichetta: str = "\U0001F4CB Copia Titolo") -> None:
-    """Pulsante 'Copia' con fallback per browser senza Clipboard API."""
-    html = (
-        TEMPLATE_COPIA
-        .replace("__ID__", chiave)
-        .replace("__TESTO__", _js_string(testo))
-        .replace("\U0001F4CB Copia Titolo", etichetta)
+def blocco_copia(testo: str, chiave: str,
+                 etichetta: str = "\U0001F4CB Copia Titolo") -> None:
+    """
+    Bottone che copia il testo negli appunti.
+
+    NESSUNA iframe: dentro Streamlit Cloud (che avvolge l'app in una iframe)
+    le iframe annidate facevano crashare il frontend React
+    ("NotFoundError: removeChild ... not a child of this node").
+    Qui si usa un handler inline: funziona anche se il markup viene inserito
+    via innerHTML, e la copia usa la Clipboard API (con fallback execCommand).
+    """
+    _label = _esc_attr(etichetta)
+    _dati = _esc_attr(testo)
+    html(
+        f'<button class="copybtn" data-copy="{_dati}" data-label="{_label}">'
+        f'{etichetta}</button>'
     )
-    render_html(html, height=54)
 
 
 def embed_youtube(video_id: str) -> None:
-    """Player YouTube incorporato (anteprima audio dal telefono)."""
-    render_html(
-        f"""
-        <div style="width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;
-                    box-shadow:0 4px 14px rgba(15,23,42,.15);">
-          <iframe src="https://www.youtube.com/embed/{video_id}"
-                  style="width:100%;height:100%;border:0;" allowfullscreen
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media"></iframe>
-        </div>
-        """,
-        height=260,
+    """Anteprima: apre il video su YouTube (niente iframe, niente crash React)."""
+    st.link_button(
+        "\U0001F3A7 Ascolta l'anteprima su YouTube",
+        f"https://www.youtube.com/watch?v={video_id}",
+        use_container_width=True,
     )
-
-
-def render_html(html: str, height: int) -> None:
-    """
-    Mostra HTML con JavaScript, usando l'API piu' recente di Streamlit.
-
-    - Streamlit >= 1.6x : st.iframe (accetta HTML ed esegue il JavaScript)
-    - versioni precedenti: st.components.v1.html (deprecata, ma funzionante)
-    """
-    if hasattr(st, "iframe"):
-        st.iframe(html, height=height)
-    else:  # pragma: no cover - compatibilita' con Streamlit < 1.50
-        components.html(html, height=height)
 
 
 DURATA_MAX_SEC = 420          # 7 minuti: scarto compilazioni e culti
@@ -485,18 +502,16 @@ with st.sidebar:
              "telefono. Va in .streamlit/secrets.toml per non riscriverla.",
         key="chiave_ia",
     )
-    st.markdown(
+    html(
         "<div class=\"note\">La chiave resta nel server di Streamlit. "
-        "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>",
-        unsafe_allow_html=True,
-    )
+        "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
 
 
 # --------------------------------------------------------------------------
 # Intestazione
 # --------------------------------------------------------------------------
 
-st.markdown(
+html(
     """
     <div class="hero">
       <h1>\U0001F3B5 CANTICO</h1>
@@ -505,35 +520,28 @@ st.markdown(
          pentecostale, cerca la canzone giusta e ti prepara il post
          per TikTok.</p>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    """)
 
 # ==========================================================================
 # PASSAGGIO 1 - SCRIVI (correzione + analisi)
 # ==========================================================================
 
-st.markdown('<div class="step">PASSAGGIO 1</div><h3>\U0001F4DD Scrivi il tuo testo</h3>',
-            unsafe_allow_html=True)
+html('<div class="step">PASSAGGIO 1</div><h3>\U0001F4DD Scrivi il tuo testo</h3>')
 
 # Se c'è una correzione in attesa, il pannello sta PRIMA della text area
 # (così il bottone "Applica" può aggiornare il campo senza errori di stato).
 correzione = st.session_state["correzione"]
 if correzione and correzione.get("problemi"):
-    st.markdown(
+    html(
         f'<div class="box box-ok">'
-        f'<b>Testo corretto</b><br>{esc(correzione["testo"])}</div>',
-        unsafe_allow_html=True,
-    )
+        f'<b>Testo corretto</b><br>{esc(correzione["testo"])}</div>')
     with st.expander(f"Correzioni trovate ({len(correzione['problemi'])})", expanded=True):
         for p in correzione["problemi"]:
-            st.markdown(
+            html(
                 f'<div class="note">\u2022 <b>{esc(p.get("breve") or p.get("messaggio", ""))}</b>'
                 f' &mdash; <i>{esc(p.get("evidenzia", ""))}</i>'
                 f'{" \u2192 " + esc(", ".join(p.get("sostituzioni", [])[:3])) if p.get("sostituzioni") else ""}'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+                f'</div>')
     if st.button("\u2705 Applica il testo corretto", use_container_width=True):
         st.session_state["testo_input"] = correzione["testo"]
         st.session_state["correzione"] = None
@@ -563,8 +571,8 @@ stile_scelto = st.selectbox(
 )
 
 if testo and len(testo) > 1900:
-    st.markdown('<div class="note">Testo troncato a 2000 caratteri '
-                '(per non rallentare la ricerca).</div>', unsafe_allow_html=True)
+    html('<div class="note">Testo troncato a 2000 caratteri '
+                '(per non rallentare la ricerca).</div>')
 
 col1, col2 = st.columns(2)
 with col1:
@@ -628,14 +636,12 @@ if analisi:
     except Exception:
         pass
 
-    st.markdown(
+    html(
         f'<div class="box"><b>\U0001F9EA Analisi del testo</b><br>'
         f'<b>Temi:</b> {temi}<br>'
         f'<b>Tono:</b> {esc(analisi["tono"])}<br>'
         f'<b>Durata video consigliata:</b> {esc(analisi["durata_video"])}'
-        f'{riga_mood}{riga_salmo}</div>',
-        unsafe_allow_html=True,
-    )
+        f'{riga_mood}{riga_salmo}</div>')
 
     if salmo:
         if st.button("\U0001F4D6 Aggiungi anche gli inni sul Salmo", use_container_width=True):
@@ -692,42 +698,32 @@ if riferimento_verso and not studio.get("errore"):
 
     if versetto_esatto:
         if solo_capitolo:
-            st.markdown(
+            html(
                 '<div class="step">IL SALMO/CAPITOLO INTERO</div>'
                 f'<h3>\U0001F4D6 {esc(riferimento_verso["libro"])} '
                 f'{esc(str(riferimento_verso["capitolo"]))}</h3>'
                 f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
-                '(66 libri = canon protestante evangelico).</div>',
-                unsafe_allow_html=True,
-            )
+                '(66 libri = canon protestante evangelico).</div>')
             _cap = versetto_esatto.get("capitolo_versetti", [])
-            st.markdown(
+            html(
                 f'<div class="note">{len(_cap)} versetti: questo e\' tutto il '
                 'capitolo. Per un passaggio preciso scrivi es. '
-                '"Marco 12,28-31".</div>',
-                unsafe_allow_html=True,
-            )
+                '"Marco 12,28-31".</div>')
             for c in _cap:
-                st.markdown(
+                html(
                     f'<div class="box" style="margin-bottom:6px;">'
-                    f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>',
-                    unsafe_allow_html=True,
-                )
+                    f'<b>{esc(c["riferimento"])}</b><br>{esc(c["testo"])}</div>')
         elif versetto_esatto.get("e_passaggio"):
-            st.markdown(
+            html(
                 '<div class="step">IL PASSAGGIO</div>'
                 f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
                 f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
-                '(66 libri = canon protestante evangelico).</div>',
-                unsafe_allow_html=True,
-            )
+                '(66 libri = canon protestante evangelico).</div>')
             for c in versetto_esatto.get("passaggio", []):
-                st.markdown(
+                html(
                     f'<div class="box" style="margin-bottom:6px;">'
                     f'<b>{esc(c["riferimento"])}</b><br>'
-                    f'{esc(_testo_versetto(c["testo"]))}</div>',
-                    unsafe_allow_html=True,
-                )
+                    f'{esc(_testo_versetto(c["testo"]))}</div>')
             # vuoi studiare un SOLO versetto del passaggio? sceglilo qui
             _opzioni = [("Tutto il passaggio", 0)] + [
                 (c["riferimento"], int(c["riferimento"].split(",")[-1]))
@@ -745,18 +741,14 @@ if riferimento_verso and not studio.get("errore"):
                          "singolo versetto invece che dell'intero passaggio.",
                 )
         else:
-            st.markdown(
+            html(
                 '<div class="step">IL VERSETTO ESATTO</div>'
                 f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
                 f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
-                '(66 libri = canon protestante evangelico).</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
+                '(66 libri = canon protestante evangelico).</div>')
+            html(
                 f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
-                f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>',
-                unsafe_allow_html=True,
-            )
+                f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>')
 
         contesto = [] if (solo_capitolo or not mostra_contesto) else (
             versetto_esatto.get("contesto_prima", []) +
@@ -765,10 +757,8 @@ if riferimento_verso and not studio.get("errore"):
             righe = "".join(
                 f'<br><span class="note"><b>{esc(c["riferimento"])}</b> '
                 f'{esc(_testo_versetto(c["testo"]))}</span>' for c in contesto)
-            st.markdown(
-                f'<div class="box box-warn"><b>Contesto (versetti vicini)</b>{righe}</div>',
-                unsafe_allow_html=True,
-            )
+            html(
+                f'<div class="box box-warn"><b>Contesto (versetti vicini)</b>{righe}</div>')
 
         # testo completo da copiare (passaggio / capitolo / versetto)
         if versetto_esatto.get("e_passaggio"):
@@ -823,11 +813,9 @@ elif studio and studio.get("versetto"):
     v = studio["versetto"]
     interp = studio["interpretazione"]
 
-    st.markdown(
+    html(
         '<div class="step">FASE 1 - INTERPRETAZIONE</div>'
-        "<h3>\U0001F4D3 L'interpretazione del versetto</h3>",
-        unsafe_allow_html=True,
-    )
+        "<h3>\U0001F4D3 L'interpretazione del versetto</h3>")
     lunghezza = st.radio(
         "Quanto vuoi leggere dell'interpretazione?",
         ["Completa (tutto il testo)", "Media (abbroncata)", "Breve (riassunto)"],
@@ -843,12 +831,10 @@ elif studio and studio.get("versetto"):
         testo_interp = testo_interp[:2200]
     # "Completa" -> testo integro, senza tagli
     totale = len(interp.get("testo", ""))
-    st.markdown(
+    html(
         f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
         f' <span class="note">({totale:,} caratteri totali)</span><br>'
-        f'{esc(testo_interp)}</div>',
-        unsafe_allow_html=True,
-    )
+        f'{esc(testo_interp)}</div>')
 
     # COPIA l'interpretazione (sempre) + SCARICALA
     _nome_file = (f"interpretazione_{v.get('riferimento', 'versetto')}"
@@ -867,12 +853,10 @@ elif studio and studio.get("versetto"):
         )
     parole = interp.get("parole_chiave", [])[:3]
     if parole:
-        st.markdown(
+        html(
             '<div class="note" style="margin-top:6px;">'
             '<b>Le 3 parole chiave spirituali (usate nella ricerca musicale):</b></div>'
-            + "".join(f'<span class="chip">{esc(p)}</span>' for p in parole),
-            unsafe_allow_html=True,
-        )
+            + "".join(f'<span class="chip">{esc(p)}</span>' for p in parole))
 
     # se l'utente ha incollato una nuova interpretazione, ricalcolo le canzoni
     if st.session_state.get("_ria_fase2"):
@@ -895,13 +879,11 @@ elif studio and studio.get("versetto"):
     with st.expander("Le interpretazioni che ho trovato (esposizioni, studi, prediche)"):
         for i, r in enumerate(studio.get("interpretazioni", []), start=1):
             with st.container(border=True):
-                st.markdown(
+                html(
                     f'<div class="badge">#{i}</div>'
                     f'<div class="card-title">{esc(r.titolo)}</div>'
                     f'<div class="card-meta">{esc(r.canale)}'
-                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>',
-                    unsafe_allow_html=True,
-                )
+                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>')
                 c1, c2 = st.columns(2)
                 with c1:
                     blocco_copia(r.titolo, f"interp{i}")
@@ -912,10 +894,8 @@ elif studio and studio.get("versetto"):
                 if st.session_state.get(chiave_tr):
                     with st.expander("\U0001F4C4 Leggi la spiegazione scritta (testo integrale)"):
                         _tr = st.session_state[chiave_tr]
-                        st.markdown(
-                            f'<div class="box">{esc(_tr)}</div>',
-                            unsafe_allow_html=True,
-                        )
+                        html(
+                            f'<div class="box">{esc(_tr)}</div>')
                         st.download_button(
                             "\U0001F4E4 Scarica (.txt)",
                             data=_tr,
@@ -954,11 +934,9 @@ elif studio and studio.get("versetto"):
                           "telefono) gia' pronto."):
             st.session_state["_ia_richiesta"] = "link"
     with c_m3:
-        st.markdown(
+        html(
             "<div class=\"note\">Oppure incolla sotto l'interpretazione che "
-            "ti ha dato l'IA.</div>",
-            unsafe_allow_html=True,
-        )
+            "ti ha dato l'IA.</div>")
 
     if st.session_state.get("_ia_richiesta") == "api":
         st.session_state["_ia_richiesta"] = None
@@ -984,12 +962,10 @@ elif studio and studio.get("versetto"):
                      "\U0001F4CB Copia il prompt")
         st.link_button("\U0001F4AC Apri ChatGPT con il prompt",
                        link_chatgpt(_prompt_attuale), use_container_width=True)
-        st.markdown(
+        html(
             "<div class=\"note\">Incolla qui sotto la risposta dell'IA e premi "
             '"Usa questa interpretazione": l\'app ci mette dentro le 3 parole '
-            "chiave e rifiinisce la ricerca della canzone.</div>",
-            unsafe_allow_html=True,
-        )
+            "chiave e rifiinisce la ricerca della canzone.</div>")
 
     _incollata = st.text_area(
         "Incolla qui l'interpretazione",
@@ -1035,24 +1011,20 @@ elif studio and studio.get("versetto"):
 
 versetti = st.session_state.get("versetti") or []
 if versetti:
-    st.markdown(
+    html(
         '<div class="step">Il testo biblico</div>'
         '<h3>\U0001F4D6 Versetti che parlano al tuo pensiero</h3>'
         f'<div class="note">Testo di riferimento: {esc(NOME_TRADUZIONE)}. '
         'Scegli il versetto che ti risuona: l\'app lo mette nella casella e cerca '
-        'subito la canzone.</div>',
-        unsafe_allow_html=True,
-    )
+        'subito la canzone.</div>')
     for i, v in enumerate(versetti, start=1):
         with st.container(border=True):
             chip = "".join(f'<span class="chip">{esc(t)}</span>' for t in v["temi"])
-            st.markdown(
+            html(
                 f'<div class="badge">#{i}</div>'
                 f'<div class="card-title">{esc(v["riferimento"])}</div>'
                 f'<div class="card-meta" style="font-size:.92rem;opacity:.85;">'
-                f'«{esc(v["testo"])}»</div>{chip}',
-                unsafe_allow_html=True,
-            )
+                f'«{esc(v["testo"])}»</div>{chip}')
             col_a, col_b = st.columns(2)
             with col_a:
                 st.button(
@@ -1082,20 +1054,16 @@ if riferimento is None and st.session_state.get("analisi"):
 
 if riferimento:
     with st.expander("\U0001F4D6 Studio biblico del versetto (i 4 passi)"):
-        st.markdown(
+        html(
             f'<div class="box"><b>Riferimento rilevato:</b> {esc(riferimento["riferimento"])}'
             f'<br><span class="note">Versione inglese per le ricerche: '
-            f'{esc(riferimento["riferimento_en"])}</span></div>',
-            unsafe_allow_html=True,
-        )
+            f'{esc(riferimento["riferimento_en"])}</span></div>')
         for passo in genera_passi(testo, st.session_state["analisi"], riferimento):
-            st.markdown(
+            html(
                 f'<div class="box" style="margin-bottom:8px;">'
                 f'<b>{esc(passo["titolo"])}</b><br>{esc(passo["contenuto"])}<br>'
                 f'<span class="note"><i>Domanda guida: {esc(passo["domanda"])}</i></span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+                f'</div>')
 
         query_st = query_studio(riferimento, testo)
         if st.button("\U0001F50D Cerca le interpretazioni (studio/esposizione su YouTube)",
@@ -1110,12 +1078,10 @@ if riferimento:
 
         for i, r in enumerate(st.session_state.get("studio_risultati", []), start=1):
             with st.container(border=True):
-                st.markdown(
+                html(
                     f'<div class="card-title">{esc(r.titolo)}</div>'
                     f'<div class="card-meta">{esc(r.canale)}'
-                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>',
-                    unsafe_allow_html=True,
-                )
+                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>')
                 c1, c2 = st.columns(2)
                 with c1:
                     blocco_copia(r.titolo, f"studio{i}")
@@ -1130,24 +1096,20 @@ risultati = st.session_state["risultati"]
 query_usate = st.session_state["query_usate"]
 
 if risultati:
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown(
+    html('<hr>')
+    html(
         '<div class="step">PASSAGGIO 2</div>'
-        f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
+        f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>')
+    html(
         '<div class="note">Copia il titolo e cercalo nella libreria audio di TikTok, '
-        'oppure ascolta l\'anteprima qui sotto.</div>',
-        unsafe_allow_html=True,
-    )
+        'oppure ascolta l\'anteprima qui sotto.</div>')
 
     parole_chiave = estrai_parole_chiave(testo or "", max_parole=3)
     temi = (st.session_state["analisi"] or {}).get("temi", [])
 
     for i, r in enumerate(risultati, start=1):
         with st.container(border=True):
-            st.markdown(
+            html(
                 f"""
                 <div style="display:flex;gap:12px;align-items:flex-start;">
                   <img class="thumb" src="{r.url_miniature}" alt="" loading="lazy">
@@ -1156,16 +1118,13 @@ if risultati:
                     <div class="card-title">{esc(r.titolo)}</div>
                     <div class="card-meta">{esc(r.canale)}"""
                 + (f" &bull; {esc(r.durata)}" if r.durata else "")
-                + "</div></div></div>",
-                unsafe_allow_html=True,
-            )
+                + "</div></div></div>")
 
             motivi = spiega_canzone(r.titolo, r.canale, r.durata, r.secondi,
                                     parole_chiave, temi)
             with st.expander("Perch\u00e9 questa canzone"):
                 for motivo in motivi:
-                    st.markdown(f'<div class="note">&bull; {esc(motivo)}</div>',
-                                unsafe_allow_html=True)
+                    html(f'<div class="note">&bull; {esc(motivo)}</div>')
 
             col_a, col_b = st.columns([1, 1])
             with col_a:
@@ -1199,12 +1158,10 @@ if risultati:
 
     if query_usate:
         with st.expander("Query di ricerca utilizzate"):
-            st.markdown(
+            html(
                 '<div class="box">'
                 + "<br>".join(f"<b>{i+1}.</b> {esc(q)}" for i, q in enumerate(query_usate))
-                + "</div>",
-                unsafe_allow_html=True,
-            )
+                + "</div>")
 
 # ==========================================================================
 # PASSAGGIO 4 - PUBBLICA
@@ -1212,17 +1169,13 @@ if risultati:
 
 post = st.session_state["post"]
 if post:
-    st.markdown('<hr>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="step">PASSAGGIO 3</div><h3>\U0001F4E4 Prepara e pubblica</h3>',
-        unsafe_allow_html=True,
-    )
+    html('<hr>')
+    html(
+        '<div class="step">PASSAGGIO 3</div><h3>\U0001F4E4 Prepara e pubblica</h3>')
 
-    st.markdown(
+    html(
         f'<div class="box"><b>\U0001F3B5 Canzone scelta:</b> {esc(post["titolo"])}'
-        f'<br><span class="note">Canale: {esc(post["canale"])}</span></div>',
-        unsafe_allow_html=True,
-    )
+        f'<br><span class="note">Canale: {esc(post["canale"])}</span></div>')
 
     formato = st.selectbox("Come vuoi impostare il post?", list(FORMATI_POST),
                             index=list(FORMATI_POST).index(post["formato"])
@@ -1236,8 +1189,8 @@ if post:
                         value=genera_hook(testo), height=70, key="hook")
 
     # ---- Data e orario di pubblicazione ----
-    st.markdown('<div class="note" style="margin-top:10px;"><b>\U0001F4C5 '
-                'Quando lo pubblichi?</b></div>', unsafe_allow_html=True)
+    html('<div class="note" style="margin-top:10px;"><b>\U0001F4C5 '
+                'Quando lo pubblichi?</b></div>')
     suggerimenti = suggerisci_orari(date.today() + timedelta(days=1))
     col_data, col_ora = st.columns(2)
     with col_data:
@@ -1250,18 +1203,14 @@ if post:
                                 key="ora_pub")
     motivo = next((s["motivo"] for s in suggerisci_orari(data_pub)
                    if s["orario"] == ora_pub), "")
-    st.markdown(
+    html(
         f'<div class="box box-ok">\U0001F4C5 <b>{giorno_settimana(data_pub)} '
         f'{data_pub.strftime("%d/%m/%Y")} alle {ora_pub}</b><br>'
-        f'<span class="note">{esc(motivo)}</span></div>',
-        unsafe_allow_html=True,
-    )
+        f'<span class="note">{esc(motivo)}</span></div>')
 
-    st.markdown(
+    html(
         '<div class="note" style="margin-bottom:4px;"><b>Hashtag suggeriti:</b></div>'
-        + "".join(f'<span class="chip">{esc(h)}</span>' for h in hashtag),
-        unsafe_allow_html=True,
-    )
+        + "".join(f'<span class="chip">{esc(h)}</span>' for h in hashtag))
 
     col_a, col_b = st.columns(2)
     with col_a:
@@ -1280,7 +1229,7 @@ if post:
         embed_youtube(post["video_id"])
 
     with st.expander("\U0001F4D7 Piano del video (come girarlo)"):
-        st.markdown(
+        html(
             f"""
             <div class="timeline">
             <b>0-3 secondi</b> &rarr; testo a schermo: <i>«{esc(hook)}»</i><br>
@@ -1291,12 +1240,10 @@ if post:
             <b>Consiglio</b> &rarr; scegli la parte della canzone che ripete il titolo,
             cos\u00ec il suono su TikTok si riconosce subito.
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            """)
 
     with st.expander("\U0001F4F1 Come si pubblica dal telefono (5 passaggi)"):
-        st.markdown(
+        html(
             f"""
             <div class="timeline">
             1. Tocca <b>"Apri TikTok per pubblicare"</b> (si apre l'app o il sito)<br>
@@ -1311,9 +1258,7 @@ if post:
             sviluppatori. Con questa app prepari tutto in 10 secondi e pubblichi
             con 3 tocchi.</i>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            """)
 
     contenuto = (
         f"CANZONE: {post['titolo']}\n"
@@ -1356,17 +1301,14 @@ if post:
 # ==========================================================================
 
 with st.expander("\U0001F517 Come funziona la ricerca su TikTok"):
-    st.markdown(f'<div class="box box-warn">{esc(MESSAGGIO_TIKTOK)}</div>',
-                unsafe_allow_html=True)
-    st.markdown(
+    html(f'<div class="box box-warn">{esc(MESSAGGIO_TIKTOK)}</div>')
+    html(
         '<div class="note">In più l\'app usa YouTube (ricerca pubblica, senza API '
         'a pagamento) per trovare i titoli reali delle canzoni pentecostali: sono '
-        'gli stessi titoli che trovi nella libreria audio di TikTok.</div>',
-        unsafe_allow_html=True,
-    )
+        'gli stessi titoli che trovi nella libreria audio di TikTok.</div>')
 
 with st.expander("\U0001F4D6 Come si usa l'app (guida rapida)"):
-    st.markdown(
+    html(
         """
         <div class="timeline">
         <b>1.</b> Incolla il versetto o la riflessione nel campo di testo.<br>
@@ -1385,38 +1327,30 @@ with st.expander("\U0001F4D6 Come si usa l'app (guida rapida)"):
         <i>Se il testo è un Salmo, l'app lo riconosce (anche con la numerazione
         Vulgate) e aggiunge la ricerca degli inni dedicati a quel Salmo.</i>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        """)
 
 cronologia = st.session_state["cronologia"]
 if cronologia:
     with st.expander(f"\U0001F504 Cronologia ricerche ({len(cronologia)})"):
         for voce in cronologia:
-            st.markdown(
+            html(
                 f'<div class="note"><b>{esc(voce["ora"])}</b> &mdash; {esc(voce["testo"])}'
-                f'<br><i>parole chiave: {esc(voce["parole"])}</i></div>',
-                unsafe_allow_html=True,
-            )
+                f'<br><i>parole chiave: {esc(voce["parole"])}</i></div>')
 
 # ==========================================================================
 # IL MIO ARCHIVIO
 # ==========================================================================
 
 archivio = st.session_state["archivio"] or []
-st.markdown('<hr>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="step">ARCHIVIO</div><h3>\U0001F5C2 Post pronti da pubblicare</h3>',
-    unsafe_allow_html=True,
-)
+html('<hr>')
+html(
+    '<div class="step">ARCHIVIO</div><h3>\U0001F5C2 Post pronti da pubblicare</h3>')
 
 if not archivio:
-    st.markdown(
+    html(
         '<div class="note">Qui trovi tutto quello che prepari: canzone, caption, '
         'hashtag e data di pubblicazione. Resta salvato anche se chiudi il browser.'
-        '<br><br><i>(Nel passaggio 3, tocca "Salva nell\'archivio")</i></div>',
-        unsafe_allow_html=True,
-    )
+        '<br><br><i>(Nel passaggio 3, tocca "Salva nell\'archivio")</i></div>')
 else:
     oggi = date.today()
     for voce in archivio:
@@ -1431,20 +1365,16 @@ else:
             badge = ("\U0001F7E2 oggi" if countdown == 0 else
                      f"\U0001F552 tra {countdown} giorni" if countdown > 0 else
                      "\U0001F6AB passato")
-            st.markdown(
+            html(
                 f'<div class="badge">{esc(badge)} &bull; {esc(scelta_data)} '
                 f'alle {esc(voce.get("ora", ""))}</div>'
                 f'<div class="card-title">\U0001F3B5 {esc(voce.get("canzone", ""))}</div>'
-                f'<div class="card-meta">{esc(voce.get("testo", "")[:90])}</div>',
-                unsafe_allow_html=True,
-            )
+                f'<div class="card-meta">{esc(voce.get("testo", "")[:90])}</div>')
             with st.expander("Vedi tutto"):
-                st.markdown(
+                html(
                     f'<div class="box"><b>Testo a schermo:</b> {esc(voce.get("hook", ""))}'
                     f'<br><br><b>Caption:</b><br>{esc(voce.get("caption", ""))}'
-                    f'<br><br><b>Hashtag:</b> {esc(" ".join(voce.get("hashtag", [])))}</div>',
-                    unsafe_allow_html=True,
-                )
+                    f'<br><br><b>Hashtag:</b> {esc(" ".join(voce.get("hashtag", [])))}</div>')
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.download_button(
@@ -1479,15 +1409,21 @@ else:
                     st.session_state["archivio"] = elimina_post(voce.get("id", ""))
                     st.rerun()
 
-st.markdown(
+html(
     f'<div class="note" style="text-align:center;margin-top:18px;">'
     f'Fatto per i creator cristiani \U0001F49F<br>'
-    f'<span style="opacity:.6">versione {BUILD}</span></div>',
-    unsafe_allow_html=True,
-)
+    f'<span style="opacity:.6">versione {BUILD}</span></div>')
 
 # pulsante "ricarica" per prendere subito la versione piu' recente
 if st.button("\U0001F504 Ricarica la versione piu' recente", use_container_width=True):
-    st.cache.clear()
+    # pulisco le cache (st.cache non esiste: uso cache_data / cache_resource)
+    try:
+        st.cache_data.clear()
+    except Exception:
+        pass
+    try:
+        st.cache_resource.clear()
+    except Exception:
+        pass
     st.query_params["v"] = BUILD.replace(" ", "-")
     st.rerun()
