@@ -1,0 +1,35 @@
+Ciao!
+
+Ecco l'app "Assistente Canzoni Pentecostali per TikTok", pronta per il telefono.
+
+LINK DELL'APP:
+__LINK__
+(aggiornato il __DATA__)
+
+---------------------------------------------
+COME INSTALLARLA SUL TELEFONO (2 minuti)
+---------------------------------------------
+1) Tocca il link qui sopra: si apre l'app nel browser.
+2) Menu del browser (i tre puntini su Android, l'icona di condivisione su iPhone)
+   -> "Aggiungi alla schermata Home".
+3) Fatto: l'app si apre da sola con la sua icona, a schermo intero,
+   come qualsiasi altra app. Per usarla basta toccare l'icona.
+
+---------------------------------------------
+COME SI USA (30 secondi)
+---------------------------------------------
+- Scrivi il tuo versetto o pensiero nella casella di testo.
+- "Trova il testo adatto": l'app cerca il versetto biblico che parla al
+  tuo pensiero (testo evangelico, non cattolico).
+- "Trova Canzone Adatta": l'app cerca 5 inni/canti di musica evangelica
+  pentecostale e ti spiega perche' sono adatti al tuo testo.
+- "Copia Titolo": te lo mette negli appunti -> lo cerchi nella libreria
+  audio di TikTok e pubblichi.
+- La sezione finale ti prepara caption, hashtag, testo da schermo, la data
+  e l'ora migliore per pubblicare, e tiene l'archivio dei post.
+
+In allegato trovi anche il codice completo (ZIP): serve se un giorno vuoi
+ricreare l'app, cambiare i colori o le ricerche, o farla installare da
+qualcun altro (si pubblica gratis su Streamlit Cloud, guida dentro).
+
+A presto e buon lavoro!
