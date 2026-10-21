@@ -7,10 +7,16 @@ venv/
 .secrets/
 .chiave_gemini_server.json
 .suno_cookie.txt
+suno-api/
+node_modules/
 *.key
 archivio_post.json
 archivio_*.json
 cache_bibbia.json
 link.txt
 *.zip
+*.mp4
+*.m4a
+*.wav
+*.webm
 .DS_Store

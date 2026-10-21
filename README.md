@@ -40,8 +40,15 @@ Assistente-Canzone-TikTok/
 ├── text_tools.py          # grammatica, Salmi, analisi temi, spiegazioni
 ├── post_generator.py      # caption, hashtag, hook, orari consigliati
 ├── studio_biblico.py      # riferimenti biblici e i 4 passi dello studio
-├── archivio.py            # archivio PRIVATO dei post (un file per codice)
+├── archivio.py            # archivio PRIVATO dei post (un file per utente)
+├── ai_client.py           # Google Gemini + IA gratuita (Pollinations)
+├── configura.py           # wizard: attiva le chiavi in 2 minuti
+├── musica.py              # ACE-Step / MusicGen + creazione del video .mp4
+├── suno.py                # Suno (crediti gratuiti) + tag di stile + struttura
+├── testi_canzone.py       # l'IA scrive le parole del brano
 ├── hotreload.py           # ricarica i moduli quando il codice cambia
+├── AGGIORNA_COOKIE_SUNO.py # salva/aggiorna il cookie di suno.com in locale
+├── AVVIA_SUNO.py          # (facoltativo) servizio open source di Suno
 ├── pubblica.py            # push con VERSION.txt (commit + deploy)
 ├── requirements.txt       # dipendenze
 ├── .streamlit/config.toml # tema e impostazioni
@@ -324,17 +331,13 @@ quota gratuita è di tutti. Se l'app è solo tua, meglio la chiave nel browser.
 
 **Ogni persona che usa l'app vede solo i propri post.**
 
-- Ogni utente mette un **codice archivio** (segreto personale, o generato
-  con un pulsante) nella sezione **ARCHIVIO** in fondo alla pagina.
-- Il codice NON viene salvato in chiaro: viene trasformato in un hash
-  SHA-256 che da' il nome al file (`archivio_<hash>.json`). Dal nome del
-  file non si ricava il codice.
+- Ogni utente ha un **identificatore automatico** (un cookie `cantico_uid`
+  nel suo browser): **non deve scrivere nessun codice**.
+- L'id NON viene salvato in chiaro: viene trasformato in un hash SHA-256
+  che da' il nome al file (`archivio_<hash>.json`). Dal nome del file non si
+  ricava l'id.
 - **Tu non vedi i post degli altri** e **gli altri non vedono i tuoi**.
-  L'unico modo per leggere l'archivio di un altro e' conoscere il suo
-  codice.
-- **Nessun codice = nessun salvataggio**: senza codice l'archivio funziona
-  solo nella sessione del browser (chiudendo il browser sparisce). Serve
-  per chi non vuole lasciare tracce.
+- Se vuoi cancellare tutto, c'è il pulsante **"Cancella i miei dati"**.
 
 Cosa NON viene condiviso con nessuno ( resta nel browser dell'utente ):
 - il testo che scrivi, i versetti cercati, le interpretazioni
@@ -364,10 +367,23 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 
 | Motore | Cosa serve | Costo |
 |---|---|---|
-| **Suno (i tuoi crediti gratuiti)** | il servizio open source `gcui-art/suno-api` + il tuo cookie | **gratis** (i crediti giornalieri del tuo account) |
-| **ACE-Step** (open source) | un token Hugging Face gratis per la quota GPU | gratis (pochi brani al giorno) |
-| **MusicGen** (strumentale) | niente | gratis |
-| **AIMLAPI** | chiave con credito | a pagamento |
+| **Suno (i tuoi crediti gratuiti)** | solo il tuo cookie di suno.com (niente da installare) | **gratis** (i crediti giornalieri del tuo account) |
+| **ACE-Step** (open source, canta il testo) | un token Hugging Face gratis per la quota GPU | gratis |
+| **MusicGen** (open source, strumentale) | un token Hugging Face gratis | gratis |
+| **Il tuo brano** | niente: carichi il file audio e l'app fa il video | gratis |
+
+> **Attenzione, una cosa che cambia spesso:** Suno (dal 2026) **cifra
+> l'audio** che scarica: il brano si genera e si ascolta nella tua libreria
+> su suno.com, ma il file non si puo' salvare in automatico. Per questo
+> l'app ti lascia **caricare qui il brano** (che scarichi da suno.com con
+> un tocco) e ci fa sopra il video. Se preferisci che sia tutto automatico,
+> usa **ACE-Step** con un token Hugging Face gratis: l'audio e' open source
+> e l'app lo scarica e lo monta da sola.
+
+> **Solo motori gratuiti.** Nell'app non c'e' nessun motore a pagamento e
+> nessuna chiave da ricaricare: chi riceve l'app non deve creare nulla,
+> funziona subito. Se un motore non risponde, l'app passa al successivo e
+> alla fine spiega cosa manca.
 
 **Tag di stile sempre applicati** (in `suno.py`):
 - stile: *Modern Christian Worship, contemporary gospel, inspiring,
@@ -381,25 +397,32 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 
 ### Come si usa Suno con i crediti gratuiti (una volta sola)
 
-1. Nel terminale (PC o Codespace):
-   ```bash
-   git clone https://github.com/gcui-art/suno-api
-   cd suno-api && npm install && npm start
-   ```
-   (l'API ascolta su `http://localhost:8000`)
-2. Fai il login su <https://suno.com>, poi F12 → Console →
-   `copy(document.cookie)` → Invio
-3. Salva il cookie **senza passarlo dalla chat**:
-   ```bash
-   python SALVA_COOKIE_SUNO.py
-   ```
-   (finisce nel file `.suno_cookie.txt`, che è in `.gitignore`)
-4. Nell'app: motore **"Suno (i tuoi crediti gratuiti)"** → "Componi e canta"
+Suno non ha un'API pubblica per gli account gratuiti, ma la sua app web parla
+con un'API interna. L'app fa esattamente quello: **non devi installare
+niente** (niente Node.js, niente servizi, niente account).
 
-> Nota: su Streamlit Cloud il servizio open source non può girare (il
-> container è solo Python): per Suno l'app va usata **dal PC / Codespace**
-> (dove il servizio è attivo). Online restano disponibili ACE-Step,
-> MusicGen e AIMLAPI.
+1. **Fai il login su <https://suno.com>** con il tuo account.
+2. **Copia il cookie** (senza passarlo dalla chat):
+   - F12 → scheda **Network** (Rete) → ricarica la pagina (F5) → clicca una
+     richiesta → in **Request Headers** copia la riga **cookie**;
+   - salvalo sul tuo computer:
+     ```powershell
+     python AGGIORNA_COOKIE_SUNO.py
+     ```
+     e incolla il valore. Finisce nel file `.suno_cookie.txt`, che è in
+     `.gitignore`: il cookie **non** finisce su GitHub.
+3. Nell'app: motore **"Suno (i tuoi crediti gratuiti)"** → "Componi e canta".
+
+> Il cookie vale circa un'ora (è una sessione di browser). Quando scade,
+> l'app lo dice e basta rinnovarlo con lo stesso comando.
+>
+> Se preferisci la via "servizio open source" (Node.js sulla porta 8000),
+> c'è anche quella: `python AVVIA_SUNO.py`. L'app la usa solo come riserva.
+>
+> **Il token Hugging Face** (per ACE-Step e MusicGen) è gratis:
+> <https://huggingface.co/settings/tokens> → *New token* → *Read* → incollalo
+> nel campo "Token Hugging Face" della barra laterale. Serve a far partire
+> i modelli open source (senza token la quota GPU pubblica è esaurita).
 
 ## 🧩 Per chi scarica l'app: come si attiva tutto (2 minuti)
 
@@ -416,7 +439,10 @@ niente, compare **"🧩 Attiva tutto (2 minuti)"** con i passi esatti:
    *La chiave è attiva subito, anche sull'app online.*
 2. **Suno** (facoltativo, per la canzone cantata con i tuoi crediti
    gratuiti) → le istruzioni sono nella stessa finestra
-3. **AIMLAPI** (facoltativo, alternativa a Suno) → https://aimlapi.com
+
+> Tutto il resto (versetti, interpretazione, ricerca delle canzoni, video
+> .mp4) funziona **senza toccare nulla**: la chiave serve solo per
+> l'interpretazione più profonda e per la musica.
 
 **Dove finiscono le chiavi** (scelte del wizard):
 - **"Attiva subito (per me)"** → valgono solo nella tua sessione

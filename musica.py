@@ -4,26 +4,18 @@ musica.py
 =========
 Canzone ORIGINALE per il post: testo -> musica cantata -> video TikTok.
 
-Due tappe:
-  1) MUSICA  - AIMLAPI (motori di generazione audio con voce).
-     POST https://api.aimlapi.com/v2/generate/audio  ->  {"generation_id": ...}
-     poi si interroga lo stesso endpoint finche' il brano e' pronto:
-     {"status": "success", "output": [{"url": "....mp3"}]}
+Solo motori GRATUITI (nessuna chiave a pagamento):
+  1) SUNO     - i crediti gratuiti giornalieri del TUO account, tramite il
+                servizio open source "suno-api" (vedi suno.py). Canta le
+                parole: e' il motore giusto per un cantico.
+  2) ACE-Step - open source su Hugging Face: canta il testo. Gratis, ma
+                coda (puo' mettersi in attesa).
+  3) MusicGen - open source: solo strumentale (ottimo come base).
 
-  2) VIDEO  - la canzone e' un audio, ma TikTok accetta SOLO .mp4.
-     Quindi: immagine di sfondo (1080x1920, verticale) + audio -> .mp4
-     con ffmpeg ( incluso in imageio-ffmpeg, cosi' funziona anche su
-     Streamlit Cloud senza installare nulla a mano).
-
-NOTA SUI MODELLI (verificato sui docs AIMLAPI):
-  - "suno" NON e' disponibile come modello chiamabile
-  - i modelli che cantano davvero le parole sono:
-      minimax/music-2.6   (lyrics separate + voce, il migliore per un inno)
-      minimax/music-2.0, minimax/music-1.5
-      elevenlabs/eleven_music (lyrics dentro il prompt)
-      google/lyria-2 (lyrics nel prompt, max 600 caratteri)
-  - il FREE TIER di AIMLAPI al momento e' in PAUSA: serve una chiave
-    con credito. L'app lo dice chiaramente se la chiamata fallisce.
+  4) VIDEO    - la canzone e' un audio, ma TikTok accetta SOLO .mp4.
+                Quindi: immagine di sfondo (1080x1920, verticale) + audio
+                -> .mp4 con ffmpeg (incluso in imageio-ffmpeg, cosi' funziona
+                anche su Streamlit Cloud senza installare nulla a mano).
 """
 
 from __future__ import annotations
@@ -42,15 +34,13 @@ try:
 except ImportError:  # pragma: no cover
     requests = None  # type: ignore
 
-URL_AIMLAPI = "https://api.aimlapi.com/v2/generate/audio"
-
-# i modelli che cantano le parole, dal piu' adatto al piu' semplice
-MODELLI_CANTATI = (
-    "minimax/music-2.6",
-    "minimax/music-2.0",
-    "elevenlabs/eleven_music",
-    "google/lyria-2",
+# i motori gratuiti, in ordine di preferenza
+MOTORI_GRATUITI = (
+    "Suno (i tuoi crediti gratuiti)",
+    "ACE-Step (open source)",
+    "MusicGen (strumentale)",
 )
+
 
 # stile musicale di default: inno pentecostale, voce maschile, piano
 STILE_DEFAULT = ("Inno di lode pentecostale, voce maschile, piano e cori "
@@ -61,116 +51,44 @@ STILE_DEFAULT = ("Inno di lode pentecostale, voce maschile, piano e cori "
 # 1) La musica
 # --------------------------------------------------------------------------
 
-def genera_canzone(lyrics: str, stile: str = "", chiave: str = "",
-                   modello: str = "", timeout: int = 420) -> dict:
+def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
+                   timeout: int = 600) -> dict:
     """
-    Chiede ad AIMLAPI di comporre e cantare il brano.
+    Compone e canta il brano con i motori gratuiti, in ordine:
+      1) Suno      - i tuoi crediti gratuiti (se il servizio e' attivo)
+      2) ACE-Step  - open source, canta il testo
+      3) MusicGen  - open source, solo strumentale
+
+    Se 'modello' e' indicato, si prova SOLO quello.
 
     Restituisce:
-      {"ok": True,  "file": "<percorso mp3>", "url": "...", "modello": "..."}
+      {"ok": True,  "file": "<percorso mp3>", "url": "...", "motore": "..."}
       {"ok": False, "errore": "..."}
     """
-    vuoto = {"ok": False, "errore": "", "file": "", "url": "", "modello": ""}
-    if requests is None:
-        return {**vuoto, "errore": "requests non installato"}
-    chiave = (chiave or _chiave_da_secrets()).strip()
-    if not chiave:
-        return {**vuoto, "errore": (
-            "Chiave AIMLAPI mancante: mettila nella barra laterale "
-            "(campo 'Chiave AIMLAPI'). E' gratis su aimlapi.com "
-            "(l'API per generare musica con voce).")}
-
+    vuoto = {"ok": False, "errore": "", "file": "", "url": "", "motore": ""}
     lyrics = (lyrics or "").strip()
     if len(lyrics) < 10:
         return {**vuoto, "errore": "Le parole sono troppo corte per un brano."}
     stile = (stile or STILE_DEFAULT).strip()
-    modello = modello or MODELLI_CANTATI[0]
 
-    # MiniMax accetta "lyrics" a parte; gli altri modelli vogliono tutto
-    # dentro "prompt". Gestiamo i due casi.
-    def _corpo(m: str) -> dict:
-        if m.startswith("minimax/"):
-            return {"model": m, "prompt": stile, "lyrics": lyrics[:3000],
-                    "is_instrumental": False}
-        return {"model": m, "prompt": f"{stile}\n\n{lyrics}"[:2000]}
-
-    headers = {"Authorization": f"Bearer {chiave}",
-               "Content-Type": "application/json"}
-    ultimo = ""
-    for m in (modello,):
-        try:
-            risp = requests.post(URL_AIMLAPI, json=_corpo(m), headers=headers,
-                                 timeout=60)
-        except Exception as exc:
-            return {**vuoto, "errore": f"Impossibile contattare AIMLAPI: {exc}"}
-
-        if risp.status_code == 401:
-            return {**vuoto, "errore": "Chiave AIMLAPI non valida."}
-        if risp.status_code == 402:
-            return {**vuoto, "errore": (
-                "AIMLAPI: credito esaurito o free tier non attivo al "
-                "momento. Serve un piano con crediti (si parte da pochi "
-                "euro) oppure attendere che il free tier torni.")}
-        if risp.status_code != 200:
-            ultimo = f"AIMLAPI errore {risp.status_code}: {risp.text[:200]}"
-            continue
-
-        try:
-            dati = risp.json()
-        except Exception:
-            ultimo = "risposta AIMLAPI non leggibile"
-            continue
-
-        _gid = (dati.get("generation_id") or dati.get("id")
-                or (dati.get("output") or [{}])[0].get("generation_id"))
-        if not _gid:
-            ultimo = "AIMLAPI non ha restituito un generation_id"
-            continue
-
-        # --- attesa del brano ---
-        scaduto = time.time() + timeout
-        url_audio = ""
-        while time.time() < scaduto:
-            time.sleep(6)
+    scelte = [modello] if modello else ["suno", "ace-step", "musicgen"]
+    problemi = []
+    for scelta in scelte:
+        if scelta == "suno":
             try:
-                r2 = requests.get(URL_AIMLAPI,
-                                  params={"generation_id": _gid},
-                                  headers=headers, timeout=45)
-                d2 = r2.json()
-            except Exception:
-                continue
-            _st = (d2.get("status") or d2.get("state") or "").lower()
-            _out = d2.get("output") or []
-            for _o in _out:
-                if isinstance(_o, dict) and _o.get("url"):
-                    url_audio = _o["url"]
-                    break
-            if url_audio:
-                break
-            if _st in ("error", "failed", "canceled"):
-                ultimo = (d2.get("error") or d2.get("message")
-                          or "generazione fallita")
-                break
-        if not url_audio:
-            return {**vuoto, "errore": ultimo or (
-                "Tempo scaduto: il brano non e' pronto. Riprova.")}
+                import suno as _suno
+                r = _suno.genera_canzone_suno(lyrics, tags=stile,
+                                              timeout=min(timeout, 480))
+            except Exception as exc:
+                r = {"ok": False, "errore": f"Suno: {str(exc)[:120]}"}
+        else:
+            r = genera_canzone_gratuita(lyrics, stile, modello=scelta,
+                                        timeout=timeout)
+        if r.get("ok"):
+            return r
+        problemi.append(f"{scelta}: {r.get('errore', '')[:110]}")
+    return {**vuoto, "errore": " | ".join(problemi) or "nessun motore disponibile"}
 
-        # --- download del file ---
-        try:
-            file_mp3 = os.path.join(tempfile.gettempdir(),
-                                    f"cantico_{uuid.uuid4().hex[:10]}.mp3")
-            with requests.get(url_audio, stream=True, timeout=180) as rf:
-                with open(file_mp3, "wb") as f:
-                    for pezzo in rf.iter_content(65536):
-                        if pezzo:
-                            f.write(pezzo)
-        except Exception as exc:
-            return {**vuoto, "errore": f"Brano pronto ma download fallito: {exc}"}
-
-        return {"ok": True, "errore": "", "file": file_mp3, "url": url_audio,
-                "modello": m}
-
-    return {**vuoto, "errore": ultimo or "AIMLAPI non ha risposto"}
 
 
 # --------------------------------------------------------------------------
@@ -184,6 +102,34 @@ SPACE_ACE_STEP = "ACE-Step/ACE-Step"
 SPACE_MUSICGEN = "facebook/MusicGen"
 
 
+def token_huggingface() -> str:
+    """
+    Il token Hugging Face (gratis) serve per la quota GPU di ACE-Step e
+    MusicGen. Senza token gli Space pubblici rispondono "quota esaurita".
+    Lo prende dai secrets, dalle variabili d'ambiente o dalla barra
+    laterale dell'app.
+    """
+    for nome in ("HF_TOKEN", "HUGGINGFACE_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
+        try:
+            import streamlit as st
+            v = str(st.secrets.get(nome, "") or "").strip()
+            if v:
+                return v
+        except Exception:
+            pass
+        v = str(os.environ.get(nome, "") or "").strip()
+        if v:
+            return v
+    try:
+        import streamlit as st
+        v = str(st.session_state.get("token_hf", "") or "").strip()
+        if v:
+            return v
+    except Exception:
+        pass
+    return ""
+
+
 def _gradio_client(space: str):
     """Il client Gradio per uno Space pubblico (None se non c'e')."""
     try:
@@ -191,6 +137,9 @@ def _gradio_client(space: str):
     except ImportError:
         return None
     try:
+        tok = token_huggingface()
+        if tok:
+            return Client(space, verbose=False, hf_token=tok)
         return Client(space, verbose=False)
     except Exception:
         return None
@@ -250,7 +199,14 @@ def genera_canzone_gratuita(lyrics: str, stile: str = "",
             api_name="/__call__",
         )
     except Exception as exc:
-        return {**vuoto, "errore": f"ACE-Step non ha risposto: {str(exc)[:250]}"}
+        _msg = str(exc)
+        if "quota" in _msg.lower() or "ZeroGPU" in _msg:
+            return {**vuoto, "errore": (
+                "ACE-Step: la quota GPU gratuita e' esaurita. Si risolve con "
+                "un token Hugging Face gratis (lo metti nella barra laterale "
+                "dell'app, campo 'Token Hugging Face'): "
+                "https://huggingface.co/settings/tokens")}
+        return {**vuoto, "errore": f"ACE-Step non ha risposto: {_msg[:250]}"}
 
     path = _percorso_audio(risultato)
     if not path:
@@ -272,7 +228,12 @@ def _genera_musicgen(stile: str, durata: int, timeout: int) -> dict:
             api_name="/predict_batched",
         )
     except Exception as exc:
-        return {**vuoto, "errore": f"MusicGen non ha risposto: {str(exc)[:250]}"}
+        _msg = str(exc)
+        if "quota" in _msg.lower() or "ZeroGPU" in _msg:
+            return {**vuoto, "errore": (
+                "MusicGen: la quota GPU gratuita e' esaurita. Serve un token "
+                "Hugging Face gratis (barra laterale dell'app).")}
+        return {**vuoto, "errore": f"MusicGen non ha risposto: {_msg[:250]}"}
     path = _percorso_audio(risultato)
     if not path:
         return {**vuoto, "errore": "MusicGen ha risposto senza un file audio."}
@@ -312,23 +273,12 @@ def genera_canzone_senza_pagare(lyrics: str, stile: str = "",
                                 durata: int = 60, timeout: int = 600) -> dict:
     """
     Tenta i motori gratuiti, in ordine:
-      1) ACE-Step (canta il testo) - lo spazio piu' adatto a un inno
-      2) MusicGen (solo strumentale)
-    Se falliscono tutti, prova AIMLAPI (se c'e' credito).
+      1) Suno      (i crediti gratuiti del tuo account)
+      2) ACE-Step  (canta il testo)
+      3) MusicGen  (solo strumentale)
     """
-    problemi = []
-    for modello in ("ace-step", "musicgen"):
-        r = genera_canzone_gratuita(lyrics, stile, durata, modello, timeout)
-        if r.get("ok"):
-            return r
-        problemi.append(f"{modello}: {r.get('errore', '')[:90]}")
-    # ultima spiaggia: AIMLAPI (se ha credito)
-    r = genera_canzone(lyrics, stile, timeout=min(timeout, 420))
-    if r.get("ok"):
-        return r
-    problemi.append(f"aimlapi: {r.get('errore', '')[:90]}")
-    return {"ok": False, "errore": " | ".join(problemi), "file": "",
-            "motore": ""}
+    return genera_canzone(lyrics, stile, timeout=timeout)
+
 
 
 # --------------------------------------------------------------------------
@@ -525,30 +475,3 @@ def _durata_video(path: str) -> str:
         return ""
 
 
-def _chiave_da_secrets() -> str:
-    """La chiave AIMLAPI dai secrets di Streamlit o dal file locale."""
-    for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-        try:
-            import streamlit as st
-            v = (st.secrets.get(nome, "") or "").strip()
-            if v:
-                return v
-        except Exception:
-            pass
-        v = (os.environ.get(nome, "") or "").strip()
-        if v:
-            return v
-    try:
-        import tomllib
-        p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         ".streamlit", "secrets.toml")
-        if os.path.exists(p):
-            with open(p, "rb") as f:
-                d = tomllib.load(f)
-            for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-                v = str(d.get(nome, "") or "").strip()
-                if v:
-                    return v
-    except Exception:
-        pass
-    return ""

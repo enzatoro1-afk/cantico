@@ -39,7 +39,7 @@ from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
                        interpreta_gemini, interpreta_gratis, link_chatgpt,
                        parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini,
                        scegli_versetto_ia)
-from musica import (MODELLI_CANTATI, STILE_DEFAULT, crea_video_tiktok,
+from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_tiktok,
                     genera_canzone, genera_canzone_gratuita,
                     genera_canzone_senza_pagare)
 from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG,
@@ -47,7 +47,8 @@ from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG,
 from configura import (ISTRUZIONE_SUNO, PASSI, TESTO_SUNO, leggi_secrets,
                       scrivi_secrets, stato_configurazione)
 from testi_canzone import scrivi_testi_canzone
-from archivio import aggiungi_post, carica_archivio, elimina_post
+from archivio import (aggiungi_post, cancella_archivio, carica_archivio,
+                      elimina_post)
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
 from bible_search import (NOME_TRADUZIONE, cerca_versetti,
@@ -578,15 +579,6 @@ def _chiave_gemini_attiva() -> str:
     return (chiave_gemini_da_secrets() or "").strip()
 
 
-def _chiave_aimlapi_attiva() -> str:
-    """Come sopra, per AIMLAPI."""
-    for _k in ("cfg_aimlapi", "chiave_aimlapi"):
-        _v = str(st.session_state.get(_k, "") or "").strip()
-        if _v:
-            return _v
-    return (_chiave_aimlapi_da_secrets() or "").strip()
-
-
 def _chiedi_ia(prompt: str, chiave_gemini: str = "",
                chiave_openai: str = "") -> dict:
     """
@@ -825,6 +817,7 @@ for chiave, valore in (
     ("canzone_testi", ""),
     ("canzone_audio", ""),
     ("canzone_video", ""),
+    ("suno_protegto", False),
 ):
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
@@ -846,6 +839,14 @@ if st.session_state.get("archivio") is None:
 
 def _sha(testo: str) -> str:
     return hashlib.sha256((testo or "").encode("utf-8")).hexdigest()
+
+
+def _segreto(nome: str, default: str = "") -> str:
+    """Legge un segreto di Streamlit senza rompere nulla se manca il file."""
+    try:
+        return str(st.secrets.get(nome, default) or default).strip()
+    except Exception:
+        return default
 
 
 def _password_attesa() -> str:
@@ -876,34 +877,6 @@ def _password_attesa() -> str:
             m = _re.search(r'APP_PASSWORD_SHA256\s*=\s*"([^"]+)"', testo)
             if m:
                 return m.group(1).strip().lower()
-    except Exception:
-        pass
-    return ""
-
-
-def _chiave_aimlapi_da_secrets() -> str:
-    """La chiave AIMLAPI dai secrets di Streamlit o dal file locale."""
-    for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-        try:
-            v = (st.secrets.get(nome, "") or "").strip()
-            if v:
-                return v
-        except Exception:
-            pass
-        v = (os.environ.get(nome, "") or "").strip()
-        if v:
-            return v
-    try:
-        import tomllib
-        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         ".streamlit", "secrets.toml")
-        if os.path.exists(_p):
-            with open(_p, "rb") as f:
-                _d = tomllib.load(f)
-            for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-                v = str(_d.get(nome, "") or "").strip()
-                if v:
-                    return v
     except Exception:
         pass
     return ""
@@ -1067,6 +1040,18 @@ with st.sidebar:
                 st.success("\u2705 Chiave salvata sul server: da ora in poi "
                            "Gemini e' attivo per tutti.")
                 st.rerun()
+    _token_hf = st.text_input(
+        "Token Hugging Face (facoltativo, gratis)",
+        value=_segreto("HF_TOKEN"),
+        type="password",
+        help="Serve SOLO per ACE-Step e MusicGen (i modelli open source): "
+             "senza token questi spazi pubblici hanno la quota GPU esaurita. "
+             "Lo prendi gratis su https://huggingface.co/settings/tokens "
+             "(New token -> Read). Resta nel tuo computer.",
+        key="token_hf",
+    )
+    if _token_hf:
+        st.session_state["token_hf"] = _token_hf.strip()
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
         value=chiave_da_secrets(),
@@ -1074,16 +1059,6 @@ with st.sidebar:
         help="Lasciala vuota se usi Gemini o l'IA gratuita. Va in "
              ".streamlit/secrets.toml per non riscriverla.",
         key="chiave_ia",
-    )
-    _chiave_aimlapi = st.text_input(
-        "Chiave AIMLAPI (per comporre canzoni)",
-        value=_chiave_aimlapi_da_secrets(),
-        type="password",
-        help="Serve SOLO se vuoi che l'app componga una canzone nuova con "
-             "voce (e ti prepari il video per TikTok). La prendi su "
-             "aimlapi.com. Senza questa chiave tutto il resto funziona "
-             "lo stesso: l'app cerca solo canzoni gia' esistenti.",
-        key="chiave_aimlapi",
     )
     html(
         "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
@@ -1093,8 +1068,7 @@ with st.sidebar:
     # Ogni utente crea le PROPRIE chiavi con la PROPRIA email e l'app
     # gli funziona al 100%: niente altro da fare.
     _stato = stato_configurazione()
-    if not (_stato.get("gemini") or _stato.get("aimlapi")
-            or _stato.get("suno")):
+    if not (_stato.get("gemini") or _stato.get("suno")):
         with st.expander("\U0001F9E9 Attiva tutto (2 minuti)",
                          expanded=True):
             html(
@@ -1164,24 +1138,17 @@ with st.sidebar:
                                      + str(_r.get("errore"))[:160])
 
             st.markdown("---")
-            with st.expander("Opzionale: la canzone cantata (Suno o AIMLAPI)"):
+            with st.expander("Opzionale: la canzone cantata (Suno)"):
                 html('<div class="note">Per sentire una canzone cantata che '
                      'nascendo dal tuo versetto, servono i crediti di un '
                      'motore musicale. Sono opzionali: senza, l\'app cerca '
                      'le canzoni di lode gia\' esistenti e prepara il video.'
                      '</div>')
-                _v_aim = st.text_input(
-                    "Chiave AIMLAPI (facoltativa)", type="password",
-                    key="cfg_aimlapi", placeholder="f3a9b74d...")
-                if _v_aim:
-                    st.session_state["cfg_aimlapi"] = _v_aim.strip()
                 if st.button("\U0001F4DD Salva la configurazione sul computer",
                              use_container_width=True, key="cfg_salva"):
                     _da = {}
                     if _v_gem:
                         _da["GEMINI_API_KEY"] = _v_gem.strip()
-                    if _v_aim:
-                        _da["AIMLAPI_KEY"] = _v_aim.strip()
                     if _da:
                         _okc, _msg = scrivi_secrets(_da)
                         (st.success if _okc else st.error)(
@@ -2409,9 +2376,9 @@ if risultati:
             'mette sopra uno sfondo per fare un <b>video .mp4 pronto da '
             'caricare su TikTok</b> (un brano tuo: nessun problema di '
             'copyright).<br><br>'
-            'Serve una chiave <b>AIMLAPI</b>: prendila gratis su '
-            '<a href="https://aimlapi.com" target="_blank">aimlapi.com</a> '
-            'e incollala nella barra laterale.</div>')
+            'Per la canzone cantata servono i tuoi crediti gratuiti di '
+            'Suno (le istruzioni sono nella barra laterale) oppure un '
+            'modello open source.</div>')
 
         _stile = st.text_input(
             "Stile musicale", value=STILE_DEFAULT, key="stile_musica",
@@ -2439,13 +2406,12 @@ if risultati:
                 else:
                     st.warning(_res.get("errore", ""))
         with _b2:
-            _modelli = st.selectbox("Motore musicale", list(MODELLI_CANTATI),
-                                    key="modello_musica",
-                                    help=" minimax/music-2.6 e' il piu' adatto "
-                                         "per un inno cantato (lyrics separate). "
-                                         "elevenlabs/eleven_music e' piu' "
-                                         "semplice. google/lyria-2 accetta "
-                                         "solo 600 caratteri di testo.")
+            _motore = st.selectbox(
+                "Motore musicale", list(MOTORI_GRATUITI), key="motore_scelto",
+                help="Suno usa i crediti gratuiti giornalieri del TUO account "
+                     "(serve il servizio open source attivo + il cookie). "
+                     "ACE-Step e MusicGen sono open source e gratis, ma hanno "
+                     "coda: possono mettersi in attesa.")
         if st.session_state.get("canzone_testi"):
             _testi_canzone = st.text_area(
                 "Il testo della canzone (modificalo come vuoi)",
@@ -2454,16 +2420,6 @@ if risultati:
             st.session_state["canzone_testi"] = _testi_canzone
 
             # --- 2) la musica ---
-            _motori = ["Suno (i tuoi crediti gratuiti)",
-                       "ACE-Step (open source)",
-                       "MusicGen (strumentale)",
-                       "AIMLAPI"]
-            _motore = st.selectbox(
-                "Motore musicale", _motori, key="motore_scelto",
-                help="Suno usa i crediti gratuiti giornalieri del TUO account "
-                     "(serve il servizio open source attivo + il cookie). "
-                     "ACE-Step e MusicGen sono open source e gratis, ma hanno "
-                     "coda. AIMLAPI richiede credito.")
             _tag_finali = st.text_input(
                 "Tag di stile (invio quelli che mi hai dato)",
                 value=TUTTI_I_TAG, key="tag_musica",
@@ -2493,16 +2449,43 @@ if risultati:
                         _res_m = genera_canzone_gratuita(
                             _testi_finali, _stile_finale, modello="musicgen")
                     else:
-                        _res_m = genera_canzone(
-                            _testi_finali, _stile_finale,
-                            chiave=_chiave_aimlapi_attiva(),
-                            modello=st.session_state.get("modello_musica", ""))
+                        _res_m = genera_canzone_gratuita(
+                            _testi_finali, _stile_finale, modello="musicgen")
                 if _res_m.get("ok"):
                     st.session_state["canzone_audio"] = _res_m["file"]
                     st.session_state["canzone_audio_url"] = _res_m.get("url", "")
                     st.session_state["canzone_modello"] = _res_m.get("motore", "")
                 else:
                     st.error(_res_m.get("errore", "Composizione fallita."))
+                    if _res_m.get("protegto"):
+                        st.session_state["suno_protegto"] = True
+
+            # Brano pronto ma protetto da Suno (o un brano tuo): si puo'
+            # caricare qui il file audio per fare il video.
+            if st.session_state.get("suno_protegto") or (
+                    not st.session_state.get("canzone_audio")):
+                with st.expander("\U0001F3A7 Carica il brano (facoltativo)",
+                                 expanded=bool(st.session_state.get(
+                                     "suno_protegto"))):
+                    html('<div class="note">Se hai scaricato il brano da '
+                         'suno.com (o vuoi usare un brano tuo), caricalo '
+                         'qui: l\'app ci fa sopra il video verticale. '
+                         'Accetta .mp3, .m4a, .wav.</div>')
+                    _brano = st.file_uploader(
+                        "Il brano (file audio)",
+                        type=["mp3", "m4a", "wav", "aac", "ogg"],
+                        key="brano_caricato")
+                    if _brano is not None:
+                        _dest = os.path.join(tempfile.gettempdir(),
+                                             "brano_caricato" +
+                                             os.path.splitext(_brano.name)[1])
+                        with open(_dest, "wb") as _f:
+                            _f.write(_brano.getvalue())
+                        st.session_state["canzone_audio"] = _dest
+                        st.session_state["canzone_modello"] = "Il tuo brano"
+                        st.session_state["suno_protegto"] = False
+                        st.success("Brano caricato. Ora fai il video qui sotto.")
+                        st.rerun()
 
             if st.session_state.get("canzone_audio"):
                 st.audio(st.session_state["canzone_audio"])
@@ -2799,18 +2782,10 @@ if _codice_attivo:
         'post, e tu non vedi quelli degli altri.</div>')
 else:
     html(
-        '<div class="note box-warn">\U0001F510 <b>L\'archivio e\' privato.</b> '
-        'Quello che cerchi resta solo per te. Per ritrovare i tuoi post '
-        'anche dopo aver chiuso il browser, metti un <b>codice</b> qui sotto.'
-        '</div>')
-    html(
-        '<div class="note">\U0001F4DD <b>Come si usa il codice</b><br>'
-        'Ogni persona che usa l\'app sceglie <b>il proprio</b> codice: '
-        'basta che ognuno se lo ricordi (o se lo mandi su WhatsApp).<br>'
-        'Nessuno deve sapere il codice degli altri: ognuno vede solo i '
-        'suoi post. Se non vuoi complicarti, lascia pure il codice vuoto: '
-        'l\'archivio funziona lo stesso, ma vale solo finche\' non chiudi '
-        'il browser.</div>')
+        '<div class="note box-ok">\U0001F510 <b>L\'archivio e\' gi\' attivo '
+        'per te.</b> L\'app ti ha riconosciuto dal browser: i tuoi post '
+        'sono gi\' tuoi, <b>senza che tu debba creare o ricordare nessun '
+        'codice</b>. Nessun altro li vede.</div>')
 
 # campo codice qui (l'utente e' gia' in questa sezione: non deve
 # andare a cercarlo da un'altra parte)
@@ -2823,28 +2798,33 @@ def _genera_codice() -> str:
     return f"CANT-{blocco}"
 
 
-if st.button("\U0001F3B2 Genera un codice per me", use_container_width=True):
-    st.session_state["input_codice_archivio2"] = _genera_codice()
-    st.rerun()
+with st.expander("Opzionale: ritrovare i tuoi post su un altro dispositivo"):
+    html(
+        '<div class="note">Non ti serve per usare l\'app: l\'archivio gi\' '
+        'funziona. Ma se un giorno cambi telefono o computer, metti qui un '
+        '<b>codice segreto</b> e ritrovi i tuoi post anche li.</div>')
+    if st.button("\U0001F3B2 Genera un codice per me",
+                 use_container_width=True, key="gen_codice"):
+        st.session_state["input_codice_archivio2"] = _genera_codice()
+        st.rerun()
 
-with st.form("form_codice_archivio", border=False):
-    _cod_inserito = st.text_input(
-        "Codice archivio (per ritrovare i tuoi post)",
-        value=_codice_attivo,
-        type="password",
-        placeholder="es. enzo2026",
-        help="Scegli un codice che solo tu conosci (o usa il pulsante "
-             "'Genera un codice per me'). Serve per ritrovare i tuoi post "
-             "dopo aver chiuso il browser.",
-        key="input_codice_archivio2",
-    )
-    _salva_codice = st.form_submit_button(
-        "\U0001F510 Salva il codice" if not _codice_attivo
-        else "\U0001F510 Cambia codice", use_container_width=True)
-if _salva_codice:
-    st.session_state["codice_archivio"] = _cod_inserito
-    st.session_state["archivio"] = carica_archivio(_cod_inserito)
-    st.rerun()
+    with st.form("form_codice_archivio", border=False):
+        _cod_inserito = st.text_input(
+            "Codice archivio (facoltativo)",
+            value=_codice_attivo,
+            type="password",
+            placeholder="es. enzo2026",
+            help="Solo tu devi saperlo: con questo codice ritrovi i tuoi "
+                 "post su un altro dispositivo.",
+            key="input_codice_archivio2",
+        )
+        _salva_codice = st.form_submit_button(
+            "\U0001F510 Salva il codice" if not _codice_attivo
+            else "\U0001F510 Cambia codice", use_container_width=True)
+    if _salva_codice:
+        st.session_state["codice_archivio"] = _cod_inserito
+        st.session_state["archivio"] = carica_archivio(_cod_inserito)
+        st.rerun()
 
 if not archivio:
     html(
@@ -2910,6 +2890,19 @@ else:
                         voce.get("id", ""),
                         _CHIAVE_ARCHIVIO)
                     st.rerun()
+
+# pulsante privacy: cancella tutto quello che ho salvato
+with st.expander("🔒 Cancella i miei dati"):
+    html('<div class="note">Cancella <b>tutti</b> i post che hai salvato '
+         'nell\'archivio (anche il file sul server). Non si puo\' annullare.'
+         '</div>')
+    if st.button("\U0001F5D1 Cancella tutto il mio archivio",
+                 use_container_width=True, key="cancella_mio_archivio"):
+        cancella_archivio(_CHIAVE_ARCHIVIO)
+        st.session_state["archivio"] = []
+        st.session_state["codice_archivio"] = ""
+        st.success("Archivio cancellato.")
+        st.rerun()
 
 html(
     f'<div class="note" style="text-align:center;margin-top:18px;">'

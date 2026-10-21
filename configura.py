@@ -37,37 +37,27 @@ PASSI = [
         "link": "https://aistudio.google.com/api-keys",
         "esempio": "AIzaSy...",
     },
-    {
-        "chiave": "aimlapi",
-        "titolo": "2) AIMLAPI - (opzionale) per comporre con voce",
-        "perche": ("Serve solo se vuoi che l'app componga una canzone cantata "
-                   "e ti prepari il video .mp4. Ha un piano a consumo: "
-                   "controlla il credito disponibile."),
-        "come": [
-            "Registrati su https://aimlapi.com",
-            "Copia la chiave dalla tua area account",
-            "Incollala qui sotto (opzionale)",
-        ],
-        "link": "https://aimlapi.com",
-        "esempio": "f3a9b74d...",
-    },
 ]
 
 ISTRUZIONE_SUNO = """\
-Suno: per usare i crediti gratuiti giornalieri del TUO account
-(serve un servizio open source che fa da ponte con suno.com):
+Suno: per usare i crediti gratuiti giornalieri del TUO account.
 
- 1) Nel terminale, dentro la cartella dell'app:
-        python AVVIA_SUNO.py
-    (il progetto open source viene scaricato e avviato da solo)
- 2) Fai il login su https://suno.com, poi F12 -> Console ->
-        copy(document.cookie)
-    e premi Invio (il cookie va negli appunti)
- 3) Torna nel terminale e lancia:
-        python SALVA_COOKIE_SUNO.py
-    e incolla il cookie. Non passarlo dalla chat: cosi' resta solo
-    sul tuo computer (file .suno_cookie.txt, che e' in .gitignore).
+Serve UNA cosa sola: il tuo cookie di suno.com. Non devi installare
+niente (niente Node, niente servizi): l'app parla con Suno esattamente
+come fa la pagina web di Suno.
+
+ 1) Fai il login su https://suno.com
+ 2) F12 -> scheda "Network" (Rete) -> ricarica la pagina (F5)
+    -> clicca una richiesta -> in "Request Headers" copia la riga
+    "cookie" (inizia con __client=... oppure __session=...)
+ 3) Salvalo sul tuo computer (il cookie NON passa dalla chat e NON
+    finisce su GitHub):
+         python AGGIORNA_COOKIE_SUNO.py
+    e incolla il valore.
  4) Nell'app scegli il motore 'Suno (i tuoi crediti gratuiti)'.
+
+Il cookie vale circa un'ora: quando scade, l'app te lo dice e basta
+rinnovarlo con lo stesso comando.
 """
 
 TESTO_SUNO = """\
@@ -148,7 +138,7 @@ def stato_configurazione() -> dict:
     out = {}
     for passo in PASSI:
         k = passo["chiave"]
-        nome = "GEMINI_API_KEY" if k == "gemini" else "AIMLAPI_KEY"
+        nome = "GEMINI_API_KEY"
         out[k] = bool(str(s.get(nome, "") or "").strip())
     # il cookie Suno
     try:

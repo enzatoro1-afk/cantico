@@ -4,9 +4,12 @@ archivio.py
 ===========
 Archivio privato dei post preparati.
 
-Ogni utente ha il PROPRIO archivio, protetto da un "codice archivio"
-(segreto personale). I file sono separati per codice, cosi' due persone
-che usano la stessa app non vedono i post dell'altra.
+Ogni utente ha il PROPRIO archivio, identificato in automatico dal browser
+(cookie "cantico_uid"): nessuno deve creare o ricordare nessun codice.
+I file sono separati per identificatore, cosi' due persone che usano la
+stessa app non vedono i post dell'altra. Un "codice archivio" puo' essere
+aggiunto a mano solo se si vuole ritrovare i propri post su un altro
+dispositivo.
 
 Come funziona:
   - il codice personale -> hash SHA-256 -> nome file `archivio_<hash>.json`
@@ -104,3 +107,16 @@ def elimina_post(post_id: str, codice: str = "") -> list[dict]:
     voci = [v for v in carica_archivio(codice) if v.get("id") != post_id]
     salva_archivio(voci, codice)
     return voci
+
+
+def cancella_archivio(codice: str = "") -> bool:
+    """Cancella TUTTO l'archivio di quel codice (file compreso)."""
+    percorso = _percorso(codice)
+    if not percorso:
+        return False
+    try:
+        if os.path.exists(percorso):
+            os.remove(percorso)
+        return True
+    except Exception:
+        return False

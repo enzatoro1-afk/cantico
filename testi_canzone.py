@@ -110,12 +110,7 @@ def scrivi_testi_canzone(versetto: str, interpretazione: str, temi: str = "",
         except Exception:
             testo = ""
 
-    # 2b) AIMLAPI (stessa chiave che genera la musica): un modello di testo
-    #     scrive le parole, cosi' serve UNA sola chiave per tutto
-    if not testo:
-        testo = _testi_con_aimlapi(prompt, timeout=timeout)
-
-    # 3) ChatGPT API
+    # 3) ChatGPT API    # 3) ChatGPT API
     if not testo and chiave_openai:
         try:
             from ai_client import interpreta_con_ia
@@ -134,60 +129,6 @@ def scrivi_testi_canzone(versetto: str, interpretazione: str, temi: str = "",
         testo = "[Verse 1]\n" + testo
 
     return {"ok": True, "errore": "", "testo": testo}
-
-
-def _testi_con_aimlapi(prompt: str, timeout: int = 120) -> str:
-    """
-    Scrive i testi usando un modello di testo su AIMLAPI (la stessa chiave
-    che genera la musica). Serve cosi' una SOLA chiave per tutto.
-    """
-    try:
-        import requests
-    except ImportError:
-        return ""
-    chiave = ""
-    for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-        try:
-            import os
-            v = (os.environ.get(nome, "") or "").strip()
-            if v:
-                chiave = v
-                break
-        except Exception:
-            pass
-    if not chiave:
-        try:
-            import tomllib
-            import os
-            p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             ".streamlit", "secrets.toml")
-            if os.path.exists(p):
-                with open(p, "rb") as f:
-                    d = tomllib.load(f)
-                for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
-                    v = str(d.get(nome, "") or "").strip()
-                    if v:
-                        chiave = v
-                        break
-        except Exception:
-            pass
-    if not chiave:
-        return ""
-    try:
-        r = requests.post(
-            "https://api.aimlapi.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {chiave}",
-                     "Content-Type": "application/json"},
-            json={"model": "openai/gpt-5-5",
-                  "messages": [{"role": "user", "content": prompt}]},
-            timeout=timeout)
-        if r.status_code != 200:
-            return ""
-        d = r.json()
-        return str((d.get("choices") or [{}])[0]
-                   .get("message", {}).get("content", "") or "").strip()
-    except Exception:
-        return ""
 
 
 def _puliscitesto(testo: str) -> str:
