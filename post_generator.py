@@ -65,7 +65,7 @@ APERTURE = (
 
 CHIUSURE = (
     "Scrivi nei commenti cosa ti ha toccato \U0001F4AC",
-    "Salva questo video per quando ne avrai bisogno \U0000D83D\uDCCB",
+    "Salva questo video per quando ne avrai bisogno \U0001F4CB",
     "Tagga chi ha bisogno di sentire questo \U0001F517",
     "Condividi per ricevere una parola \U0001F49B",
     "Dillo a Dio, anche solo in silenzio \U0001F5E8",

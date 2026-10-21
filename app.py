@@ -468,8 +468,13 @@ def _studia_versetto() -> None:
     versetto["trascrizione"] = trascrizione
     analisi = st.session_state.get("analisi") or {}
     temi = analisi.get("temi") or ["Salvezza"]
+    # se l'utente ha scelto di studiare SOLO un versetto, l'interpretazione
+    # non deve citare i versetti vicini (scope = solo il versetto richiesto)
+    _solo_versetto = bool(riferimento.get("versetto")) and not \
+        riferimento.get("versetto_fine")
     interpretazione = interpretazione_dotrinale(
-        versetto, temi[0], estrai_parole_chiave(testo_intero, 4))
+        versetto, temi[0], estrai_parole_chiave(testo_intero, 4),
+        includi_contesto=not _solo_versetto)
 
     # --- FASE 2: query musicale forzata ---
     parole_spirituali = interpretazione["parole_chiave"][:3]
@@ -514,6 +519,7 @@ for chiave, valore in (
     ("suoni_tiktok", []),
     ("post", None),
     ("archivio", None),
+    ("codice_archivio", ""),
     ("studio_risultati", []),
     ("riferimento", None),
     ("versetti", []),
@@ -524,7 +530,8 @@ for chiave, valore in (
         st.session_state[chiave] = valore
 
 if st.session_state["archivio"] is None:
-    st.session_state["archivio"] = carica_archivio()
+    st.session_state["archivio"] = carica_archivio(
+        st.session_state.get("codice_archivio", ""))
 
 
 
@@ -631,6 +638,13 @@ def richiedi_accesso() -> None:
         '</div>',
         unsafe_allow_html=True,
     )
+    st.markdown(
+        '<div class="note" style="text-align:center;margin-top:10px;">'
+        '\U0001F510 <b>L\'archivio e\' privato:</b> quello che cerchi resta '
+        'solo per te.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 
@@ -670,6 +684,14 @@ with st.sidebar:
     html(
         "<div class=\"note\">La chiave resta nel server di Streamlit. "
         "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
+
+    st.markdown("---")
+    st.markdown("### \U0001F510 Archivio privato")
+    html(
+        '<div class="note">L\'archivio e\' privato: quello che cerchi resta '
+        'solo per te.<br><br>Per ritrovare i tuoi post anche dopo aver '
+        'chiuso il browser, metti un <b>codice</b>: scorri in basso fino a '
+        '<b>ARCHIVIO</b>.</div>')
 
 
 # --------------------------------------------------------------------------
@@ -1713,8 +1735,16 @@ if post:
             "ora": ora_pub,
             "giorno": giorno_settimana(data_pub),
         }
-        st.session_state["archivio"] = aggiungi_post(voce)
-        st.success("\u2705 Post salvato nell'archivio: lo ritrovi qui sotto.")
+        st.session_state["archivio"] = aggiungi_post(
+            voce,
+            st.session_state.get("codice_archivio", ""),
+            voci_correnti=st.session_state.get("archivio") or [])
+        if st.session_state.get("codice_archivio"):
+            st.success("\u2705 Post salvato nel tuo archivio privato.")
+        else:
+            st.warning("\u26A0\uFE0F Post salvato solo per questa sessione. "
+                       "Metti un codice qui sotto nell'ARCHIVIO per ritrovarlo "
+                       "anche dopo aver chiuso il browser.")
 
 # ==========================================================================
 # Informazioni: TikTok + come si usa + cronologia
@@ -1762,9 +1792,64 @@ if cronologia:
 # ==========================================================================
 
 archivio = st.session_state["archivio"] or []
+_codice_attivo = st.session_state.get("codice_archivio", "")
 html('<hr>')
 html(
     '<div class="step">ARCHIVIO</div><h3>\U0001F5C2 Post pronti da pubblicare</h3>')
+
+if _codice_attivo:
+    html(
+        '<div class="note box-ok">\U0001F510 <b>L\'archivio e\' privato.</b> '
+        'Quello che cerchi resta solo per te: nessun altro vede i tuoi '
+        'post, e tu non vedi quelli degli altri.</div>')
+else:
+    html(
+        '<div class="note box-warn">\U0001F510 <b>L\'archivio e\' privato.</b> '
+        'Quello che cerchi resta solo per te. Per ritrovare i tuoi post '
+        'anche dopo aver chiuso il browser, metti un <b>codice</b> qui sotto.'
+        '</div>')
+    html(
+        '<div class="note">\U0001F4DD <b>Come si usa il codice</b><br>'
+        'Ogni persona che usa l\'app sceglie <b>il proprio</b> codice: '
+        'basta che ognuno se lo ricordi (o se lo mandi su WhatsApp).<br>'
+        'Nessuno deve sapere il codice degli altri: ognuno vede solo i '
+        'suoi post. Se non vuoi complicarti, lascia pure il codice vuoto: '
+        'l\'archivio funziona lo stesso, ma vale solo finche\' non chiudi '
+        'il browser.</div>')
+
+# campo codice qui (l'utente e' gia' in questa sezione: non deve
+# andare a cercarlo da un'altra parte)
+def _genera_codice() -> str:
+    """Codice casuale leggibile (es. CANT-7K3M9P)."""
+    import secrets
+    import string
+    alfabeto = string.ascii_uppercase + string.digits
+    blocco = "".join(secrets.choice(alfabeto) for _ in range(6))
+    return f"CANT-{blocco}"
+
+
+if st.button("\U0001F3B2 Genera un codice per me", use_container_width=True):
+    st.session_state["input_codice_archivio2"] = _genera_codice()
+    st.rerun()
+
+with st.form("form_codice_archivio", border=False):
+    _cod_inserito = st.text_input(
+        "Codice archivio (per ritrovare i tuoi post)",
+        value=_codice_attivo,
+        type="password",
+        placeholder="es. enzo2026",
+        help="Scegli un codice che solo tu conosci (o usa il pulsante "
+             "'Genera un codice per me'). Serve per ritrovare i tuoi post "
+             "dopo aver chiuso il browser.",
+        key="input_codice_archivio2",
+    )
+    _salva_codice = st.form_submit_button(
+        "\U0001F510 Salva il codice" if not _codice_attivo
+        else "\U0001F510 Cambia codice", use_container_width=True)
+if _salva_codice:
+    st.session_state["codice_archivio"] = _cod_inserito
+    st.session_state["archivio"] = carica_archivio(_cod_inserito)
+    st.rerun()
 
 if not archivio:
     html(
@@ -1826,7 +1911,9 @@ else:
             with c3:
                 if st.button("\U0001F5D1 Elimina", key=f"del_{voce.get('id','')}",
                              use_container_width=True):
-                    st.session_state["archivio"] = elimina_post(voce.get("id", ""))
+                    st.session_state["archivio"] = elimina_post(
+                        voce.get("id", ""),
+                        st.session_state.get("codice_archivio", ""))
                     st.rerun()
 
 html(

@@ -40,7 +40,9 @@ Assistente-Canzone-TikTok/
 ├── text_tools.py          # grammatica, Salmi, analisi temi, spiegazioni
 ├── post_generator.py      # caption, hashtag, hook, orari consigliati
 ├── studio_biblico.py      # riferimenti biblici e i 4 passi dello studio
-├── archivio.py            # archivio persistente dei post
+├── archivio.py            # archivio PRIVATO dei post (un file per codice)
+├── hotreload.py           # ricarica i moduli quando il codice cambia
+├── pubblica.py            # push con VERSION.txt (commit + deploy)
 ├── requirements.txt       # dipendenze
 ├── .streamlit/config.toml # tema e impostazioni
 ├── AVVIA.ps1              # avvia l'app in locale (PC + telefono)
@@ -287,9 +289,36 @@ Si': in `youtube_search.py` cambia i suffissi in `STILI` e in
 `TERMINE_RELIGIOSI`; il resto funziona uguale.
 
 **L'archivio si perde?**
-Su Streamlit Cloud il file `archivio_post.json` vive nel container: resta
-per la sessione del servizio. Se il filesystem non e' scrivibile, l'app
-comunque continua a funzionare (l'archivio resta in memoria).
+Su Streamlit Cloud il file dell'archivio vive nel container: resta per la
+sessione del servizio. Se il filesystem non e' scrivibile, l'app comunque
+continua a funzionare (l'archivio resta in memoria).
+
+---
+
+## 🔐 Privacy: l'archivio è privato
+
+**Ogni persona che usa l'app vede solo i propri post.**
+
+- Ogni utente mette un **codice archivio** (segreto personale, o generato
+  con un pulsante) nella sezione **ARCHIVIO** in fondo alla pagina.
+- Il codice NON viene salvato in chiaro: viene trasformato in un hash
+  SHA-256 che da' il nome al file (`archivio_<hash>.json`). Dal nome del
+  file non si ricava il codice.
+- **Tu non vedi i post degli altri** e **gli altri non vedono i tuoi**.
+  L'unico modo per leggere l'archivio di un altro e' conoscere il suo
+  codice.
+- **Nessun codice = nessun salvataggio**: senza codice l'archivio funziona
+  solo nella sessione del browser (chiudendo il browser sparisce). Serve
+  per chi non vuole lasciare tracce.
+
+Cosa NON viene condiviso con nessuno ( resta nel browser dell'utente ):
+- il testo che scrivi, i versetti cercati, le interpretazioni
+- la cronologia delle ricerche
+- la chiave API OpenAI (se la digiti tu)
+
+Unica cosa condivisa: la **cache dei risultati di ricerca** (stesse
+query -> stesse risposte, per non interrogare YouTube due volte) e la
+**cache della Bibbia** (il testo sacro, che e' pubblico).
 
 ---
 

@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 archivio_post.json
+archivio_*.json
 cache_bibbia.json
 link.txt
 *.zip

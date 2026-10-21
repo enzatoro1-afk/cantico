@@ -481,12 +481,17 @@ def estrai_parole_chiave_spirituali(testo: str, numero: int = 3) -> list[str]:
 
 
 def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
-                              parole_chiave: list[str] | None = None) -> dict:
+                              parole_chiave: list[str] | None = None,
+                              includi_contesto: bool = True) -> dict:
     """
     Genera una breve interpretazione teologica di dottrina evangelica
     pentecostale. Usa, in ordine di preferenza:
       1. la trascrizione di una predica/esposizione reale trovata su YouTube;
       2. il motore tematico dell'app (interpretazione di studio).
+
+    includi_contesto=False -> nella sezione "2. IL CONTESTO" NON vengono
+    citati i versetti vicini: serve quando l'utente ha scelto di studiare
+    SOLO un versetto (o un intervallo) e non vuole altro testo.
     """
     parole_chiave = parole_chiave or []
     if versetto:
@@ -550,7 +555,7 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
 
     # contesto reale (versetti vicini), se disponibili
     contesto_txt = ""
-    if isinstance(versetto, dict):
+    if isinstance(versetto, dict) and includi_contesto:
         _vicini = (versetto.get("contesto_prima", []) +
                    versetto.get("contesto_dopo", []))
         if _vicini:
