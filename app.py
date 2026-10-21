@@ -134,6 +134,8 @@ def html(contenuto: str, js: bool = False) -> None:
 # Configurazione pagina
 # --------------------------------------------------------------------------
 
+AUTORE_APP = "Foster"   # <- nome da mettere in firma (cambialo qui)
+
 BUILD = __import__("datetime").datetime.fromtimestamp(
     __import__("os").path.getmtime(__file__)).strftime("%Y-%m-%d %H:%M")
 
@@ -605,7 +607,8 @@ def richiedi_accesso() -> None:
     st.markdown(
         '<div class="note" style="text-align:center;margin-top:14px;">'
         'CANTICO &bull; dalla Parola alla Lode<br>'
-        'Testo biblico: Sacra Bibbia - Versione Riveduta 2020 (canon protestante)'
+        'Testo biblico: Sacra Bibbia - Versione Riveduta 2020 (canon protestante)<br>'
+        f'creato da {esc(AUTORE_APP)}'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -1801,7 +1804,8 @@ else:
 html(
     f'<div class="note" style="text-align:center;margin-top:18px;">'
     f'Fatto per i creator cristiani \U0001F49F<br>'
-    f'<span style="opacity:.6">versione {BUILD}</span></div>')
+    f'<span style="opacity:.6">versione {BUILD}</span><br>'
+    f'<span style="opacity:.6">CANTICO &bull; creato da {esc(AUTORE_APP)}</span></div>')
 
 # pulsante "ricarica" per prendere subito la versione piu' recente
 if st.button("\U0001F504 Ricarica la versione piu' recente", use_container_width=True):
