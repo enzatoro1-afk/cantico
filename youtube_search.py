@@ -774,11 +774,17 @@ PAROLE_CANTO = (
 
 
 def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
-                                parole_rif: Iterable[str]) -> float:
+                                parole_rif: Iterable[str],
+                                versetto: int | None = None) -> float:
     """
     parole_rif: ["Salmo 23", "Salmi", "23", ...] - piu' e' pertinente il
     riferimento, piu' alto e' il punteggio (il video parla proprio di QUEL
     versetto).
+
+    versetto: numero del versetto richiesto (es. 6). Se il titolo cita
+    esattamente quel versetto ("Salmo 23:6", "Salmo 23,6", "Salmo 23 6")
+    il punteggio sale nettamente; se cita un ALTRO versetto dello stesso
+    capitolo ("Salmo 23:4") scende, perche' non e' l'interpretazione giusta.
     """
     t = (titolo or "").lower()
     c = (canale or "").lower()
@@ -818,13 +824,30 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
         # il video non parla del nostro passaggio: quasi nessun peso
         punteggio -= 2.0
 
-    # parla di un ALTRO VERSETTO dello stesso capitolo? penalizzo
-    _versetto_richiesto = str(parole_rif[2]) if len(parole_rif) > 2 else ""
-    if _versetto_richiesto:
-        import re as _re
-        _altri = _re.findall(r"\b(\d{1,3})\s*,\s*\d{1,3}\b", t)
-        if _altri and _versetto_richiesto not in _altri:
-            punteggio -= 4.0
+    # ---- il VERSETTO esatto richiesto ----
+    if versetto:
+        _v = str(versetto)
+        # numeri di versetto citati nel titolo, in ogni formato:
+        # "23:6"  "23,6"  "23.6"  "23 6"  "23v6"
+        _citati = re.findall(
+            r"\b\d{1,3}\s*[:.,]?\s*v?\s*(\d{1,3})\b(?=\s*(?:-|–|—|\b|$))", t)
+        # numeri "capitolo:versetto" espliciti (serve il capitolo per capire
+        # se il numero trovato e' un versetto o un altro capitolo)
+        _espliciti = re.findall(
+            r"\b(\d{1,3})\s*[:.,]\s*(\d{1,3})\b", t)
+        _versetti_cap = {v for (c_, v) in _espliciti if c_ == capitolo_citato}
+        if _v in _versetti_cap:
+            punteggio += 12.0        # parla ESATTAMENTE del nostro versetto
+        elif _versetti_cap:
+            # cita un altro versetto dello stesso capitolo
+            punteggio -= 7.0
+        else:
+            # nessun "cap:vers" esplicito: cerco "capitolo versetto"
+            _tutti = re.findall(r"\b\d{1,3}\s*[:.,]?\s*v?\s*(\d{1,3})\b", t)
+            if _v in _tutti and capitolo_citato in t:
+                punteggio += 6.0
+            elif _tutti and _v not in _tutti and capitolo_citato in t:
+                punteggio -= 3.0
 
     # è un canto, non una spiegazione?
     e_canto = any(p in t for p in PAROLE_CANTO)
@@ -852,14 +875,17 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
 def _punteggio_interpretazione_con_viste(titolo: str, canale: str,
                                          secondi: int | None,
                                          parole_rif: Iterable[str],
-                                         visualizzazioni: int) -> float:
+                                         visualizzazioni: int,
+                                         versetto: int | None = None) -> float:
     """Come _punteggio_interpretazione, ma tiene conto di quante persone
     hanno ascoltato il video: fra le interpretazioni che citano davvero
     il versetto, vince la piu' ascoltata."""
-    punteggio = _punteggio_interpretazione(titolo, canale, secondi, parole_rif)
+    punteggio = _punteggio_interpretazione(titolo, canale, secondi, parole_rif,
+                                            versetto=versetto)
     if visualizzazioni > 0:
         import math
-        punteggio += min(6.0, math.log10(visualizzazioni) * 1.6)
+        # scala logaritmica: 100 ascolti = +3.2, 1.000 = +4.8, 18.000 = +6.8
+        punteggio += min(9.0, math.log10(visualizzazioni) * 1.6 + 0.8)
     return punteggio
 
 
@@ -901,6 +927,7 @@ def cerca_interpretazioni(libro: str, capitolo: int, versetto: int | None,
     parole_rif = [f"{libro} {capitolo}", libro, str(capitolo)]
     for r in risultati:
         r.punteggio = _punteggio_interpretazione_con_viste(
-            r.titolo, r.canale, r.secondi, parole_rif, r.visualizzazioni)
+            r.titolo, r.canale, r.secondi, parole_rif, r.visualizzazioni,
+            versetto=versetto)
     risultati.sort(key=lambda x: -x.punteggio)
     return risultati[:max_risultati]

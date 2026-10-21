@@ -20,6 +20,7 @@ import hashlib
 import html as html_mod
 import json
 import os
+import re
 from datetime import date, datetime, timedelta
 
 import streamlit as st
@@ -114,20 +115,29 @@ SCRIPT_COPIA = """
 </script>
 """
 
-def html(contenuto: str, js: bool = False) -> None:
+def html(contenuto: str, js: bool = False, **kwargs) -> None:
     """
     Rende HTML grezzo.
     Uso st.html() invece di html(): st.html non
     passa da react-markdown e quindi NON causa il crash frontend
     "NotFoundError: removeChild ... not a child of this node"
     (che su Streamlit Cloud interrompeva la pagina).
+
+    **kwargs: accetto (e ignoro) argomenti tipo unsafe_allow_html=True
+    per non rompere se resta qualche chiamata col vecchio formato.
     """
     try:
         st.html(contenuto, unsafe_allow_javascript=js)
-    except TypeError:      # Streamlit < 1.47
-        html(contenuto)
+    except TypeError:      # Streamlit < 1.47: niente argomento unsafe_allow_javascript
+        try:
+            st.html(contenuto)
+        except Exception:
+            st.markdown(contenuto, unsafe_allow_html=True)
     except Exception:
-        html(contenuto)
+        try:
+            st.markdown(contenuto, unsafe_allow_html=True)
+        except Exception:
+            pass
 
 
 # --------------------------------------------------------------------------
@@ -1207,7 +1217,6 @@ elif studio and studio.get("versetto"):
     if _fonte_int:
         html(
             f'<div class="note">Interpretazione presa da: <b>{esc(_fonte_int)}</b></div>',
-            unsafe_allow_html=True,
         )
     html(
         f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
@@ -1260,7 +1269,6 @@ elif studio and studio.get("versetto"):
             'a parità, per <b>quante persone le hanno ascoltate</b>: la prima è '
             'la più ascoltata fra quelle che parlano davvero del tuo passaggio.'
             '</div>',
-            unsafe_allow_html=True,
         )
         _interp_list = studio.get("interpretazioni", [])
         for i, r in enumerate(_interp_list, start=1):
