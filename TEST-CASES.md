@@ -132,3 +132,19 @@ Marco 12,28-31 Marco 12,28-31    -> riferimento ripetuto
    consigliare solo video che parlano di 14,6 (non di 14,28 o 14,11).
 3. Nell'elenco interpretazioni il #1 ha il badge "LA PIU' ADATTA AL TUO
    VERSETTO" e quello con piu' visualizzazioni ha "LA PIU' ASCOLTATA".
+
+## L. Cerca meglio / cambia canzone
+1. Dopo "Trova Canzone Adatta" compaiono 5 canzoni + il bottone
+   **"Cerca meglio (altre 5)"**.
+2. Toccalo: devono comparire 5 canzoni **TUTTE DIVERSE** dalle prime.
+   Il contatore "Finora mostrate" passa da 5 a 10.
+3. Toccalo di nuovo: altre 5 diverse, contatore 15. E cosi' via.
+4. Le canzoni in cima devono parlare del TUO versetto (nel titolo o nel
+   canale compare "Giovanni 14" o le parole chiave del verso).
+5. Scegli una canzone -> si apre il PASSAGGIO 3 (pacchetto post).
+6. Nel PASSAGGIO 3 ci sono **"Scegli un'altra canzone"** e
+   **"Annulla tutto (canzone e post)"**:
+   - "Scegli un'altra canzone" -> torna alla lista, il post sparisce
+   - "Annulla tutto" -> sparisce anche la lista, ricominci da capo
+7. Copia il titolo e cerca l'audio su TikTok: il link "Verifica l'audio
+   su TikTok" deve portare a una ricerca con quel titolo.

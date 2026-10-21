@@ -26,10 +26,15 @@ COME SI USA (30 secondi)
   tuo pensiero (testo evangelico, non cattolico).
 - "Trova Canzone Adatta": l'app cerca 5 inni/canti di musica evangelica
   pentecostale e ti spiega perche' sono adatti al tuo testo.
+- "Cerca meglio": se nessuna ti convince, l'app te ne porta ALTRE 5,
+  tutte diverse e ordinate per quanto parlano del tuo versetto. Puoi
+  ripeterlo quante volte vuoi.
 - "Copia Titolo": te lo mette negli appunti -> lo cerchi nella libreria
   audio di TikTok e pubblichi.
 - La sezione finale ti prepara caption, hashtag, testo da schermo, la data
   e l'ora migliore per pubblicare, e tiene l'archivio dei post.
+- Se cambi idea sulla canzone, nella sezione del post trovi "Scegli un'altra
+  canzone" (torna indietro) e "Annulla tutto" (azzera e ricomincia).
 
 ---------------------------------------------
 I TUOI POST SONO PRIVATI
