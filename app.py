@@ -25,6 +25,14 @@ from datetime import date, datetime, timedelta
 
 import streamlit as st
 
+# --- hot-reload dei moduli locali ------------------------------------------
+# Streamlit riesegue solo app.py, ma i moduli importati restano in
+# sys.modules: se cambio youtube_search.py, senza questo blocco continua a
+# girare il codice VECCHIO (stesso problema su Streamlit Cloud).
+import hotreload  # noqa: E402  (deve stare PRIMA delle import locali)
+
+_RI_CARICATI = hotreload.ricarica()
+
 from ai_client import chiave_da_secrets, interpreta_con_ia, link_chatgpt
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
@@ -146,8 +154,9 @@ def html(contenuto: str, js: bool = False, **kwargs) -> None:
 
 AUTORE_APP = "Foster"   # <- nome da mettere in firma (cambialo qui)
 
-BUILD = __import__("datetime").datetime.fromtimestamp(
-    __import__("os").path.getmtime(__file__)).strftime("%Y-%m-%d %H:%M")
+# "versione" = VERSION.txt (commit) + data del file piu' recente
+# (cosi' si vede subito se l'app online gira il codice giusto)
+BUILD = hotreload.versione()
 
 st.set_page_config(
     page_title="CANTICO - Dalla Parola alla Lode",
