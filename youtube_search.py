@@ -306,14 +306,259 @@ STILI: dict[str, list[str]] = {
     ],
 }
 
-# Filtro fisso: va SEMPRE aggiunto alle parole chiave
-FILTRO_PENTECOSTALE = ("musica cristiana evangelica pentecostale "
-                       "lodi ADI cantico evangelico")
+# Filtro fisso: va SEMPRE aggiunto alle parole chiave.
+# Ampio di proposito ("musica cristiana"): se si chiede anche "pentecostale"
+# AND "canto evangelico" insieme, YouTube restituisce pochissimi risultati.
+# La preferenza per il pentecostale la fa poi il PUNTEGGIO dell'app
+# (canale/ titolo pentecostale = piu' punti), mentre le esclusioni
+# (cattolico, messa, gregoriano...) tengono fuori tutto il resto.
+FILTRO_PENTECOSTALE = "musica cristiana"
+
+# Parole che spingono verso il pentecostale/evangelico (usate come "hint"
+# in una query su tre, per non restringere troppo la ricerca)
+HINT_PENTECOSTALE = "pentecostale evangelico lode ADI"
 
 # Keyword negative: il "-" di YouTube esclude i risultati non pertinenti
 # (canzoni mondane, liturgia/cantici cattolici, cori gregoriani, remix...)
 KEYWORD_NEGATIVE = ("-cattolica -cattolico -messa -mondana -pop -remix "
                      "-gregoriano -mariano")
+
+# --------------------------------------------------------------------------
+# RICERCA MULTILINGUA (IT/EN/ES)
+# --------------------------------------------------------------------------
+# I brani di lode cristiani esistono anche in inglese e spagnolo: sono
+# canzoni vere, cantabili su TikTok. Ogni lingua ha i suoi termini
+# "genere" (inno / worship / himno) e il suo filtro di fede.
+
+MUSICA_MULTILINGUA = {
+    "it": {
+        "genere": ["inno pentecostale", "canto di lode ADI", "coro evangelico"],
+        "filtro": "musica cristiana",
+        "hint": "pentecostale evangelico lode ADI",
+        "negativo": KEYWORD_NEGATIVE,
+    },
+    "en": {
+        "genere": ["pentecostal worship song", "christian hymn",
+                    "worship lyrics church"],
+        "filtro": "christian music",
+        "hint": "worship church praise",
+        "negativo": ("-catholic -mass -secular -pop -remix -gregorian "
+                     "-mariana -instrumental"),
+    },
+    "es": {
+        "genere": ["himno pentecostal", "alabanza iglesia evangelica",
+                    "coro de adoracion"],
+        "filtro": "musica cristiana",
+        "hint": "pentecostal alabanza iglesia",
+        "negativo": ("-catolica -misa -pop -remix -gregoriano -mariano "
+                     "-instrumental"),
+    },
+}
+
+# nomi dei libri biblici nelle altre lingue (per cercare "John 14:6" ecc.)
+LIBRO_EN = {
+    "Giovanni": "John", "Marco": "Mark", "Luca": "Luke", "Matteo": "Matthew",
+    "Atti": "Acts", "Romani": "Romans", "Corinzi": "Corinthians",
+    "Galati": "Galatians", "Efesini": "Ephesians", "Filippesi": "Philippians",
+    "Colossesi": "Colossians", "Tessalonicesi": "Thessalonians",
+    "Timoteo": "Timothy", "Tito": "Titus", "Filemone": "Philemon",
+    "Ebrei": "Hebrews", "Giacomo": "James", "Pietro": "Peter",
+    "Salmi": "Psalms", "Salmo": "Psalm", "Proverbi": "Proverbs",
+    "Ecclesiastes": "Ecclesiastes", "Cantico": "Song", "Isaia": "Isaiah",
+    "Geremia": "Jeremiah", "Lamentazioni": "Lamentations",
+    "Ezechiele": "Ezekiel", "Daniele": "Daniel", "Osea": "Hosea",
+    "Gioele": "Joel", "Amos": "Amos", "Obadia": "Obadiah", "Giona": "Jonah",
+    "Michea": "Micah", "Naum": "Nahum", "Habacuc": "Habakkuk",
+    "Sofonia": "Zephaniah", "Aggeo": "Haggai", "Zaccaria": "Zechariah",
+    "Malachia": "Malachi", "Genesi": "Genesis", "Esodo": "Exodus",
+    "Levitico": "Leviticus", "Numeri": "Numbers", "Deuteronomio": "Deuteronomy",
+    "Giosue": "Joshua", "Giudici": "Judges", "Rut": "Ruth",
+    "Samuele": "Samuel", "Re": "Kings", "Cronache": "Chronicles",
+    "Esdra": "Ezra", "Neemia": "Nehemiah", "Ester": "Esther", "Giob": "Job",
+    "Apocalisse": "Revelation",
+}
+
+LIBRO_ES = {
+    "Giovanni": "Juan", "Marco": "Marcos", "Luca": "Lucas", "Matteo": "Mateo",
+    "Atti": "Hechos", "Romani": "Romanos", "Corinzi": "Corintios",
+    "Galati": "Gálatas", "Efesini": "Efesios", "Filippesi": "Filipenses",
+    "Colossesi": "Colosenses", "Tessalonicesi": "Tesalonicenses",
+    "Timoteo": "Timoteo", "Tito": "Tito", "Filemone": "Filemón",
+    "Ebrei": "Hebreos", "Giacomo": "Santiago", "Pietro": "Pedro",
+    "Salmi": "Salmos", "Salmo": "Salmo", "Proverbi": "Proverbios",
+    "Ecclesiastes": "Eclesiastés", "Cantico": "Cantares", "Isaia": "Isaías",
+    "Geremia": "Jeremías", "Lamentazioni": "Lamentaciones",
+    "Ezechiele": "Ezequiel", "Daniele": "Daniel", "Osea": "Oseas",
+    "Gioele": "Joel", "Amos": "Amós", "Obadia": "Abdías", "Giona": "Jonás",
+    "Michea": "Miqueas", "Naum": "Nahum", "Habacuc": "Habacuc",
+    "Sofonia": "Sofonías", "Aggeo": "Hageo", "Zaccaria": "Zacarías",
+    "Malachia": "Malaquías", "Genesi": "Génesis", "Esodo": "Éxodo",
+    "Levitico": "Levítico", "Numeri": "Números", "Deuteronomio": "Deuteronomio",
+    "Giosue": "Josué", "Giudici": "Jueces", "Rut": "Rut",
+    "Samuele": "Samuel", "Re": "Reyes", "Cronache": "Crónicas",
+    "Esdra": "Esdras", "Neemia": "Nehemías", "Ester": "Ester", "Giob": "Job",
+    "Apocalisse": "Apocalipsis",
+}
+
+
+# --------------------------------------------------------------------------
+# COLLEZIONI E ARTISTI FIDATI (la "bella raccolta")
+# --------------------------------------------------------------------------
+# Oltre agli inni tradizionali, l'app cerca anche i brani MODERNI dei
+# cantanti e delle chiese piu' ascoltate: sono quelli che su TikTok
+# funzionano davvero. Ogni nome e' un riferimento affidabile di musica
+# cristiana evangelica (niente mondano, niente cattolico).
+
+ARTISTI_FIDATI = {
+    "it": [
+        # prima i nomi veri (artisti ed etichette), poi le collezioni
+        "Activate Music", "Davide Di Lecce", "Officine Meccaniche",
+        "Praised Voices", "Elia", "Marco Vavassori",
+        "canto di lode ADI", "coro evangelico", "inno pentecostale italiano",
+        "adorazione ADI", "canto evangelico italiano", "coro di lode",
+        "inno evangelico italiano", "lode ADI diretto", "adorazione",
+        "Musica Cristiana", "Worship Italiano", "Cantico Cristiano Italiano",
+    ],
+    "en": [
+        "Elevation Worship", "Hillsong", "Hillsong United", "Bethel Music",
+        "Maverick City Music", "Planetshakers", "Passion Worship",
+        "Red Rocks Worship", "Newsboys", "Chris Tomlin", "Michael W. Smith",
+        "Kirk Franklin", "Casting Crowns", "Third Day", "Worship Central",
+        "Breakthrough Worship", "Housefires", "Gateway Worship",
+        "Covenant Worship", "Worship Archive", "WorshipPlaylist",
+    ],
+    "es": [
+        # prima i nomi veri, poi le collezioni
+        "Chris Adan", "Miel Sv", "Energia Positiva con Amor",
+        "Adoracion Celestial", "Alabanza Infinita", "Coro Celestial",
+        "Elevation Worship en espanol", "Maverick City Music",
+        "Hillsong Worship en espanol", "Planetshakers en espanol",
+        "Generacion 24", "Alabanza", "Coro de adoracion", "Iglesia pentecostal",
+        "Adoracion", "Cielos", "Adoracion y Alabanza", "Himnos de Adoracion",
+    ],
+}
+
+# Le "collezioni": artisti e canali di lode che pubblicano brani che
+# funzionano su TikTok. Per ognuno l'app fa una ricerca dedicata.
+COLLEZIONI = {
+    "it": ["Activate Music", "MUSICA CRISTIANA ITALIANA", "Praised Voices",
+           "Officine Meccaniche", "Cantico Cristiano Italiano"],
+    "en": ["Elevation Worship", "Hillsong", "Bethel Music",
+           "Maverick City Music", "Planetshakers"],
+    "es": ["Adoracion Celestial", "Energia Positiva con Amor", "Chris Adan",
+           "Miel Sv", "Alabanza Infinita"],
+}
+
+# Canali che pubblicano BRANI UFFICIALI ("Artista - Topic"): sono la
+# versione autentica del brano, quella che si trova su TikTok.
+# Prima li penalizzavo: errore, perche' e' proprio quello che si cerca.
+CANALI_TOPIC = (" - topic", "- topic", "topic")
+
+# parole che segnalano il VIDEOCLIP UFFICIALE (il brano "vero")
+RE_UFFICIALE = re.compile(
+    r"\b(official\s*(video|audio|visualizer|videoclip|music\s*video)"
+    r"|video\s*oficial|audio\s*oficial|clip\s*oficial|official\s*lyrics)\b",
+    re.IGNORECASE)
+
+
+def nome_artista(titolo: str, canale: str) -> str:
+    """
+    Ricava il nome dell'ARTISTA, per copiare "TITOLO - ARTISTA"
+    (il formato con cui il brano si trova su TikTok).
+
+    - canale "Elevation Worship - Topic"  -> "Elevation Worship"
+    - titolo "Davide Di Lecce - Piu' di Te (Official Videoclip)"
+                                      -> "Davide Di Lecce"
+    """
+    c = (canale or "").strip()
+    for t in CANALI_TOPIC:
+        if c.lower().endswith(t.lower()):
+            _a = c[: -len(t)].strip()
+            if _a:
+                return _a
+    # dal titolo: "Artista - Titolo (Official ...)"
+    tt = (titolo or "").strip()
+    m = re.match(r"^([^-]{2,40}?)\s+-\s+(.+)$", tt)
+    if m and RE_UFFICIALE.search(tt):
+        return m.group(1).strip()
+    return ""
+
+
+def e_video_ufficiale(titolo: str, canale: str) -> bool:
+    """True se e' il videoclip/audio ufficiale del brano."""
+    if "- topic" in (canale or "").lower():
+        return True
+    return bool(RE_UFFICIALE.search(titolo or ""))
+
+
+def artista_fidato(titolo: str, canale: str) -> str:
+    """
+    Se il video e' di un artista/canale fidato (o parla di una delle
+    nostre collezioni), ne restituisce il nome (per il badge).
+    Altrimenti la stringa vuota.
+    """
+    t = f"{(titolo or '')} {(canale or '')}".lower()
+    for lingua, nomi in ARTISTI_FIDATI.items():
+        # dal nome più specifico al più generico
+        for nome in sorted(nomi, key=len, reverse=True):
+            if nome.lower() in t:
+                return nome
+    return ""
+
+
+def _riferimento_tradotto(riferimento: str, lingua: str) -> str:
+    rif = (riferimento or "").strip()
+    if lingua == "it" or not rif:
+        return rif
+    tabella = LIBRO_EN if lingua == "en" else LIBRO_ES
+    parole = rif.split(" ", 1)
+    if len(parole) == 2 and parole[0] in tabella:
+        resto = parole[1].replace(",", ":")
+        return f"{tabella[parole[0]]} {resto}"
+    return rif
+
+
+def costruisci_query_musica(riferimento: str, parole: Iterable[str],
+                             direzione: str = "",
+                             lingue: Iterable[str] = ("it", "en", "es"),
+                             max_query_per_lingua: int = 3) -> list[str]:
+    """
+    Costruisce le query per la ricerca delle canzoni, in piu' lingue.
+
+    - il riferimento biblico viene tradotto (John 14:6, Juan 14:6...)
+    - le parole chiave vengono dall'INTERPRETAZIONE (quindi la canzone
+      e' legata al testo del versetto)
+    - "direzione" e' l'indicazione musicale che arriva dall'interpretazione
+      (es. "consolazione lenta", "canto di vittoria")
+    """
+    kw = [p for p in (parole or []) if p]
+    direzione = (direzione or "").strip()
+    query: list[str] = []
+    for lingua in lingue:
+        cfg = MUSICA_MULTILINGUA.get(lingua)
+        if not cfg:
+            continue
+        rif = _riferimento_tradotto(riferimento, lingua)
+        # 1) stretta: riferimento biblico + parole chiave
+        if rif:
+            query.append(f"{rif} {' '.join(kw)} {cfg['filtro']} {cfg['negativo']}")
+        # 2) generi musicali di quella lingua + parole chiave
+        for genere in cfg["genere"][:max(1, max_query_per_lingua - 1)]:
+            q = f"{' '.join(kw)} {genere}"
+            if direzione:
+                q += f" {direzione}"
+            query.append(f"{q} {cfg['filtro']} {cfg['negativo']}")
+        # 3) le COLLEZIONI FIDATE: una ricerca dedicata per ciascuna
+        #    (canale/ artista che pubblica i brani moderni che su TikTok
+        #    funzionano). Uso una sola parola chiave, cosi' emergono i
+        #    brani sul TEMA e non solo quelli col nome del versetto.
+        _kw1 = kw[0] if kw else ""
+        for _coll in COLLEZIONI.get(lingua, [])[:3]:
+            _q = f"{_kw1} {_coll}".strip()
+            if direzione:
+                _q += f" {direzione}"
+            query.append(f"{_q} {cfg['filtro']} {cfg['negativo']}")
+    return query
 
 # Riconosce "Salmo 23", "Salmi 91", "Psalm 23"
 RE_SALMO = re.compile(r"\b(?:salmi?|salmos?|psalms?)\s*\.?\s*(\d{1,3})", re.IGNORECASE)
@@ -400,9 +645,16 @@ def costruisci_query(testo: str, stile: str = "Lodi pentecostali / ADI",
     if testo and len(testo) <= 110:
         _aggiungi(f"{testo} {FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
 
+    # 4) le stesse parole chiave anche in INGLESE e SPAGNOLO:
+    #    i brani di lode cristiani esistono in tutte e tre le lingue
+    for _lingua in ("en", "es"):
+        _cfg = MUSICA_MULTILINGUA[_lingua]
+        for _genere in _cfg["genere"][:2]:
+            _aggiungi(f"{base} {_genere} {_cfg['filtro']} {_cfg['negativo']}")
+
     if extra:
         query = [f"{q} {extra}".strip() for q in query]
-    return query[:4]
+    return query[:10]
 
 
 # --------------------------------------------------------------------------
@@ -568,8 +820,17 @@ def _punteggio_video(titolo: str, canale: str, secondi: int | None,
         elif secondi > 3600:            # compilation lunghe
             punteggio -= 1.5
 
-    if "- topic" in c:                  # audio ufficiale: utile ma meno "canzone"
-        punteggio -= 0.5
+    if "- topic" in c and not artista_fidato(titolo, canale):
+        # i canali "- Topic" ufficiali vanno SEMPRE bene (e' la versione
+        # vera del brano, quella che si trova su TikTok)
+        punteggio += 2.5
+    elif e_video_ufficiale(titolo, canale):
+        punteggio += 2.0
+
+    # artisti e collezioni FIDATE (brani moderni, quelli che su TikTok
+    # funzionano): vanno avanti a parita' di adattamento
+    if artista_fidato(titolo, canale):
+        punteggio += 4.0
 
     # quante persone lo hanno ascoltato: a parita' di adattamento vince
     # il brano piu' conosciuto
@@ -774,16 +1035,20 @@ def ricerca_multipla(query_list: list[str], max_risultati: int = 5,
                       max_durata: int | None = None,
                       escludi: Iterable[str] = (),
                       offset: int = 0,
-                      riferimento: str = "") -> list[Risultato]:
+                      riferimento: str = "",
+                      max_per_canalle: int = 4) -> list[Risultato]:
     """
     Esegue più query e unisce i risultati, eliminando i duplicati.
-    È questo il cuore del "cervello": il testo genera 2-3 query diverse
-    e i risultati vengono fusi per trovare la canzone più adatta.
+    È questo il cuore del "cervello": il testo genera più query diverse
+    (in italiano, inglese, spagnolo) e i risultati vengono fusi per
+    trovare la canzone più adatta.
 
     escludi: video_id già mostrati (così "cerca meglio" porta canzoni NUOVE)
     offset:  scarta i primi N risultati ordinati (per scorrere la lista)
     riferimento: es. "Giovanni 14,6" -> privilegia i brani che parlano di
                  QUEL versetto
+    max_per_canalle: non prende piu' di N brani dallo stesso canale, cosi'
+                 la lista resta varia (non 15 brani dello stesso canale)
     """
     esclusi = {e for e in (escludi or ()) if e}
     unici: dict[str, Risultato] = {}
@@ -801,6 +1066,25 @@ def ricerca_multipla(query_list: list[str], max_risultati: int = 5,
     ordinati = ordina_per_rilevanza(risultati, parole_chiave, riferimento)
     if offset:
         ordinati = ordinati[offset:]
+    if max_per_canalle and max_per_canalle > 0:
+        # varieta': non troppi brani dallo stesso canale
+        per_canalle: dict[str, int] = {}
+        vari: list[Risultato] = []
+        for r in ordinati:
+            _c = (r.canale or "").strip().lower()
+            if per_canalle.get(_c, 0) >= max_per_canalle:
+                continue
+            per_canalle[_c] = per_canalle.get(_c, 0) + 1
+            vari.append(r)
+        # se la selezione e' troppo corta, completo con gli altri
+        if len(vari) < min(max_risultati, len(ordinati)):
+            _gia = {r.video_id for r in vari}
+            for r in ordinati:
+                if r.video_id not in _gia:
+                    vari.append(r)
+                    if len(vari) >= max_risultati:
+                        break
+        ordinati = vari
     return ordinati[:max_risultati]
 
 

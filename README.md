@@ -412,7 +412,34 @@ apre ChatGPT) e **"Interpreta con ChatGPT"** (la tua chiave API OpenAI).
   + [-cattolica -cattolico -messa -mondana -pop -remix -gregoriano -mariano]
 ```
 
-### Blindaggi applicati
+### 🎵 La ricerca delle canzoni: multilingue e "collezioni fidate"
+
+La ricerca non guarda solo in italiano: l'app costruisce **query in italiano,
+inglese e spagnolo**, traducendo anche il riferimento biblico
+(`Giovanni 14,6` → `John 14:6` / `Juan 14:6`).
+
+**Le collezioni fidate**: per ogni lingua l'app fa una ricerca dedicata su
+artisti e canali di lode che pubblicano brani moderni (quelli che su TikTok
+funzionano davvero):
+
+| Lingua | Collezioni |
+|---|---|
+| Italiano | Activate Music, MUSICA CRISTIANA ITALIANA, Praised Voices, Officine Meccaniche… |
+| Inglese | Elevation Worship, Hillsong, Bethel Music, Maverick City, Planetshakers… |
+| Spagnolo | Adoracion Celestial, Energia Positiva con Amor, Chris Adan, Miel Sv… |
+
+**I video ufficiali non sono più penalizzati**: i canali "Artista - Topic" e
+i "(Official Videoclip)" sono la versione *vera* del brano, quella che si
+trova nella libreria audio di TikTok. Ricevono un bonus e il **badge
+"artista"** sulla scheda.
+
+**Copia "Titolo - Artista"**: il pulsante "Copia Titolo" copia il formato
+che funziona su TikTok (es. `Power - Elevation Worship`), e anche il link
+"Verifica l'audio su TikTok" usa quel formato.
+
+**Più canzoni**: la ricerca restituisce **15 brani** (prima erano 5) e
+"Cerca meglio" ne porta **8 altri** ogni volta, tutti diversi. C'è un limite
+di 4 brani per canale, così la lista resta varia.
 
 | Regola | Come funziona |
 |--------|---------------|

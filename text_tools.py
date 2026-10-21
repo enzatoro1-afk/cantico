@@ -376,6 +376,19 @@ def spiega_canzone(titolo: str, canale: str, durata: str, secondi: int | None,
     titolo_low = (titolo or "").lower()
     canale_low = (canale or "").lower()
 
+    # 1) l'ARTISTA e la versione: e' quello che si cerca su TikTok
+    try:
+        from youtube_search import nome_artista, e_video_ufficiale
+        _art = nome_artista(titolo, canale)
+        if _art:
+            motivi.append(f"e' «{_art}»: l'artista del brano (cerca su TikTok "
+                          f"«{titolo} - {_art}»)")
+        elif e_video_ufficiale(titolo, canale):
+            motivi.append("e' il videoclip/audio UFFICIALE del brano: "
+                          "quello che si trova nella libreria di TikTok")
+    except Exception:
+        pass
+
     for kw in parole_chiave:
         if kw.lower() in titolo_low:
             motivi.append(f'il titolo contiene la parola chiave «{kw}»')
@@ -383,7 +396,8 @@ def spiega_canzone(titolo: str, canale: str, durata: str, secondi: int | None,
             motivi.append(f'il canale è legato al tema «{kw}»')
 
     for s in ("pentecostale", "pentecostal", "lode", "inno", "evangelico", "evangelica",
-              "adorazione", "cristiana", "worship", "canto"):
+              "adorazione", "cristiana", "worship", "canto", "himno", "alabanza",
+              "adoracion"):
         if s in titolo_low:
             motivi.append(f'gli inni di lode evangelica sono esplicitamente nel titolo («{s}»)')
             break
@@ -406,7 +420,7 @@ def spiega_canzone(titolo: str, canale: str, durata: str, secondi: int | None,
     if not motivi:
         motivi.append("è un brano di musica evangelica che può accompagnare il tuo testo")
 
-    return motivi[:4]
+    return motivi[:5]
 
 
 # --------------------------------------------------------------------------

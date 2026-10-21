@@ -75,9 +75,12 @@ from youtube_search import (
     KEYWORD_NEGATIVE,
     ErroreRicerca,
     STILI,
+    artista_fidato,
     cerca_interpretazioni,
     costruisci_query,
+    costruisci_query_musica,
     estrai_parole_chiave,
+    nome_artista,
     ricerca_multipla,
 )
 
@@ -348,7 +351,7 @@ def esegui_ricerca(testo: str) -> None:
 
     with st.spinner("\U0001F50D Sto cercando le canzoni piu' adatte..."):
         try:
-            risultati = ricerca_cached(tuple(query), 5, tuple(parole_chiave),
+            risultati = ricerca_cached(tuple(query), 15, tuple(parole_chiave),
                                        riferimento=_rif)
         except ErroreRicerca as exc:
             st.error(f"\u26A0\uFE0F {exc}")
@@ -391,6 +394,61 @@ def _riferimento_corrente() -> dict:
     if _rif:
         return _rif
     return st.session_state.get("riferimento_forzato") or {}
+
+
+def _direzione_musicale(interpretazione: str) -> str:
+    """
+    Ricava dall'INTERPRETAZIONE la direzione musicale per la ricerca:
+    il tono (lento, di vittoria, di consolazione...) e il tema.
+
+    Cosi' la ricerca delle canzoni non usa parole generiche, ma quelle
+    che l'IA (o lo studio) ha ricavato dal versetto.
+    """
+    testo = (interpretazione or "").strip()
+    if not testo:
+        return ""
+    _parti: list[str] = []
+
+    # 1) il tono: dalla sezione "PER LA LODE"
+    _lode = ""
+    _up = testo.upper()
+    for _marcatore in ("PER LA LODE", "5. PER LA LODE", "DALLA VOCE DI DIO"):
+        _i = _up.find(_marcatore)
+        if _i >= 0:
+            _lode = testo[_i + len(_marcatore):_i + len(_marcatore) + 700]
+            break
+    if _lode:
+        # parole che dicono COME cantare
+        _termini = {
+            "lento": "lento", "lenta": "lento", "lento": "lento",
+            "dolce": "dolce", "calmo": "calmo", "calma": "calmo",
+            "commosso": "commosso", "commossa": "commosso",
+            "vittoria": "vittoria", "trionfo": "trionfo", "celebre": "celebre",
+            "allegro": "allegro", "gioioso": "gioioso", "gioia": "gioia",
+            "consolazione": "consolazione", "confidenza": "confidenza",
+            "fiducia": "fiducia", "coraggio": "coraggio", "amore": "amore",
+            "adorazione": "adorazione", "lode": "lode", "speme": "speranza",
+            "speranza": "speranza", "gridare": "grido", "esultazione": "esultazione",
+        }
+        _basso = _lode.lower()
+        for _k, _v in _termini.items():
+            if _k in _basso and _v not in _parti:
+                _parti.append(_v)
+            if len(_parti) >= 2:
+                break
+
+    # 2) il mood del testo (adorazione profonda, inno di vittoria...)
+    try:
+        from text_tools import rileva_mood
+        _mood = rileva_mood(testo)
+        if _mood:
+            for _p in (_mood.get("parole") or [])[:2]:
+                if _p and _p not in _parti:
+                    _parti.append(_p)
+    except Exception:
+        pass
+
+    return " ".join(_parti[:3])
 
 
 def _chiedi_ia(prompt: str, chiave_gemini: str = "",
@@ -568,18 +626,21 @@ def _studia_versetto() -> None:
         else:
             st.session_state["ia_note"] = _ris_ia.get("errore", "")
 
-    # --- FASE 2: query musicale forzata ---
+    # --- FASE 2: la ricerca delle canzoni, GUIDATA dall'interpretazione ---
+    # Le parole chiave vengono dall'interpretazione (quindi dalla IA o dallo
+    # studio): la canzone proposta parla davvero di quel versetto.
     parole_spirituali = interpretazione["parole_chiave"][:3]
     if not parole_spirituali:
         parole_spirituali = ["fede", "lode", "consolazione"]
     rif_breve = _riferimento_breve(riferimento)
-    query_stretta = (f"{rif_breve} {' '.join(parole_spirituali)} "
-                     f"{FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
-    query_larga = (f"{' '.join(parole_spirituali)} inno pentecostale lode ADI "
-                   f"{FILTRO_PENTECOSTALE} {KEYWORD_NEGATIVE}")
-    query = [query_stretta, query_larga]
+
+    # la DIREZIONE musicale: la ricavo dall'interpretazione stessa
+    # (tempo, atmosphere, tema che l'IA ha indicato in "PER LA LODE")
+    _direzione = _direzione_musicale(interpretazione.get("testo", ""))
+    query = costruisci_query_musica(rif_breve, parole_spirituali, _direzione)
+
     try:
-        risultati = ricerca_cached(tuple(query), 5, tuple(parole_spirituali),
+        risultati = ricerca_cached(tuple(query), 15, tuple(parole_spirituali),
                                     DURATA_MAX_SEC, riferimento=rif_breve)
     except Exception:
         risultati = []
@@ -591,6 +652,7 @@ def _studia_versetto() -> None:
         "interpretazioni": interpretazioni,
         "query": query,
         "parole_spirituali": parole_spirituali,
+        "direzione": _direzione,
     }
     st.session_state["risultati"] = risultati
     st.session_state["query_usate"] = query
@@ -598,6 +660,7 @@ def _studia_versetto() -> None:
     st.session_state["visti"] = [r.video_id for r in risultati]
     st.session_state["quante_mostrate"] = len(risultati)
     st.session_state["studio_parole"] = list(parole_spirituali)
+    st.session_state["studio_direzione"] = _direzione
 
 
 # --------------------------------------------------------------------------
@@ -1714,19 +1777,27 @@ if risultati:
         f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>')
     html(
         '<div class="note">Copia il titolo e cercalo nella libreria audio di TikTok, '
-        'oppure ascolta l\'anteprima qui sotto.</div>')
+        'oppure ascolta l\'anteprima qui sotto. La ricerca guarda anche in '
+        '<b>inglese e spagnolo</b> e nelle <b>collezioni di lode</b> '
+        '(Elevation Worship, Hillsong, Chris Adan, MUSICA CRISTIANA ITALIANA...): '
+        'i brani moderni dei cantanti, che su TikTok funzionano di piu\'.</div>')
 
     # ---- CERCA MEGLIO / ALTRE CANZONI ----
     _visti = st.session_state.get("visti") or []
     _quante = st.session_state.get("quante_mostrate", len(risultati))
+    _direz = st.session_state.get("studio_direzione", "")
     html(
         '<div class="note" style="margin-top:8px;">'
         '<b>Nessuna di queste ti convince?</b> Tocca "Cerca meglio": '
-        'l\'app ti porta <b>altre canzoni diverse</b>, ordinate sempre per '
+        'l\'app ti porta <b>altre 8 canzoni diverse</b>, ordinate sempre per '
         'adattamento al tuo versetto.</div>')
+    if _direz:
+        html(
+            '<div class="note">Direzione musicale scelta dall\'interpretazione: '
+            f'<b>{esc(_direz)}</b></div>')
     _c1, _c2 = st.columns(2)
     with _c1:
-        if st.button("\U0001F504 Cerca meglio (altre 5)",
+        if st.button("\U0001F504 Cerca meglio (altre 8)",
                      use_container_width=True, key="cerca_meglio"):
             _query = st.session_state.get("query_usate") or []
             _kw = st.session_state.get("studio_parole") or \
@@ -1735,7 +1806,7 @@ if risultati:
             with st.spinner("\U0001F50D Cerco canzoni diverse e piu' adatte..."):
                 try:
                     _nuovi = ricerca_cached(
-                        tuple(_query), 5, tuple(_kw), DURATA_MAX_SEC,
+                        tuple(_query), 8, tuple(_kw), DURATA_MAX_SEC,
                         escludi=tuple(_visti), riferimento=_rif)
                 except Exception:
                     _nuovi = []
@@ -1765,6 +1836,17 @@ if risultati:
 
     for i, r in enumerate(risultati, start=1):
         with st.container(border=True):
+            _fidato = artista_fidato(r.titolo, r.canale)
+            _artista = nome_artista(r.titolo, r.canale)
+            _tag = ""
+            if _fidato:
+                _tag = (f'<span class="chip" style="background:#dcfce7;'
+                        f'color:#166534;font-weight:700">'
+                        f'&#10003; {esc(_fidato)}</span> ')
+            elif _artista:
+                _tag = (f'<span class="chip" style="background:#dbeafe;'
+                        f'color:#1e40af;font-weight:700">'
+                        f'&#127925; {esc(_artista)}</span> ')
             html(
                 f"""
                 <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -1774,7 +1856,7 @@ if risultati:
                     <div class="card-title">{esc(r.titolo)}</div>
                     <div class="card-meta">{esc(r.canale)}"""
                 + (f" &bull; {esc(r.durata)}" if r.durata else "")
-                + "</div></div></div>")
+                + "</div>" + _tag + "</div></div>")
 
             motivi = spiega_canzone(r.titolo, r.canale, r.durata, r.secondi,
                                     parole_chiave, temi)
@@ -1784,13 +1866,18 @@ if risultati:
 
             col_a, col_b = st.columns([1, 1])
             with col_a:
-                blocco_copia(r.titolo, f"copia{i}")
+                # copio "TITOLO - ARTISTA": e' il formato con cui il
+                # brano si trova davvero nella libreria audio di TikTok
+                _artista = nome_artista(r.titolo, r.canale)
+                _testo_copia = (f"{r.titolo} - {_artista}" if _artista
+                                else r.titolo)
+                blocco_copia(_testo_copia, f"copia{i}")
             with col_b:
                 st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
 
             st.link_button(
                 "\U0001F50D Verifica l'audio su TikTok",
-                link_ricerca_audio(r.titolo),
+                link_ricerca_audio(_testo_copia),
                 use_container_width=True,
                 help="Apre la ricerca dei suoni di TikTok con questo titolo: "
                      "vedi subito se l'audio e' disponibile per i tuoi video.",
