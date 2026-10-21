@@ -98,3 +98,37 @@ Marco 12,28-31 Marco 12,28-31    -> riferimento ripetuto
 8. L'intervallo dentro un capitolo (18-21) mostra solo 4 versetti?
 9. La caption finale ha un senso? Gli hashtag sono pertinenti?
 10. L'app funziona con il telefono in verticale? (i pulsanti si vedono?)
+
+## I. Privacy e archivio privato
+1. In fondo alla pagina (ARCHIVIO) metti un codice tuo -> compare
+   "L'archivio e' privato" e il bottone diventa "Cambia codice".
+2. Salva un post -> deve comparire nell'archivio.
+3. Ricarica la pagina (ricarica completa) -> il post c'e' ancora? (il codice
+   protegge i file, quindi deve rimanere)
+4. Cambia il codice con un altro -> il post precedente sparisce (e' andato
+   nell'archivio dell'altro codice). Torna col codice giusto -> riappare.
+5. Su un altro telefono o in un altro browser (o finestra privata) entra
+   con lo STESSO codice -> vedi gli stessi post. Con un codice DIVERSO ->
+   non ne vedi nessuno.
+6. "Genera un codice per me" -> ti da' un codice tipo CANT-7K3M9P: salvalo
+   tu, non dirlo a nessuno.
+7. Nella barra laterale deve esserci la privacy: "L'archivio e' privato".
+
+## J. Scope: solo il versetto
+1. Scrivi "Giovanni 14,6" -> scegli "Cosa vuoi vedere?" = "Solo il versetto
+   (v.6)" -> "Studia questo passaggio".
+2. Nella FASE 1 (interpretazione) la sezione "2. IL CONTESTO" NON deve
+   citare Giovanni 14,4 / 14,5 / 14,7: solo il tuo v.6.
+3. Scegli "Tutto il capitolo (Giovanni 14)" -> adesso il testo e' il capitolo
+   intero e l'interpretazione parla del capitolo.
+4. Spunta "Mostra anche i versetti vicini (contesto)" -> i versetti vicini
+   compaiono SOLO se lo chiedi.
+
+## K. Aggiornamento dell'app
+1. In fondo leggi "versione build XXXXXX" -> se il numero e' diverso da
+   quello dell'ultimo deploy, l'app sta girando il codice vecchio: premi
+   "Ricarica la versione piu' recente".
+2. Dopo un aggiornamento, l'interpretazione di "Giovanni 14,6" deve
+   consigliare solo video che parlano di 14,6 (non di 14,28 o 14,11).
+3. Nell'elenco interpretazioni il #1 ha il badge "LA PIU' ADATTA AL TUO
+   VERSETTO" e quello con piu' visualizzazioni ha "LA PIU' ASCOLTATA".

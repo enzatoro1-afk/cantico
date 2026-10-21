@@ -31,6 +31,18 @@ COME SI USA (30 secondi)
 - La sezione finale ti prepara caption, hashtag, testo da schermo, la data
   e l'ora migliore per pubblicare, e tiene l'archivio dei post.
 
+---------------------------------------------
+I TUOI POST SONO PRIVATI
+---------------------------------------------
+- Alla fine della pagina, nella sezione ARCHIVIO, ognuno sceglie il
+  PROPRIO codice (o tocca "Genera un codice per me").
+- Con il codice, i tuoi post restano tuoi: nessun altro che usa l'app li
+  vede, e tu non vedi quelli degli altri.
+- Se non metti nessun codice, l'archivio funziona lo stesso ma vale solo
+  finche' non chiudi il browser.
+- Quello che scrivi (versetto, ricerche, interpretazioni) resta sempre
+  nel tuo telefono: non lo vede nessuno.
+
 In allegato trovi anche il codice completo (ZIP): serve se un giorno vuoi
 ricreare l'app, cambiare i colori o le ricerche, o farla installare da
 qualcun altro (si pubblica gratis su Streamlit Cloud, guida dentro).
