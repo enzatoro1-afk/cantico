@@ -36,6 +36,11 @@ COME SI USA (30 secondi)
 - "Cerca meglio": se nessuna canzone ti convince, l'app te ne porta
   ALTRE 8, tutte diverse e ordinate per quanto parlano del tuo
   versetto. Puoi ripeterlo quante volte vuoi.
+- La terza scheda, "Mia riflessione": scrivi con parole tue quello che
+  hai pensato leggendo la Parola (es. "Dio non abbandona nessuno") e
+  l'app cerca in TUTTA la Bibbia il versetto che parla proprio a te,
+  lo mette in cima con il cartellino "scelto dall'IA", poi cerca la
+  canzone e prepara il post. La caption parte dalle TUE parole.
 - Nella sezione "Da dove vuoi l'interpretazione?" trovi il pulsante
   "Scrivi l'interpretazione con l'IA": scrive l'interpretazione del TUO
   versetto come un maestro della Scrittura (5 sezioni: il testo, il

@@ -36,7 +36,8 @@ _RI_CARICATI = hotreload.ricarica()
 from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
                        dimentica_chiave_gemini, interpreta_con_ia,
                        interpreta_gemini, interpreta_gratis, link_chatgpt,
-                       parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini)
+                       parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini,
+                       scegli_versetto_ia)
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
@@ -377,6 +378,11 @@ def esegui_ricerca(testo: str) -> None:
     )
     st.session_state["cronologia"] = st.session_state["cronologia"][:8]
 
+
+
+def hashtag_str(hashtag: list[str] | None) -> str:
+    """Gli hashtag in una riga (per la caption)."""
+    return " ".join(h or [] for h in (hashtag or []))
 
 
 def _riferimento_breve(rif: dict) -> str:
@@ -921,9 +927,10 @@ NOTA_TRADUZIONE = (
 # --------------------------------------------------------------------------
 # DUE MODALITA' a schede: per versetto, oppure ricerca in tutta la Bibbia
 # --------------------------------------------------------------------------
-tab_verso, tab_biblia = st.tabs([
+tab_verso, tab_biblia, tab_riflessione = st.tabs([
     "\U0001F3A5 Versetto -> canzone",
     "\U0001F4D6 Cerca in tutta la Bibbia",
+    "\U0001F4DD Mia riflessione",
 ])
 
 with tab_verso:
@@ -1008,6 +1015,14 @@ with tab_verso:
     if st.button("\U0001F50E Trova Canzone Adatta", type="primary",
                   use_container_width=True):
         esegui_ricerca(testo)
+
+    # la mia riflessione: scrivi quello che pensi sulla Parola di Dio
+    html(
+        '<div class="note" style="margin-top:10px;">'
+        '<b>Hai letto la Parola e ti ha parlato?</b> Nella scheda '
+        '<b>"\U0001F4DD Mia riflessione"</b> scrivi quello che hai pensato: '
+        'l\'app lo cerca in tutta la Bibbia, trova il versetto, la canzone e '
+        'prepara il post.</div>')
 
     # richiesta di ricerca lanciata dalla scelta di un versetto
     if st.session_state.get("_cerca_subito"):
@@ -1166,6 +1181,128 @@ with tab_biblia:
             '"pastore", "Pentecoste", "genesi", "consolazione".</div>',
             unsafe_allow_html=True,
         )
+
+    # ==========================================================================
+
+with tab_riflessione:
+    # ==========================================================================
+    # MIA RIFLESSIONE: scrivi quello che pensi sulla Parola di Dio,
+    # l'app trova il versetto, la canzone e prepara il post.
+    # ==========================================================================
+
+    html(
+        '<div class="step">LA MIA RIFLESSIONE</div>'
+        "<h3>\U0001F4DD Scrivi quello che pensi sulla Parola di Dio</h3>"
+        '<div class="note">Ogni giorno, quando leggi la Bibbia, annota quello '
+        'che ti ha toccato il cuore. Scrivilo qui: l\'app <b>lo cerca in tutta '
+        'la Bibbia</b>, trova il versetto che parla proprio a te, lo studia, '
+        'cerca la canzone giusta e ti prepara il post da pubblicare.</div>'
+        + NOTA_TRADUZIONE +
+        '</div>')
+
+    _riflessione = st.text_area(
+        "La mia riflessione (scrivi con parole tue)",
+        placeholder=(
+            "Es. «Dio non abbandona nessuno: anche quando mi sento solo, "
+            "lui c'è.»\n"
+            "Es. «Oggi ho capito che la pazienza non è aspettare: è "
+            "continuare a fidarsi.»\n"
+            "Es. «Il perdono libera prima chi lo chiede.»"
+        ),
+        key="testo_riflessione",
+        height=190,
+        max_chars=2000,
+    )
+
+    st.checkbox(
+        "Fai scegliere il versetto all'IA (il piu' adatto alla mia riflessione)",
+        value=st.session_state.get("usa_ia_versetto", True),
+        key="usa_ia_versetto",
+        help="L'IA guarda i 5 versetti trovati per parole simili e sceglie "
+             " quello che parla davvero al tuo cuore. Ci mette 10-30 secondi. "
+             "Senza IA l'app usa solo il confronto delle parole.",
+    )
+
+    _col_r1, _col_r2 = st.columns(2)
+    with _col_r1:
+        if st.button("\U0001F50D Trova il versetto e la canzone",
+                     type="primary", use_container_width=True,
+                     key="cerca_riflessione"):
+            if not (_riflessione or "").strip():
+                st.warning("Scrivi prima la tua riflessione \U0001F4DD")
+            else:
+                with st.spinner("\U0001F50D Cerco in tutta la Bibbia il "
+                                "versetto che parla alla tua riflessione..."):
+                    try:
+                        st.session_state["versetti"] = cerca_versetti_cached(
+                            _riflessione.strip(), 5)
+                        st.session_state["versetti_da_riflessione"] = True
+                        st.session_state["riflessione_giornaliera"] = \
+                            _riflessione.strip()
+                        st.session_state["scelta_ia_versetto"] = None
+                    except Exception as exc:
+                        st.error(f"\u26A0\uFE0F Errore nella ricerca: {exc}")
+                        st.session_state["versetti"] = []
+                # l'AI sceglie il versetto che parla davvero alla riflessione
+                if st.session_state.get("versetti") and st.session_state.get(
+                        "usa_ia_versetto", True):
+                    with st.spinner("\U0001F9E0 Chiedo all'IA quale versetto "
+                                    "parla davvero alla tua riflessione..."):
+                        _sc = scegli_versetto_ia(
+                            _riflessione.strip(),
+                            st.session_state["versetti"],
+                            chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                            chiave_openai=st.session_state.get("chiave_ia", ""))
+                    st.session_state["scelta_ia_versetto"] = _sc
+                    if _sc.get("indice") is not None:
+                        # il versetto scelto dall'IA va per primo
+                        _v = st.session_state["versetti"].pop(_sc["indice"])
+                        st.session_state["versetti"].insert(0, _v)
+                    elif _sc.get("riferimento"):
+                        # l'IA ha proposto un versetto migliore: lo cerco
+                        # nella Bibbia e lo metto per primo
+                        _rif_ia = _sc["riferimento"]
+                        try:
+                            _r2 = rileva_riferimento(_rif_ia)
+                            if _r2 and _r2.get("versetto"):
+                                _sv = trova_versetto(
+                                    _r2["libro"], _r2["capitolo"],
+                                    _r2["versetto"],
+                                    contesto=0,
+                                    versetto_fine=_r2.get("versetto_fine"))
+                                if _sv:
+                                    _sv["temi"] = []
+                                    st.session_state["versetti"].insert(0, _sv)
+                        except Exception:
+                            pass
+                if not st.session_state["versetti"]:
+                    st.info("Nessun versetto trovato. Prova con parole "
+                            "piu' semplici, oppure scrivi un tema "
+                            "(es. 'fede', 'consolazione', 'pastore').")
+    with _col_r2:
+        if st.button("\U0001F4D6 Pubblica la riflessione di oggi",
+                     use_container_width=True, key="pubblica_riflessione"):
+            if not (_riflessione or "").strip():
+                st.warning("Scrivi prima la tua riflessione \U0001F4DD")
+            else:
+                # salva la riflessione e preparala per il post
+                st.session_state["riflessione_giornaliera"] = _riflessione.strip()
+                _data_oggi = date.today().strftime("%d/%m/%Y")
+                _kw_rif = ", ".join(estrai_parole_chiave(_riflessione, 3))
+                st.session_state["post"] = {
+                    "titolo": "", "video_id": "", "canale": "",
+                    "hashtag": [], "formato": "Versetto + domanda",
+                    "caption": (f"«{_riflessione.strip()}»\n\n"
+                                f"Parole chiave: {_kw_rif}\n"
+                                f"\U0001F4DD Riflessione del {_data_oggi}"),
+                    "hook": " ".join(_riflessione.strip().split()[:8]),
+                }
+                st.success("\u2705 Riflessione salvata. Ora scrivi il versetto "
+                           "nella scheda \"Versetto -> canzone\" e l'app "
+                           "cercherà la canzone per la tua Parola.")
+
+    # i versetti trovati dalla riflessione vengono mostrati sotto
+    # (riutilizzo lo stesso blocco della scheda 1)
 
     # ==========================================================================
 
@@ -1711,20 +1848,40 @@ elif studio and studio.get("versetto"):
 
 versetti = st.session_state.get("versetti") or []
 if versetti:
+    _da_riflessione = bool(st.session_state.get("riflessione_giornaliera")) and \
+        st.session_state.get("versetti_da_riflessione")
+    _titolo_blocco = ("\U0001F4DD Versetti che parlano alla TUA riflessione"
+                      if _da_riflessione else
+                      "\U0001F4D6 Versetti che parlano al tuo pensiero")
+    _nota_blocco = ("Scegli il versetto che ti risuona: l\'app lo mette nella "
+                    "casella e cerca subito la canzone. La tua riflessione "
+                    "diventa la caption del post."
+                    if _da_riflessione else
+                    "Scegli il versetto che ti risuona: l\'app lo mette nella "
+                    "casella e cerca subito la canzone.")
     html(
         '<div class="step">Il testo biblico</div>'
-        '<h3>\U0001F4D6 Versetti che parlano al tuo pensiero</h3>'
+        f'<h3>{_titolo_blocco}</h3>'
         f'<div class="note">Testo di riferimento: {esc(NOME_TRADUZIONE)}. '
-        'Scegli il versetto che ti risuona: l\'app lo mette nella casella e cerca '
-        'subito la canzone.</div>')
+        f'{_nota_blocco}</div>')
     for i, v in enumerate(versetti, start=1):
         with st.container(border=True):
             chip = "".join(f'<span class="chip">{esc(t)}</span>' for t in v["temi"])
+            _scelta_ia = (st.session_state.get("scelta_ia_versetto") or {})
+            _scelto = (_scelta_ia.get("indice") == i - 1) or (
+                bool(_scelta_ia.get("riferimento")) and i == 1)
+            _badge_ia = ('<span class="chip" style="background:#fde68a;color:#92400e;'
+                         'font-weight:700">&#127775; scelto dall\'IA</span> ') \
+                if _scelto else ""
             html(
                 f'<div class="badge">#{i}</div>'
                 f'<div class="card-title">{esc(v["riferimento"])}</div>'
                 f'<div class="card-meta" style="font-size:.92rem;opacity:.85;">'
-                f'«{esc(v["testo"])}»</div>{chip}')
+                f'«{esc(v["testo"])}»</div>{chip}{_badge_ia}')
+            if _scelto and _scelta_ia.get("motivo"):
+                html(
+                    '<div class="note box-ok"><b>Perche\' questo:</b> '
+                    f'{esc(_scelta_ia["motivo"])}</div>')
             col_a, col_b = st.columns(2)
             with col_a:
                 st.button(
@@ -1921,6 +2078,15 @@ if risultati:
                     "caption": genera_caption(testo, formato, hashtag),
                     "hook": genera_hook(testo),
                 }
+                # se l'utente ha scritto una riflessione, il post parte
+                # dalle SUE parole (il versetto e' il riferimento)
+                _rifl = st.session_state.get("riflessione_giornaliera")
+                if _rifl:
+                    st.session_state["post"]["caption"] = (
+                        f"«{_rifl}»\n\n{hashtag_str(hashtag)}")
+                    st.session_state["post"]["hook"] = " ".join(
+                        _rifl.split()[:8])
+                    st.session_state["post"]["riflessione"] = _rifl
                 st.rerun()
 
     if query_usate:
@@ -1939,6 +2105,14 @@ if post:
     html('<hr>')
     html(
         '<div class="step">PASSAGGIO 3</div><h3>\U0001F4E4 Prepara e pubblica</h3>')
+
+    _rifl_post = post.get("riflessione") or st.session_state.get(
+        "riflessione_giornaliera")
+    if _rifl_post:
+        html(
+            '<div class="box box-ok"><b>\U0001F4DD La tua riflessione '
+            '(dal post):</b><br><span style="font-size:1.02rem;">'
+            f'«{esc(_rifl_post)}»</span></div>')
 
     html(
         f'<div class="box"><b>\U0001F3B5 Canzone scelta:</b> {esc(post["titolo"])}'

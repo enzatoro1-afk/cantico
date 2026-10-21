@@ -478,6 +478,83 @@ def _estrai_testo_ia(crudo: str) -> str:
     return _pulisci_giornale(grezzo)
 
 
+def scegli_versetto_ia(riflessione: str, candidati: list[dict],
+                       chiave_gemini: str = "", chiave_openai: str = "") -> dict:
+    """
+    Chiede all'IA quale dei versetti candidati parla davvero alla riflessione
+    dell'utente (il versetto giusto, non quello con le parole simili).
+
+    Restituisce {"indice": int|None, "motivo": str, "errore": str|None}
+    """
+    if not candidati:
+        return {"indice": None, "motivo": "", "errore": "nessun candidato"}
+    _elenco = "\n".join(
+        f"{i+1}. {c.get('riferimento','')}: {c.get('testo','')[:220]}"
+        for i, c in enumerate(candidati))
+    _prompt = (
+        "L'utente ha scritto questa riflessione personale sulla Parola di Dio:\n"
+        f"«{riflessione}»\n\n"
+        "Ecco i versetti candidati trovati per parole simili:\n"
+        f"{_elenco}\n\n"
+        "Scegli il versetto che parla VERAMENTE alla riflessione dell'utente. "
+        "ATTENZIONE al senso: se un versetto parla del contrario (es. "
+        "l'utente dice 'Dio non abbandona' e il versetto dice 'Dio l'ha "
+        "abbandonato'), NON va bene.\n"
+        "Se nessuno dei candidati va bene, indica il versetto GIUSTO che "
+        "parla alla riflessione, con il riferimento esatto "
+        "(es. 'Salmo 23,1' o 'Giovanni 3,16').\n\n"
+        "Rispondi ESATTAMENTE con:\n"
+        "NUMERO: <il numero del candidato scelto, oppure 0 se nessuno va "
+        "bene>\n"
+        "RIFERIMENTO: <il riferimento esatto del versetto giusto, "
+        "scrivi 'nessuno' se non hai un versetto migliore>\n"
+        "MOTIVO: <una frase che spiega perche' questo versetto parla alla "
+        "riflessione>"
+    )
+    _r = _chiedi_ia_testo(_prompt, chiave_gemini, chiave_openai)
+    _testo = (_r or "").strip()
+    if not _testo:
+        return {"indice": None, "motivo": "", "riferimento": "",
+                "errore": "IA non disponibile"}
+    import re as _re
+    _m = _re.search(r"NUMERO\s*:\s*(\d+)", _testo, _re.IGNORECASE)
+    _rf = _re.search(r"RIFERIMENTO\s*:\s*([^\n]+)", _testo, _re.IGNORECASE)
+    _mot = _re.search(r"MOTIVO\s*:\s*(.+)", _testo, _re.IGNORECASE)
+    _n = int(_m.group(1)) if _m else 0
+    _motivo = _mot.group(1).strip() if _mot else ""
+    _rif = (_rf.group(1).strip() if _rf else "").strip()
+    if _rif.lower() in ("nessuno", "nessun", "n/a", "-", ""):
+        _rif = ""
+    if 1 <= _n <= len(candidati):
+        return {"indice": _n - 1, "motivo": _motivo, "riferimento": _rif,
+                "errore": None}
+    # nessun candidato valido: l'IA propone un altro versetto
+    if _rif:
+        return {"indice": None, "motivo": _motivo, "riferimento": _rif,
+                "errore": None}
+    return {"indice": None, "motivo": _motivo, "riferimento": "",
+            "errore": "IA non ha scelto un versetto valido"}
+
+
+def _chiedi_ia_testo(prompt: str, chiave_gemini: str = "",
+                     chiave_openai: str = "") -> str:
+    """Chiede un testo semplice all'IA migliore disponibile."""
+    if chiave_gemini or chiave_gemini_da_secrets():
+        for m in MODELLI_GEMINI:
+            _t = _gemini_con_sdk(prompt, chiave_gemini or
+                                 chiave_gemini_da_secrets(), m, 90)
+            if len(_t) > 5:
+                return _t
+    _r = interpreta_gratis(prompt, tentativi=1)
+    if _r.get("testo"):
+        return _r["testo"]
+    if chiave_openai:
+        _r = interpreta_con_ia(prompt, chiave=chiave_openai)
+        if _r.get("testo"):
+            return _r["testo"]
+    return ""
+
+
 def _pulisci_giornale(testo: str) -> str:
     """
     Se la risposta e' stata troncata a meta' frase, la riporta all'ultima

@@ -205,6 +205,47 @@ def stem(parola: str) -> str:
     return parola
 
 
+def _radice(parola: str) -> str:
+    """Radice corta (per il confronto diretto tra parole)."""
+    return stem(_norm(parola))
+
+
+# parole troppo generiche: non dicono niente sul significato
+_PAROLE_GENERICHE = {
+    "sono", "stato", "questa", "questo", "quello", "quella", "delle",
+    "della", "dello", "degli", "dove", "mentre", "perche", "quando",
+    "anche", "come", "molto", "tutto", "tutti", "sempre", "mai", "ancora",
+    "giorno", "giorni", "sera", "notte", "oggi", "ieri", "domani",
+    "uomo", "uomini", "donna", "gente", "mondo", "vita", "tempo",
+    "parte", "modo", "cosa", "cose", "maniera", "luogo", "caso", "fatto",
+    "me", "te", "ti", "ci", "vi", "ne", "gli", "lei", "mio", "tuo", "suo",
+    "cosa", "fare", "fatto", "dice", "disse", "rispose", "parlò",
+}
+
+# parole che nella Bibbia compaiono in forme diverse ma valgono uguale
+_SINONIMI = {
+    "abbandon": ("abbandon", "nonabbandon", "lasciar", "nonlasciar"),
+    "abbandona": ("abbandon", "nonabbandon", "lasciar"),
+    "perdon": ("perdon", "rimett", "misericord", "condon"),
+    "perdona": ("perdon", "rimett", "misericord", "condon"),
+    "confid": ("confid", "fidat", "sper", " confid"),
+    "coragg": ("coragg", "fortezz", "cuore", "animo", "temere"),
+    "consol": ("consol", "confort", "sostegn", "gioia", "pace"),
+    "pazien": ("pazien", "attesa", "sopport", "aspett"),
+    "amore": ("amore", "carita", "misericord", "amarti"),
+    "pastore": ("pastore", "guida", "condu", "custod"),
+    "fede": ("fede", "credere", "confid", "fidat"),
+    "speranz": ("speranz", "sper", "attesa", "confid"),
+    "provved": ("provved", "custod", "sustain", "nutrir"),
+    "sempre": ("sempre", "giorni", "etern"),
+    "solo": ("solo", "soletar", "isolat", "abbandon"),
+    "paura": ("paura", "temor", "trem", "spavent"),
+    "futuro": ("futuro", "domani", "ieri", "sempre"),
+    "grazia": ("grazia", "misericord", "benign", "favor"),
+    "salvezza": ("salvezza", "salv", "liber", "redenz"),
+}
+
+
 def _cache_path() -> str:
     try:
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), NOME_CACHE)
@@ -429,12 +470,32 @@ class MotoreBibbia:
                     temi_trovati.setdefault(idx, set()).add(concetto["tema"])
 
         risultati = []
+        # parole "forti" del testo dell'utente: quelle che compaiono
+        # LETTERALMENTE nel versetto valgono piu' di un'idea generica
+        parole_qforti = [p for p in re.findall(r"[a-z]{4,}", _norm(testo))
+                         if p not in STOPWORDS and p not in _PAROLE_GENERICHE]
+        _forti_set = set(parole_qforti)
         for idx, punteggio in punteggi.items():
             v = self.versetti[idx]
             n_concetti = len(set(concetti_trovati[idx]))
             bonus = 1 + 0.85 * max(0, n_concetti - 1)
             n_parole = max(12, len(v["parole"]))
             finale = (punteggio * bonus) / math.sqrt(n_parole)
+            # +++ le parole dell'utente con riscontro LETTERALE nel verso +++
+            if _forti_set:
+                _radici_verso = {_radice(p) for p in v["parole"]}
+                for p in _forti_set:
+                    _r = _radice(p)
+                    if not _r:
+                        continue
+                    if _r in _radici_verso:
+                        finale += 2.6
+                        continue
+                    # anche i sinonimi (es. abbandona / abbandonerò)
+                    for _sin in _SINONIMI.get(_r, ()):
+                        if _sin in _radici_verso:
+                            finale += 2.0
+                            break
             risultati.append({
                 "riferimento": v["riferimento"],
                 "testo": v["testo"],

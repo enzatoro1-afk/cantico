@@ -326,6 +326,40 @@ query -> stesse risposte, per non interrogare YouTube due volte) e la
 
 ---
 
+## ✍️ "Mia riflessione": scrivi, l'app trova il verso giusto
+
+La terza scheda dell'app serve a questo: ogni giorno, quando leggi la
+Bibbia, annoti **con parole tue** quello che ti ha parlato.
+
+1. Apri la scheda **"📝 Mia riflessione"**
+2. Scrivi il tuo pensiero (es. *"Dio non abbandona nessuno: anche quando
+   mi sento solo, lui c'è"*)
+3. Tocca **"Trova il versetto e la canzone"**
+
+Cosa succede:
+- l'app **cerca in tutta la Bibbia** (66 libri) i versetti che parlano al
+  tuo pensiero
+- **l'IA sceglie il versetto giusto** (non quello con parole simili ma
+  senso opposto) e lo mette in cima con il badge "🌟 scelto dall'IA" e la
+  spiegazione del perché
+- scegli il versetto → l'app cerca **la canzone** e prepara il post
+- la **caption parte dalle tue parole**, non dal versetto: la tua riflessione
+  è il cuore del post, il versetto è il riferimento
+
+La scelta dell'IA può indicare anche un versetto **che non era tra i
+candidati** (l'app lo cerca nella Bibbia e lo usa). Esempi reali:
+
+| La tua riflessione | Il versetto scelto dall'IA |
+|---|---|
+| "Dio non abbandona nessuno" | Ebrei 13,5 |
+| "Il perdono libera prima chi lo chiede" | Matteo 6,14-15 |
+| "Ho paura del futuro ma so che Dio provvede" | Salmi 56,3 |
+
+C'è anche **"📖 Pubblica la riflessione di oggi"**: salva la riflessione
+come post pronto (con data), per quando vuoi pubblicarla subito.
+
+---
+
 ## 🔎 Il doppio passaggio (versetto -> interpretazione -> canzone)
 
 Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due fasi:
