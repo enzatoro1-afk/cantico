@@ -905,6 +905,14 @@ with st.sidebar:
     else:
         # riprendi la chiave salvata nel TUO browser (solo per te)
         html(_SCRIPT_LEGGI_CHIAVE, unsafe_allow_javascript=True)
+        html(
+            '<div class="note">\U0001F511 <b>Senza chiave l\'app funziona '
+            'lo stesso</b>: usa lo studio del versetto (costruito sul testo '
+            'e sulle sue immagini) e l\'IA gratuita senza chiave. Ma con una '
+            'chiave Gemini gratuita l\'interpretazione diventa molto piu\' '
+            'profonda, scritta come un maestro della Scrittura. '
+            '<a href="https://aistudio.google.com/api-keys" '
+            'target="_blank">Prendila qui</a> (ci metti un minuto).</div>')
         # La chiave si ricorda NEL BROWSER (solo per te, la quota e' tua):
         # nessun altro utente la vede e nessuno la consuma al posto tuo.
         st.checkbox(

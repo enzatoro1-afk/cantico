@@ -531,36 +531,211 @@ def estrai_parole_chiave_spirituali(testo: str, numero: int = 3) -> list[str]:
 # unico (e che la Chiesa cantano). Servono a scrivere interpretazioni diverse
 # per ogni passaggio, anche senza IA.
 IMMAGINI_BIBLICHE = {
-    "pietra": "pietra", "pietre": "pietre", "roccia": "roccia",
-    "vite": "vite", "vigna": "vigna", "uva": "uva", "cantico": "cantico",
-    "pane": "pane", "pane": "pane", "focolare": "focolare", "mensa": "mensa",
-    "vino": "vino", "calice": "calice", "sangue": "sangue",
-    "luce": "luce", "lume": "lume", "sole": "sole", "splendore": "splendore",
-    "stella": "stella", "stelle": "stelle",
-    "via": "via", "cammino": "cammino", "strada": "strada", "sentiero": "sentiero",
-    "porta": "porta", "portone": "portone",
-    "tempio": "tempio", "santuario": "santuario", "altare": "altare",
-    "casa": "casa", "casa": "casa", "tetto": "tetto", "stanza": "stanza",
-    "mano": "mano", "mani": "mani", "braccio": "braccio",
-    "cuore": "cuore", "cuori": "cuori", "anima": "anima", "mente": "mente",
-    "voce": "voce", "grido": "grido", "canto": "canto", "canta": "canto",
-    "salvezza": "salvezza", "redenzione": "redenzione", "peccato": "peccato",
-    "peccati": "peccato", "grazia": "grazia", "misericordia": "misericordia",
-    "fede": "fede", "speranza": "speranza", "amore": "amore",
-    "verita": "verita", "verita": "verita", "via": "via",
-    "morte": "morte", "vita": "vita", "resurrezione": "resurrezione",
-    "croce": "croce", "preghiera": "preghiera", "orazione": "orazione",
-    "digiuno": "digiuno", "sacrificio": "sacrificio", "offerta": "offerta",
-    "regno": "regno", "trono": "trono", "corona": "corona", "potere": "potere",
-    "autorita": "autorita", "servizio": "servizio", "lavore": "lavore",
-    "pane": "pane", "miele": "miele", "sale": "sale", "luce": "luce",
-    "albero": "albero", "radice": "radice", "seme": "seme", "frutto": "frutto",
-    "ghiaccio": "ghiaccio", "fuoco": "fuoco", "fiamma": "fiamma",
-    "nuvola": "nuvola", "cielo": "cielo", "terra": "terra", "vento": "vento",
-    "mare": "mare", "onda": "onda", "fiume": "fiume", "pioggia": "pioggia",
-    "gabbia": "gabbia", "catena": "catena", "carcer": "carcer",
-    "battesimo": "battesimo", "acqua": "acqua", "lavacro": "lavacro",
-    "dea": "dea", "popolo": "popolo", "nazione": "nazione", "genti": "genti",
+    "nonmiabbandon": "abbandona",
+    "testimonianza": "testimonianza",
+    "misericordia": "misericordia",
+    "nonaverpaura": "coraggio",
+    "resurrezione": "resurrezione",
+    "benedizione": "benedice",
+    "combattendo": "combatti",
+    "liberazione": "liberazione",
+    "abbandoner": "abbandona",
+    "adorazione": "adorazione",
+    "battezzato": "battesimo",
+    "combattuto": "combatti",
+    "confidenza": "confida",
+    "custodisce": "custodisce",
+    "custodisci": "custodisce",
+    "protezione": "protezione",
+    "provvedera": "provvede",
+    "redenzione": "redenzione",
+    "sacrificio": "sacrificio",
+    "testamento": "patto",
+    "abbandona": "abbandona",
+    "battesimo": "battesimo",
+    "benedetto": "benedice",
+    "paternita": "paternita",
+    "perdonato": "perdono",
+    "preghiera": "preghiera",
+    "ringrazia": "ringrazia",
+    "salvatore": "salvatore",
+    "santuario": "santuario",
+    "scrittura": "parola",
+    "scritture": "parola",
+    "sincerita": "verita",
+    "sostenero": "sostiene",
+    "splendore": "splendore",
+    "temporale": "temporale",
+    "testimoni": "testimonianza",
+    "alleanza": "alleanza",
+    "autorita": "autorita",
+    "benedice": "benedice",
+    "benedici": "benedice",
+    "combatte": "combatti",
+    "combatti": "combatti",
+    "coraggio": "coraggio",
+    "eternita": "eternita",
+    "focolare": "focolare",
+    "fortezza": "coraggio",
+    "ghiaccio": "ghiaccio",
+    "non tema": "coraggio",
+    "orazione": "orazione",
+    "paziente": "pazienza",
+    "pazienza": "pazienza",
+    "promessa": "promessa",
+    "promesse": "promessa",
+    "protegge": "protegge",
+    "provvede": "provvede",
+    "salvezza": "salvezza",
+    "sentiero": "sentiero",
+    "servizio": "servizio",
+    "smarrire": "smarrire",
+    "sopporta": "pazienza",
+    "sostiene": "sostiene",
+    "speranza": "speranza",
+    "tempesta": "tempesta",
+    "agnelli": "agnello",
+    "agnello": "agnello",
+    "attendo": "attendo",
+    "braccio": "braccio",
+    "cammino": "cammino",
+    "cantico": "cantico",
+    "conduce": "guida",
+    "confida": "confida",
+    "confido": "confida",
+    "credere": "fede",
+    "credete": "fede",
+    "difende": "difende",
+    "digiuno": "digiuno",
+    "fiducia": "confida",
+    "lavacro": "lavacro",
+    "liberti": "liberazione",
+    "mattina": "mattina",
+    "nazione": "nazione",
+    "offerta": "offerta",
+    "pastore": "pastore",
+    "pastori": "pastore",
+    "peccati": "peccato",
+    "peccato": "peccato",
+    "perdere": "perdere",
+    "perdona": "perdono",
+    "perdoni": "perdono",
+    "pioggia": "pioggia",
+    "portone": "portone",
+    "rimetti": "perdono",
+    "servire": "servizio",
+    "albero": "albero",
+    "altare": "altare",
+    "calice": "calice",
+    "carcer": "carcer",
+    "catena": "catena",
+    "chiedi": "preghiera",
+    "corona": "corona",
+    "difesa": "difesa",
+    "fiamma": "fiamma",
+    "figlio": "paternita",
+    "frutto": "frutto",
+    "gabbia": "gabbia",
+    "giorno": "giorno",
+    "grazia": "grazia",
+    "grazie": "grazia",
+    "invoca": "preghiera",
+    "lancia": "lancia",
+    "lavore": "lavore",
+    "libera": "liberazione",
+    "lodano": "lode",
+    "nuvola": "nuvola",
+    "parola": "parola",
+    "pecora": "pecora",
+    "pecore": "pecora",
+    "pietra": "pietra",
+    "pietre": "pietre",
+    "popolo": "popolo",
+    "potere": "potere",
+    "radice": "radice",
+    "roccia": "roccia",
+    "sangue": "sangue",
+    "sempre": "sempre",
+    "sperer": "speranza",
+    "stanza": "stanza",
+    "stella": "stella",
+    "stelle": "stelle",
+    "strada": "strada",
+    "temere": "temere",
+    "tempio": "tempio",
+    "timore": "temere",
+    "umilta": "umiltà",
+    "umiltà": "umiltà",
+    "verace": "verita",
+    "verita": "verita",
+    "acqua": "acqua",
+    "adora": "adorazione",
+    "amore": "amore",
+    "anima": "anima",
+    "canta": "canto",
+    "canto": "canto",
+    "cielo": "cielo",
+    "colpa": "peccato",
+    "croce": "croce",
+    "cuore": "cuore",
+    "cuori": "cuori",
+    "favor": "grazia",
+    "figli": "paternita",
+    "fiume": "fiume",
+    "forte": "coraggio",
+    "fuoco": "fuoco",
+    "genti": "genti",
+    "grege": "grege",
+    "grido": "grido",
+    "guida": "guida",
+    "mensa": "mensa",
+    "mente": "mente",
+    "miele": "miele",
+    "morte": "morte",
+    "notte": "notte",
+    "padre": "paternita",
+    "patto": "patto",
+    "paura": "paura",
+    "porta": "porta",
+    "prega": "preghiera",
+    "regna": "regno",
+    "regno": "regno",
+    "salva": "salvatore",
+    "scudo": "scudo",
+    "servo": "umiltà",
+    "spada": "spada",
+    "spera": "speranza",
+    "terra": "terra",
+    "tetto": "tetto",
+    "trono": "trono",
+    "vento": "vento",
+    "vigna": "vigna",
+    "abba": "paternita",
+    "arma": "arma",
+    "casa": "casa",
+    "cura": "cura",
+    "fede": "fede",
+    "loda": "lode",
+    "luce": "luce",
+    "lume": "lume",
+    "mani": "mani",
+    "mano": "mano",
+    "mare": "mare",
+    "oggi": "oggi",
+    "onda": "onda",
+    "pane": "pane",
+    "sale": "sale",
+    "seme": "seme",
+    "sera": "sera",
+    "sole": "sole",
+    "vine": "vite",
+    "vino": "vino",
+    "vita": "vita",
+    "vite": "vite",
+    "voce": "voce",
+    "dea": "dea",
+    "uva": "uva",
+    "via": "via",
 }
 
 
@@ -609,6 +784,174 @@ def _soggetto_del_versetto(testo: str) -> str:
     if len(_imm) == 2:
         return f"una promessa che parla di {_imm[0]} e {_imm[1]}"
     return f"una promessa che parla di {_imm[0]}, {_imm[1]} e {_imm[2]}"
+
+
+
+# Brevi riflessioni sulle immagini bibliche: servono perche' l'interpretazione
+# (quella senza IA) sia ricca e specifica di OGNI versetto.
+SIGNIFICATO_IMMAGINI = {
+    "testimonianza": "la testimonianza e' la parola che, detta con la vita, fa piu' di mille parole",
+    "consolazione": "la consolazione arriva come rugiada: piano, ma  rinfresca davvero",
+    "misericordia": "la misericordia non e' permesso di fare il male: e' la  forza che trasforma",
+    "liberazione": "la liberazione comincia quando smetti di credere di doverti salvare da solo",
+    "adorazione": "l'adorazione e' il posto dove la fede diventa attesa, e l'attesa diventa canto",
+    "custodisce": "custodire e' l'azione piu' concreta dell'amore: non lasciare niente nelle mani sbagliate",
+    "protezione": "il Signore fa come l'aquila che protegge: non toglie la  prova, toglie il pericolo",
+    "redenzione": "la redenzione e' un riscatto: qualcuno ha pagato al  posto nostro",
+    "sacrificio": "ogni sacrificio e' un atto d'amore che costa qualcosa: e' il segno di un amore vero",
+    "abbandona": "l'abbandono e' la paura piu' grande; la sua risposta e' la promessa che non abbandona mai",
+    "battesimo": "il battesimo e' un inizio che si vive ogni giorno: l'acqua una volta, la fedelta' ogni mattina",
+    "giustizia": "la giustizia di Dio e' piu' lenta del nostro desiderio,  ma e' piu' sicura",
+    "paternita": "il cuore di un figlio e' il posto dove regna il Padre: e' l'abbondanza, non la paura",
+    "preghiera": "la preghiera e' il modo in cui il cuore parla a Dio e in cui Dio parla al cuore",
+    "ringrazia": "il ringraziamento non e' un'etichetta: e' la risposta giusta a chi ha fatto tutto per noi",
+    "scrittura": "la Scrittura non e' un ricordo: e' la voce di Dio che parla ancora oggi a chi ascolta",
+    "benedice": "la benedizione e' la parola di Dio che si posa su una vita: e' il suo modo di prendersene cura",
+    "combatti": "ilcombattedore non e' l'aggressore: e' colui che mette il nemico al suo posto e risponde al male con il bene",
+    "coraggio": "il coraggio nasce dalla consapevolezza che Dio non lascia  mai solo",
+    "focolare": "il focolare e' il luogo della famiglia: Dio tiene  assieme il suo popolo anche quando la notte e' fredda",
+    "pazienza": "la pazienza non e' attesa passiva: e' fiducia che matura nel tempo di Dio",
+    "promessa": "la promessa di Dio non dipende dalla nostra costanza: e' la sua fedelta'",
+    "protegge": "l'ala che copre e' il segno che nessuno dei suoi resta scoperto",
+    "provvede": "il provveder di Dio non e' un piano prestabilito: e' la sua presenza quando il pane manca",
+    "salvezza": "la salvezza e' un dono che si riceve e si annuncia: non  e' una merita' ma una festa",
+    "sentiero": "il sentiero del giusto e' stretto ma sicuro: la  rettitudine e' la strada della vita",
+    "servizio": "servire non e' fare meno: e' il modo in cui la fede diventa carne",
+    "smarrire": "smarrire e' non dubitare di Lui: e' accorgersi che si persi, per poter essere ritrovati",
+    "sostiene": "sostenere non e' fare le cose al posto tuo: e' metterti accanto quando non ce la fai piu'",
+    "speranza": "la speranza e' un'ancora gettata dentro l'anima: tiene  anche quando la tempesta e' forte",
+    "cammino": "camminare e' la forma della fede: si avanza un passo alla  volta, con chi cammina",
+    "difende": "la difesa di Dio non e' una barriera: e' la sua presenza davanti a chi attacca il suo popolo",
+    "libertà": "la libertà non e' fare quello che si vuole: e' non essere schiavi di niente",
+    "pastore": "il pastore conosce le pecore e loro conoscono lui: e' un  legame di fiducia, non di paura",
+    "perdono": "perdonare non e' dimenticare: e' liberare il futuro dalla  schiavitù del passato",
+    "albero": "l'albero non sceglie i frutti: li porta; e la radice e' sotto terra, dove nessuno la vede",
+    "giorno": "il giorno che viene e' dono, non merito: si accoglie come un pane che qualcuno ha preparato",
+    "grazia": "la grazia non annulla la nostra debolezza, la sostiene: e'  il modo in cui Dio agisce quando l'uomo non puo'",
+    "lancia": "la lancia e' per il nemico, ma la mano che la impugna e'  di chi ha giurato fedelta'",
+    "nuvola": "la nuvola che guida e' anche quella che copre: nel deserto  e' la prova, ma e' anche la provvidenza",
+    "parola": "la Parola di Dio non e' un libro chiuso: e' una voce che  parla al singolo",
+    "pietra": "la pietra che gli uomini scartano diventa la pietra angolare:  cio' che il mondo rifiuta, Dio lo mette a fondamento",
+    "roccia": "la roccia non si muove: e' il segno di una salvezza che  nessuno puo' scuotere",
+    "sempre": "l'eternita' di Dio si sperimenta nel tempo: fedele ieri, fedele oggi, fedele domani",
+    "strada": "la strada della vita ha una direzione: chi la sceglie,  arriva davvero",
+    "temere": "il timore non e' disobbedienza: e' la domanda onesta di chi sa di non potercela da solo",
+    "tempio": "il tempio e' la casa di Dio: dove Egli abita, la nostra  vita diventa culto",
+    "umiltà": "l'umiltà non e' inferiorita': e' la liberta' di non dover difendere la propria gloria",
+    "verita": "la verita' non e' scomoda perche' libera: quando la parola  e' vera, niente piu' e' da difendere",
+    "acqua": "l'acqua che placa la sete e' quella che scende dal pozzo:  l'umana e' insufficiente, serve la sorgente",
+    "amore": "l'amore non e' un sentimento: e' una decisione che si ripete  ogni giorno",
+    "anima": "l'anima va curata come si cura una vigna: con attenzione,  pazienza e verita'",
+    "cuore": "dal cuore esce la vita: e' li' che si decide la fede, il  perdono, l'amore",
+    "fuoco": "il fuoco non serve per distruggere: serve per scaldare, e per far vedere cio' che e' vero",
+    "mente": "la mente purificata vede le cose come sono: la fede e'  l'intelligenza del cuore",
+    "morte": "la morte non e' l'ultima parola: Cristo l'ha gia' attraversata, e per questo la paura non ha piu' l'ultima parola",
+    "notte": "la notte non cancella il giorno: e' il tempo in cui Dio  lavora dove noi non lo vediamo",
+    "padre": "chiamare Dio Padre non e' una metafora: e' la certezza che nessuno e' orfano",
+    "patto": "l'alleanza non e' un patto che si puo' rompere: e' una promessa che Dio mantiene",
+    "paura": "la paura guarda il pericolo; la fede guarda colui che lo ha ordinato",
+    "porta": "alla porta di Dio si bussa, non si sfonda: l'accesso e'  libero per tutti, ma si chiede umilta'",
+    "regno": "il regno di Dio non e' un luogo: e' il modo in cui Dio  regna, e da cui noi riceviamo il pane",
+    "scudo": "lo scudo non e' un ornamento: si usa quando l'attacco e'  vero",
+    "cura": "la cura di Dio e' quotidiana e personale: nessuno e' un caso perduto",
+    "fede": "la fede non e' certezza cieca: e' fiducia in chi ha tenuto  parola",
+    "lode": "la lode non e'decorazione: e' il modo in cui il popolo di Dio dice di Lui tutto quello che ha fatto",
+    "luce": "la luce non si nasconde: chi cammina nella luce non teme la  notte",
+    "lume": "una lampada accesa non e' un fuoco spento: la fede accesa  rischiara la via",
+    "mano": "la mano che benedice e la mano che sostiene: in Dio la forza  e' sempre per aiutare",
+    "mare": "il mare non si placa, ma la barca arriva: il caos fa paura,  ma non affonda",
+    "pace": "la pace non e' l'assenza di tempesta: e' la certezza che il  cuore e' custodito",
+    "pane": "il pane spezzato e' il segno del dono che si divide: chi  accoglie il pane accoglie il corpo di Cristo",
+    "sole": "il sole non splende per tutti uguali: la grazia illumina dove  e' ricevuta",
+    "vino": "il vino nuovo in otte nuove: la vita nello Spirito non si  contiene nei vecchi stampi",
+    "vita": "la vita che viene da Dio non e' una somma di anni: e' una  qualita' di relazione con Lui",
+    "vite": "la vite e i tralci: nessun frutto vive senza la vite, nessuno  vive senza Cristo",
+    "voce": "la voce di Dio chiama per nome: quando chiama, non e' un  ordine impersonale, e' una carezza",
+    "uva": "l'uva matura nella vigna: la maturita' spirituale e' il frutto  della preghiera e della pazienza",
+    "via": "la via e' stretta e si cammina: nessuno arriva al Padre  muovendosi da solo",
+}
+
+
+# Il punto centrale, per ogni tema: cosi' l'interpretazione non e'
+# sempre la stessa, ma cambia con il contenuto del versetto.
+_PUNTI_CENTRALI = {
+    "Salvezza": "Dio agisce per primo e l'uomo risponde con fede: non e' "
+                "l'uomo a muoversi per primo, e' Dio che prende "
+                "l'iniziativa; la nostra risposta e' la fede, cioe' "
+                "affidarsi a Lui con tutto il cuore.",
+    "Consolazione": "Quando il peso della vita si fa sentire, questo "
+                    "testo non promette una scorciatoia: promette la "
+                    "presenza di chi non abbandona il suo popolo. La "
+                    "consolazione nasce dall'affidamento, non dalla "
+                    "forza di se'.",
+    "Proclamazione": "Qui non si canta per riempire un silenzio, ma per "
+                     "annunciare: questo testo e' una dichiarazione di "
+                     "vittoria, e la Chiesa lo intona per esaltare Dio e "
+                     "chiamare l'assemblea all'adorazione.",
+    "Fede": "Il testo non e' una lezione da imparare a memoria, ma una "
+            "base su cui piantare i piedi: si cammina quando si sa "
+            "perche' e con chi si cammina.",
+    "Amore": "Il cuore di questo testo e' un amore che non si ritira: "
+             "quello che Dio offre tiene anche quando le persone "
+             "falliscono.",
+    "Coraggio": "Qui il coraggio non e' non sentire paura, e' decidere "
+                "comunque di affidarsi a Dio davanti alla prova.",
+    "Speranza": "La speranza di questo testo non e' ottimismo: e' la "
+                "certezza che le promesse di Dio valgono.",
+    "Preghiera": "La preghiera e' il modo in cui questo testo cerca "
+                  "Dio, e il modo in cui Dio si fa trovare.",
+    "Guarigione": "Qui la guarigione e' annunciata per il corpo e per "
+                  "lo spirito: il tocco di Dio tocca tutta la persona.",
+    "Umiltà": "Il testo chiede umiltà: non misurare la propria fede con "
+              "la misura del mondo, ma con la bonta' di chi ci chiama.",
+    "Paternità": "Il cuore di questo testo e' un cuore di figlio: Dio "
+                 "prende cura di chi e' suo.",
+    "Servizio": "Qui il servizio non e' un compito: e' il modo in cui "
+                "il popolo di Dio risponde a quanto ha ricevuto.",
+    "Battesimo": "Questo testo parla di un inizio nuovo: quello che si "
+                 " riceve per fede e che si vive ogni giorno.",
+    "Protezione": "Il punto centrale e' questo: quando l'avversario "
+                  "stringe, Dio non guarda altrove. Egli si mette "
+                  "davanti a chi combatte, e li copre: la nostra "
+                  "risposta e' il riposo, non la paura.",
+    "Giustizia": "Il punto centrale e' questo: Dio vede la giustizia "
+                 "che gli uomini non vedono, e la raddrizza. Non e' "
+                 "indifferente: e' il giudice che difende il debole, e "
+                 "la nostra risposta e' fidarsi del suo giudizio.",
+    "Gratitudine": "Il punto centrale e' questo: la riconoscenza. Dio "
+                    "ha donato la sua bonta' senza che noi "
+                    "meritassimo, e la risposta giusta e' la lode, non "
+                    "il silenzio.",
+    "Cammino": "Il punto centrale e' questo: il cammino si fa con Dio, "
+               "non da soli. Chi dice 'io sono la via' e' la strada; il "
+               "nostro passo e' affidamento, e la lode nasce dal viaggio.",
+    "Verità": "Il punto centrale e' questo: la verita' che libera non e' "
+              "quella che giudica, ma quella che illumina il cuore e lo "
+              "cambia. La risposta e' una vita vera, e la lode nasce "
+              "dalla liberta'.",
+    "Confessione": "Il punto centrale e' questo: Dio non aspetta che "
+                   "ci rendiamo perfetti per accoglierci. Egli apre la "
+                   "porta del cuore, e la risposta e' il pentimento che "
+                   "libera, non il nascondersi.",
+    "Regno": "Il punto centrale e' questo: il regno di Dio e' gia' "
+             "presente e viene, e nessun avversario puo' impedirlo. La "
+             "nostra risposta e' l'attesa piena di speranza, e la lode "
+             "e' l'annuncio di chi regna.",
+}
+
+
+def _punto_centrale_del_versetto(testo_versetto: str, tema: str) -> str:
+    """
+    Il punto centrale, costruito sul VERSETTO: usa le sue immagini e il suo
+    tema, cosi' due versetti diversi non suonano mai uguali.
+    """
+    _base = _PUNTI_CENTRALI.get(tema, _PUNTI_CENTRALI["Salvezza"])
+    _extra = ""
+    for _i in _immagini_del_versetto(testo_versetto)[:2]:
+        _s = SIGNIFICATO_IMMAGINI.get(_i, "").strip()
+        if _s:
+            _extra += f" Nell'immagine della {_i}: {_s}."
+    return _base + _extra
 
 
 def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
@@ -727,72 +1070,7 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
     _soggetto = _soggetto_del_versetto(testo_versetto)
     _frase_soggetto = (f"Questo passo parla di {_soggetto}"
                        if _soggetto else f"Questo passo parla di {tema.lower()}")
-    # il punto centrale cambia con il TEMA (non e' piu' identico per tutti)
-    _punto_centrale = {
-        "Salvezza": "Dio agisce per primo e l'uomo risponde con fede: non e' "
-                    "l'uomo a muoversi per primo, e' Dio che prende "
-                    "l'iniziativa; la nostra risposta e' la fede, cioe' "
-                    "affidarsi a Lui con tutto il cuore.",
-        "Consolazione": "Quando il peso della vita si fa sentire, questo "
-                        "testo non promette una scorciatoia: promette la "
-                        "presenza di chi non abbandona il suo popolo. La "
-                        "consolazione nasce dall'affidamento, non dalla "
-                        "forza di se'.",
-        "Proclamazione": "Qui non si canta per riempire un silenzio, ma per "
-                         "annunciare: questo testo e' una dichiarazione di "
-                         "vittoria, e la Chiesa lo intona per esaltare Dio e "
-                         "chiamare l'assemblea all'adorazione.",
-        "Fede": "Il testo non e' una lezione da imparare a memoria, ma una "
-                "base su cui piantare i piedi: si cammina quando si sa "
-                "perche' e con chi si cammina.",
-        "Amore": "Il cuore di questo testo e' un amore che non si ritira: "
-                 "quello che Dio offre tiene anche quando le persone "
-                 "falliscono.",
-        "Coraggio": "Qui il coraggio non e' non sentire paura, e' decidere "
-                    "comunque di affidarsi a Dio davanti alla prova.",
-        "Speranza": "La speranza di questo testo non e' ottimismo: e' la "
-                    "certezza che le promesse di Dio valgono.",
-        "Preghiera": "La preghiera e' il modo in cui questo testo cerca "
-                      "Dio, e il modo in cui Dio si fa trovare.",
-        "Guarigione": "Qui la guarigione e' annunciata per il corpo e per "
-                      "lo spirito: il tocco di Dio tocca tutta la persona.",
-        "Umiltà": "Il testo chiede umiltà: non misurare la propria fede con "
-                  "la misura del mondo, ma con la bonta' di chi ci chiama.",
-        "Paternità": "Il cuore di questo testo e' un cuore di figlio: Dio "
-                     "prende cura di chi e' suo.",
-        "Servizio": "Qui il servizio non e' un compito: e' il modo in cui "
-                    "il popolo di Dio risponde a quanto ha ricevuto.",
-        "Battesimo": "Questo testo parla di un inizio nuovo: quello che si "
-                     " riceve per fede e che si vive ogni giorno.",
-        "Protezione": "Il punto centrale e' questo: quando l'avversario "
-                      "stringe, Dio non guarda altrove. Egli si mette "
-                      "davanti a chi combatte, e li copre: la nostra "
-                      "risposta e' il riposo, non la paura.",
-        "Giustizia": "Il punto centrale e' questo: Dio vede la giustizia "
-                     "che gli uomini non vedono, e la raddrizza. Non e' "
-                     "indifferente: e' il giudice che difende il debole, e "
-                     "la nostra risposta e' fidarsi del suo giudizio.",
-        "Gratitudine": "Il punto centrale e' questo: la riconoscenza. Dio "
-                        "ha donato la sua bonta' senza che noi "
-                        "meritassimo, e la risposta giusta e' la lode, non "
-                        "il silenzio.",
-        "Cammino": "Il punto centrale e' questo: il cammino si fa con Dio, "
-                   "non da soli. Chi dice 'io sono la via' e' la strada; il "
-                   "nostro passo e' affidamento, e la lode nasce dal viaggio.",
-        "Verità": "Il punto centrale e' questo: la verita' che libera non e' "
-                  "quella che giudica, ma quella che illumina il cuore e lo "
-                  "cambia. La risposta e' una vita vera, e la lode nasce "
-                  "dalla liberta'.",
-        "Confessione": "Il punto centrale e' questo: Dio non aspetta che "
-                       "ci rendiamo perfetti per accoglierci. Egli apre la "
-                       "porta del cuore, e la risposta e' il pentimento che "
-                       "libera, non il nascondersi.",
-        "Regno": "Il punto centrale e' questo: il regno di Dio e' gia' "
-                 "presente e viene, e nessun avversario puo' impedirlo. La "
-                 "nostra risposta e' l'attesa piena di speranza, e la lode "
-                 "e' l'annuncio di chi regna.",
-    }
-    _punto = _punto_centrale.get(tema, _punto_centrale["Salvezza"])
+    _punto = _punto_centrale_del_versetto(testo_versetto, tema)
     _segno = ""
     if _immagini:
         _segno = (f"Il nucleo di questo testo sta nelle immagini di "

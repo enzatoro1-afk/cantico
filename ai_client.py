@@ -587,7 +587,7 @@ def interpreta_gratis(prompt: str, timeout: int = 120,
     Restituisce: {"testo": ..., "parole_chiave": [...], "errore": None|str,
                   "modello": ..., "fonte": ...}
     Non solleva mai: se fallisce, l'errore torna nel dizionario e l'app
-    ripiega sul motore di studio.
+    ripiega sul motore di studio (che funziona sempre).
     """
     vuoto = {"testo": "", "parole_chiave": [], "modello": "",
              "fonte": "IA gratuita"}
@@ -626,7 +626,7 @@ def interpreta_gratis(prompt: str, timeout: int = 120,
                 ultimo_errore = "risposta non utilizzabile"
             elif risposta.status_code == 402:
                 ultimo_errore = ("servizio gratuito troppo richiesto "
-                                  "(attendo e riprovo)")
+                                 "(attendo e riprovo)")
             else:
                 ultimo_errore = (f"errore {risposta.status_code}: "
                                  f"{risposta.text[:120]}")

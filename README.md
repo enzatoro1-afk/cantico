@@ -387,7 +387,33 @@ l'analisi su quelle. Esempio:
 | Marco 12,10 | "una promessa che parla di **pietra**" |
 | Salmo 23,1 | "una promessa che parla di **pastore**" |
 
-### 🆓 "Scrivi l'interpretazione con l'IA" (nessuna chiave necessaria)
+### 🆓 L'app funziona bene anche SENZA la chiave (per chi la scarica)
+
+Se qualcuno scarica il codice e lo usa per conto proprio, **non ha la
+chiave Gemini**: l'app deve comunque essere buona. E lo è:
+
+1. **Motore di studio** (sempre disponibile): costruisce l'interpretazione
+   **sul versetto** — riconosce le sue **immagini** (pietra, vite, pastore,
+   luce, tempio, mare…) e scrive il significato, il contesto e la lode
+   partendo da quelle. Ogni versetto ha un testo **diverso**.
+2. **IA gratuita senza chiave** (Pollinations): ci prova sopra, con 3 tentativi
+   e attesa, e scarta le risposte non utilizzabili.
+3. Se entrambe falliscono, l'app **non si blocca**: mostra lo studio del
+   versetto e un avviso chiaro su come attivare Gemini.
+
+Nella barra laterale c'è anche la spiegazione per chi scarica l'app:
+*"Senza chiave l'app funziona lo stesso… ma con una chiave Gemini gratuita
+l'interpretazione diventa molto più profonda"*.
+
+La chiave si può salvare in **due modi**, e la scelta è tua:
+
+| Dove | Chi la usa | Quota |
+|---|---|---|
+| **"Ricorda su QUESTO dispositivo"** (default) | solo te, nel tuo browser | **solo tua** ✅ |
+| "Condividi con TUTTI gli utenti" | chiunque usi l'app | **condivisa** ⚠️ |
+| Secrets di Streamlit Cloud | chiunque usi l'app | **condivisa** ⚠️ |
+
+---
 
 Nella sezione **"Da dove vuoi l'interpretazione?"** c'è il pulsante
 **🧠 Scrivi l'interpretazione con l'IA**. Funziona **anche senza toccare
