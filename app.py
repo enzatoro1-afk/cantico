@@ -21,6 +21,7 @@ import html as html_mod
 import json
 import os
 import re
+import tempfile
 from datetime import date, datetime, timedelta
 
 import streamlit as st
@@ -38,6 +39,12 @@ from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
                        interpreta_gemini, interpreta_gratis, link_chatgpt,
                        parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini,
                        scegli_versetto_ia)
+from musica import (MODELLI_CANTATI, STILE_DEFAULT, crea_video_tiktok,
+                    genera_canzone, genera_canzone_gratuita,
+                    genera_canzone_senza_pagare)
+from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG,
+                  genera_canzone_suno, struttura_canzone, suno_disponibile)
+from testi_canzone import scrivi_testi_canzone
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
@@ -734,6 +741,9 @@ for chiave, valore in (
     ("visti", []),
     ("quante_mostrate", 0),
     ("studio_parole", []),
+    ("canzone_testi", ""),
+    ("canzone_audio", ""),
+    ("canzone_video", ""),
 ):
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
@@ -780,6 +790,34 @@ def _password_attesa() -> str:
             m = _re.search(r'APP_PASSWORD_SHA256\s*=\s*"([^"]+)"', testo)
             if m:
                 return m.group(1).strip().lower()
+    except Exception:
+        pass
+    return ""
+
+
+def _chiave_aimlapi_da_secrets() -> str:
+    """La chiave AIMLAPI dai secrets di Streamlit o dal file locale."""
+    for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
+        try:
+            v = (st.secrets.get(nome, "") or "").strip()
+            if v:
+                return v
+        except Exception:
+            pass
+        v = (os.environ.get(nome, "") or "").strip()
+        if v:
+            return v
+    try:
+        import tomllib
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         ".streamlit", "secrets.toml")
+        if os.path.exists(_p):
+            with open(_p, "rb") as f:
+                _d = tomllib.load(f)
+            for nome in ("AIMLAPI_KEY", "AIML_API_KEY"):
+                v = str(_d.get(nome, "") or "").strip()
+                if v:
+                    return v
     except Exception:
         pass
     return ""
@@ -950,6 +988,16 @@ with st.sidebar:
         help="Lasciala vuota se usi Gemini o l'IA gratuita. Va in "
              ".streamlit/secrets.toml per non riscriverla.",
         key="chiave_ia",
+    )
+    _chiave_aimlapi = st.text_input(
+        "Chiave AIMLAPI (per comporre canzoni)",
+        value=_chiave_aimlapi_da_secrets(),
+        type="password",
+        help="Serve SOLO se vuoi che l'app componga una canzone nuova con "
+             "voce (e ti prepari il video per TikTok). La prendi su "
+             "aimlapi.com. Senza questa chiave tutto il resto funziona "
+             "lo stesso: l'app cerca solo canzoni gia' esistenti.",
+        key="chiave_aimlapi",
     )
     html(
         "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
@@ -2155,12 +2203,169 @@ if risultati:
                     st.session_state["post"]["riflessione"] = _rifl
                 st.rerun()
 
-    if query_usate:
-        with st.expander("Query di ricerca utilizzate"):
-            html(
-                '<div class="box">'
-                + "<br>".join(f"<b>{i+1}.</b> {esc(q)}" for i, q in enumerate(query_usate))
-                + "</div>")
+
+    # ---- CANZONE ORIGINALE: testo + musica + video TikTok ----
+    with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
+        html(
+            '<div class="note">Oltre alle canzoni che trovo su YouTube, '
+            'posso <b>comporre una canzone nuova</b> per il tuo versetto: '
+            "l'IA scrive il testo, il motore musicale lo canta, e l'app ci "
+            'mette sopra uno sfondo per fare un <b>video .mp4 pronto da '
+            'caricare su TikTok</b> (un brano tuo: nessun problema di '
+            'copyright).<br><br>'
+            'Serve una chiave <b>AIMLAPI</b>: prendila gratis su '
+            '<a href="https://aimlapi.com" target="_blank">aimlapi.com</a> '
+            'e incollala nella barra laterale.</div>')
+
+        _stile = st.text_input(
+            "Stile musicale", value=STILE_DEFAULT, key="stile_musica",
+            help="Descrivi come dev'essere la canzone (il motore lo usa "
+                 "come 'prompt'). Es. 'inno pentecostale, voce maschile, "
+                 "piano e cori soft, 78 BPM'.")
+
+        # --- 1) il testo della canzone ---
+        _b1, _b2 = st.columns(2)
+        with _b1:
+            if st.button("\U0001F3A4 Scrivi il testo della canzone",
+                         use_container_width=True, key="scrivi_testi"):
+                _rif = (st.session_state.get("riferimento") or {})
+                _riferimento = _rif.get("riferimento", "")
+                _interp = (studio.get("interpretazione") or {}).get("testo", "")
+                with st.spinner("L'IA sta scrivendo il testo del brano..."):
+                    _res = scrivi_testi_canzone(
+                        _riferimento or (testo or "")[:120], _interp,
+                        temi=", ".join((st.session_state["analisi"] or {})
+                                      .get("temi", [])[:3]),
+                        chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                        chiave_openai=st.session_state.get("chiave_ia", ""))
+                if _res.get("ok"):
+                    st.session_state["canzone_testi"] = _res["testo"]
+                else:
+                    st.warning(_res.get("errore", ""))
+        with _b2:
+            _modelli = st.selectbox("Motore musicale", list(MODELLI_CANTATI),
+                                    key="modello_musica",
+                                    help=" minimax/music-2.6 e' il piu' adatto "
+                                         "per un inno cantato (lyrics separate). "
+                                         "elevenlabs/eleven_music e' piu' "
+                                         "semplice. google/lyria-2 accetta "
+                                         "solo 600 caratteri di testo.")
+        if st.session_state.get("canzone_testi"):
+            _testi_canzone = st.text_area(
+                "Il testo della canzone (modificalo come vuoi)",
+                value=st.session_state["canzone_testi"], height=220,
+                key="campo_testi_canzone")
+            st.session_state["canzone_testi"] = _testi_canzone
+
+            # --- 2) la musica ---
+            _motori = ["Suno (i tuoi crediti gratuiti)",
+                       "ACE-Step (open source)",
+                       "MusicGen (strumentale)",
+                       "AIMLAPI"]
+            _motore = st.selectbox(
+                "Motore musicale", _motori, key="motore_scelto",
+                help="Suno usa i crediti gratuiti giornalieri del TUO account "
+                     "(serve il servizio open source attivo + il cookie). "
+                     "ACE-Step e MusicGen sono open source e gratis, ma hanno "
+                     "coda. AIMLAPI richiede credito.")
+            _tag_finali = st.text_input(
+                "Tag di stile (invio quelli che mi hai dato)",
+                value=TUTTI_I_TAG, key="tag_musica",
+                help="Stile: Modern Christian Worship, contemporary gospel, "
+                     "inspiring, uplifting, powerful vocal harmony. "
+                     "Strumenti: acoustic guitar, ambient piano, cinematic "
+                     "synths, build-up drums, emotional strings.")
+            if _motore.startswith("Suno"):
+                _ok_suno, _nota_suno = suno_disponibile()
+                if not _ok_suno:
+                    st.info("Suno non e' raggiungibile: " + _nota_suno +
+                            " (vedi il README per avviarlo). Prova un altro "
+                            "motore qui sotto.")
+            if st.button("\U0001F3BC Componi e canta la canzone",
+                         use_container_width=True, key="componi_canzone"):
+                _testi_finali = struttura_canzone(_testi_canzone)
+                _stile_finale = (f"{_stile}, {_tag_finali}" if _stile else
+                                 _tag_finali)
+                with st.spinner("Sto componendo e cantando il brano "
+                                "(1-3 minuti, puo' mettersi in coda)..."):
+                    if _motore.startswith("Suno"):
+                        _res_m = genera_canzone_suno(_testi_finali, _tag_finali)
+                    elif _motore.startswith("ACE-Step"):
+                        _res_m = genera_canzone_gratuita(
+                            _testi_finali, _stile_finale, modello="ace-step")
+                    elif _motore.startswith("MusicGen"):
+                        _res_m = genera_canzone_gratuita(
+                            _testi_finali, _stile_finale, modello="musicgen")
+                    else:
+                        _res_m = genera_canzone(
+                            _testi_finali, _stile_finale,
+                            chiave=st.session_state.get("chiave_aimlapi", ""),
+                            modello=st.session_state.get("modello_musica", ""))
+                if _res_m.get("ok"):
+                    st.session_state["canzone_audio"] = _res_m["file"]
+                    st.session_state["canzone_audio_url"] = _res_m.get("url", "")
+                    st.session_state["canzone_modello"] = _res_m.get("motore", "")
+                else:
+                    st.error(_res_m.get("errore", "Composizione fallita."))
+
+            if st.session_state.get("canzone_audio"):
+                st.audio(st.session_state["canzone_audio"])
+                if st.session_state.get("canzone_modello"):
+                    html('<div class="note">Motore usato: <b>'
+                         + esc(st.session_state["canzone_modello"]) + '</b></div>')
+                st.download_button(
+                    "\U0001F3B5 Scarica la canzone (.mp3)",
+                    data=open(st.session_state["canzone_audio"], "rb").read(),
+                    file_name="cantico.mp3", mime="audio/mpeg",
+                    key="dl_canzone_mp3")
+
+                # --- 3) il video per TikTok ---
+                st.markdown("**3. Il video pronto per TikTok** (9:16 verticale)")
+                _v1, _v2 = st.columns(2)
+                with _v1:
+                    _sfondo = st.radio(
+                        "Sfondo", ["immagine", "nero", "foto"],
+                        key="sfondo_video", horizontal=True,
+                        help="immagine: sfondo a gradiente con il testo del "
+                             "verso. nero: tela nera con la scritta. foto: "
+                             "carica una tua immagine.")
+                with _v2:
+                    _foto = ""
+                    if _sfondo == "foto":
+                        _foto = st.file_uploader("La tua immagine",
+                                                 type=["jpg", "jpeg", "png"],
+                                                 key="foto_video")
+                    _muovo = st.checkbox(
+                        "Loop animato (leggero zoom)", value=True,
+                        key="loop_animato",
+                        help="Attivo: l'immagine si muove lentamente, "
+                             "come un video. Disattivo: immagine fissa.")
+                if st.button("\U0001F3AC Fai il video per TikTok",
+                             use_container_width=True, key="fai_video"):
+                    _img = ""
+                    if _foto is not None:
+                        _img = os.path.join(tempfile.gettempdir(),
+                                            "foto_cantico.jpg")
+                        with open(_img, "wb") as _f:
+                            _f.write(_foto.getvalue())
+                    with st.spinner("Sto montando il video..."):
+                        _res_v = crea_video_tiktok(
+                            st.session_state["canzone_audio"],
+                            testo=(v.get("riferimento", "") or testo or "")[:160],
+                            sfondo=_sfondo, immagine_propria=_img,
+                            muovo=_muovo)
+                    if _res_v.get("ok"):
+                        st.session_state["canzone_video"] = _res_v["file"]
+                    else:
+                        st.error(_res_v.get("errore", "Video non creato."))
+                if st.session_state.get("canzone_video"):
+                    st.video(st.session_state["canzone_video"])
+                    with open(st.session_state["canzone_video"], "rb") as _f:
+                        _dati_v = _f.read()
+                    st.download_button(
+                        "\U0001F3AC Scarica il video per TikTok (.mp4)",
+                        data=_dati_v, file_name="cantico_tiktok.mp4",
+                        mime="video/mp4", key="dl_video_mp4")
 
 # ==========================================================================
 # PASSAGGIO 4 - PUBBLICA

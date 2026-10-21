@@ -347,6 +347,62 @@ query -> stesse risposte, per non interrogare YouTube due volte) e la
 
 ---
 
+## 🎵 La canzone ORIGINALE (canta il tuo versetto) + il video TikTok
+
+Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
+
+1. **L'IA scrive il testo** del brano (come un songwriter di lode) — puoi
+   correggerlo a mano
+2. **Il motore musicale lo canta** (1-3 minuti, può mettersi in coda)
+3. **L'app crea il video .mp4** verticale 9:16, con sfondo a scelta:
+   - *immagine* → gradiente con il testo del verso
+   - *nero* → tela nera con la scritta
+   - *foto* → una tua immagine
+   - *loop animato* → leggero zoom (come un video)
+
+### I motori musicali (tutti con i tag di stile che hai chiesto)
+
+| Motore | Cosa serve | Costo |
+|---|---|---|
+| **Suno (i tuoi crediti gratuiti)** | il servizio open source `gcui-art/suno-api` + il tuo cookie | **gratis** (i crediti giornalieri del tuo account) |
+| **ACE-Step** (open source) | un token Hugging Face gratis per la quota GPU | gratis (pochi brani al giorno) |
+| **MusicGen** (strumentale) | niente | gratis |
+| **AIMLAPI** | chiave con credito | a pagamento |
+
+**Tag di stile sempre applicati** (in `suno.py`):
+- stile: *Modern Christian Worship, contemporary gospel, inspiring,
+  uplifting, powerful vocal harmony, emotional, Christian Worship, Gospel,
+  Italian vocal*
+- strumenti: *Acoustic guitar, ambient piano, cinematic synths, build-up
+  drums, emotional strings*
+
+**Struttura del brano**: il testo viene diviso automaticamente in
+`[Verse]` e `[Chorus]` (le tag restano se ci sono già).
+
+### Come si usa Suno con i crediti gratuiti (una volta sola)
+
+1. Nel terminale (PC o Codespace):
+   ```bash
+   git clone https://github.com/gcui-art/suno-api
+   cd suno-api && npm install && npm start
+   ```
+   (l'API ascolta su `http://localhost:8000`)
+2. Fai il login su <https://suno.com>, poi F12 → Console →
+   `copy(document.cookie)` → Invio
+3. Salva il cookie **senza passarlo dalla chat**:
+   ```bash
+   python SALVA_COOKIE_SUNO.py
+   ```
+   (finisce nel file `.suno_cookie.txt`, che è in `.gitignore`)
+4. Nell'app: motore **"Suno (i tuoi crediti gratuiti)"** → "Componi e canta"
+
+> Nota: su Streamlit Cloud il servizio open source non può girare (il
+> container è solo Python): per Suno l'app va usata **dal PC / Codespace**
+> (dove il servizio è attivo). Online restano disponibili ACE-Step,
+> MusicGen e AIMLAPI.
+
+---
+
 ## ❤️ Fatto per i creator cristiani
 
 ---
