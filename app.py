@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 app.py
 ======
@@ -299,10 +299,16 @@ DURATA_MAX_BIBLIA_SEC = 1800    # 30 minuti: per le spiegazioni/prediche
 @st.cache_data(ttl=1800, show_spinner=False)
 def ricerca_cached(query_list: tuple[str, ...], n: int,
                    parole_chiave: tuple[str, ...],
-                   max_durata: int = DURATA_MAX_SEC) -> list:
+                   max_durata: int = DURATA_MAX_SEC,
+                   escludi: tuple[str, ...] = (),
+                   offset: int = 0,
+                   riferimento: str = "") -> list:
     return ricerca_multipla(list(query_list), max_risultati=n,
                             parole_chiave=list(parole_chiave),
-                            max_durata=max_durata)
+                            max_durata=max_durata,
+                            escludi=list(escludi),
+                            offset=offset,
+                            riferimento=riferimento)
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -336,10 +342,12 @@ def esegui_ricerca(testo: str) -> None:
     stile_scelto = st.session_state.get("stile_lode", "Lodi pentecostali / ADI")
     query = costruisci_query(testo_pulito, stile_scelto)
     st.session_state["query_usate"] = query
+    _rif = _riferimento_breve(_riferimento_corrente())
 
     with st.spinner("\U0001F50D Sto cercando le canzoni piu' adatte..."):
         try:
-            risultati = ricerca_cached(tuple(query), 5, tuple(parole_chiave))
+            risultati = ricerca_cached(tuple(query), 5, tuple(parole_chiave),
+                                       riferimento=_rif)
         except ErroreRicerca as exc:
             st.error(f"\u26A0\uFE0F {exc}")
             risultati = []
@@ -350,6 +358,9 @@ def esegui_ricerca(testo: str) -> None:
     st.session_state["risultati"] = risultati
     st.session_state["scelta"] = None
     st.session_state["suoni_tiktok"] = []
+    # video gia' mostrati: "cerca meglio" deve dare canzoni NUOVE
+    st.session_state["visti"] = [r.video_id for r in risultati]
+    st.session_state["quante_mostrate"] = len(risultati)
     st.session_state["cronologia"].insert(
         0,
         {
@@ -369,6 +380,15 @@ def _riferimento_breve(rif: dict) -> str:
         libro = "Salmo"
     cap = rif.get("capitolo")
     return f"{libro} {cap}".strip()
+
+
+def _riferimento_corrente() -> dict:
+    """Il riferimento biblico attivo (per lo studio o quello forzato)."""
+    _st = st.session_state.get("versetto_studio") or {}
+    _rif = _st.get("riferimento") or {}
+    if _rif:
+        return _rif
+    return st.session_state.get("riferimento_forzato") or {}
 
 
 def _studia_versetto() -> None:
@@ -488,7 +508,7 @@ def _studia_versetto() -> None:
     query = [query_stretta, query_larga]
     try:
         risultati = ricerca_cached(tuple(query), 5, tuple(parole_spirituali),
-                                    DURATA_MAX_SEC)
+                                    DURATA_MAX_SEC, riferimento=rif_breve)
     except Exception:
         risultati = []
 
@@ -503,6 +523,9 @@ def _studia_versetto() -> None:
     st.session_state["risultati"] = risultati
     st.session_state["query_usate"] = query
     st.session_state["scelta"] = None
+    st.session_state["visti"] = [r.video_id for r in risultati]
+    st.session_state["quante_mostrate"] = len(risultati)
+    st.session_state["studio_parole"] = list(parole_spirituali)
 
 
 # --------------------------------------------------------------------------
@@ -525,6 +548,9 @@ for chiave, valore in (
     ("versetti", []),
     ("_cerca_subito", False),
     ("versetto_studio", None),
+    ("visti", []),
+    ("quante_mostrate", 0),
+    ("studio_parole", []),
 ):
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
@@ -1010,12 +1036,16 @@ if analisi:
             st.session_state["query_usate"] = query
             with st.spinner("\U0001F50D Cerco gli inni dedicati a questo Salmo..."):
                 try:
-                    risultati = ricerca_cached(tuple(query), 5, tuple(estrai_parole_chiave(testo, 3)))
+                    risultati = ricerca_cached(
+                        tuple(query), 5, tuple(estrai_parole_chiave(testo, 3)),
+                        riferimento=_riferimento_breve(_riferimento_corrente()))
                 except Exception as exc:
                     st.error(f"\u26A0\uFE0F {exc}")
                     risultati = []
             st.session_state["risultati"] = risultati
             st.session_state["scelta"] = None
+            st.session_state["visti"] = [r.video_id for r in risultati]
+            st.session_state["quante_mostrate"] = len(risultati)
             st.rerun()
 
 # --------------------------------------------------------------------------
@@ -1286,7 +1316,8 @@ elif studio and studio.get("versetto"):
               f"{KEYWORD_NEGATIVE}")
         with st.spinner("Rifaccio la ricerca della canzone con le nuove parole chiave..."):
             try:
-                _ris = ricerca_cached((_q,), 5, tuple(_kw), DURATA_MAX_SEC)
+                _ris = ricerca_cached((_q,), 5, tuple(_kw), DURATA_MAX_SEC,
+                                      riferimento=_rif_breve)
             except Exception:
                 _ris = []
         st.session_state["risultati"] = _ris
@@ -1546,6 +1577,50 @@ if risultati:
         '<div class="note">Copia il titolo e cercalo nella libreria audio di TikTok, '
         'oppure ascolta l\'anteprima qui sotto.</div>')
 
+    # ---- CERCA MEGLIO / ALTRE CANZONI ----
+    _visti = st.session_state.get("visti") or []
+    _quante = st.session_state.get("quante_mostrate", len(risultati))
+    html(
+        '<div class="note" style="margin-top:8px;">'
+        '<b>Nessuna di queste ti convince?</b> Tocca "Cerca meglio": '
+        'l\'app ti porta <b>altre canzoni diverse</b>, ordinate sempre per '
+        'adattamento al tuo versetto.</div>')
+    _c1, _c2 = st.columns(2)
+    with _c1:
+        if st.button("\U0001F504 Cerca meglio (altre 5)",
+                     use_container_width=True, key="cerca_meglio"):
+            _query = st.session_state.get("query_usate") or []
+            _kw = st.session_state.get("studio_parole") or \
+                estrai_parole_chiave(testo or "", 3)
+            _rif = _riferimento_breve(_riferimento_corrente())
+            with st.spinner("\U0001F50D Cerco canzoni diverse e piu' adatte..."):
+                try:
+                    _nuovi = ricerca_cached(
+                        tuple(_query), 5, tuple(_kw), DURATA_MAX_SEC,
+                        escludi=tuple(_visti), riferimento=_rif)
+                except Exception:
+                    _nuovi = []
+            if _nuovi:
+                st.session_state["risultati"] = _nuovi
+                st.session_state["visti"] = list(_visti) + \
+                    [r.video_id for r in _nuovi]
+                st.session_state["quante_mostrate"] = _quante + len(_nuovi)
+                st.rerun()
+            else:
+                st.info("Non trovo altre canzoni diverse per questo versetto. "
+                        "Prova a scrivere il testo in un altro modo.")
+    with _c2:
+        if st.button("\U0001F3A8 Cambia stile / parole chiave",
+                     use_container_width=True, key="cambia_stile"):
+            st.session_state["_apri_stile"] = True
+            st.info("Sposta il campo 'Stile della lode cercata' in alto e "
+                    "tocca di nuovo 'Trova Canzone Adatta': la ricerca "
+                    "partira' con parole diverse.")
+    html(
+        '<div class="note">Finora mostrate: <b>'
+        f'{st.session_state.get("quante_mostrate", len(risultati))}</b> canzoni '
+        '(tutte diverse fra loro).</div>')
+
     parole_chiave = estrai_parole_chiave(testo or "", max_parole=3)
     temi = (st.session_state["analisi"] or {}).get("temi", [])
 
@@ -1618,6 +1693,29 @@ if post:
     html(
         f'<div class="box"><b>\U0001F3B5 Canzone scelta:</b> {esc(post["titolo"])}'
         f'<br><span class="note">Canale: {esc(post["canale"])}</span></div>')
+
+    # ---- CAMBIARE / ANNULLARE LA CANZONE ----
+    _c1, _c2 = st.columns(2)
+    with _c1:
+        if st.button("\U0001F504 Scegli un'altra canzone",
+                     use_container_width=True, key="cambia_canzone"):
+            st.session_state["post"] = None
+            st.session_state["scelta"] = None
+            st.rerun()
+    with _c2:
+        if st.button("\U0001F6D1 Annulla tutto (canzone e post)",
+                     use_container_width=True, key="annulla_post"):
+            st.session_state["post"] = None
+            st.session_state["scelta"] = None
+            st.session_state["risultati"] = []
+            st.session_state["query_usate"] = []
+            st.session_state["visti"] = []
+            st.session_state["quante_mostrate"] = 0
+            st.rerun()
+    html(
+        '<div class="note">Non ti piace? <b>Scegli un\'altra canzone</b> ti '
+        'riporta alla lista: ne scegli un\'altra e prepari il post. '
+        '<b>Annulla tutto</b> azzera la ricerca e cominci da capo.</div>')
 
     formato = st.selectbox("Come vuoi impostare il post?", list(FORMATI_POST),
                             index=list(FORMATI_POST).index(post["formato"])
@@ -1770,9 +1868,15 @@ with st.expander("\U0001F4D6 Come si usa l'app (guida rapida)"):
         <b>4.</b> Scorri i risultati: ogni canzone ha la spiegazione
         <b>"Perché questa canzone"</b> e i pulsanti <b>Copia Titolo</b> /
         <b>Cerca l'audio su TikTok</b>.<br>
+        <b>4b.</b> <b>Nessuna ti convince?</b> Tocca <b>"Cerca meglio"</b>:
+        l'app ti porta <b>altre 5 canzoni diverse</b>, sempre ordinate per
+        adattamento al tuo versetto. Puoi ripeterlo quante volte vuoi.<br>
         <b>5.</b> Tocca <b>"Scegli questa canzone per il post"</b>: si apre il
         pacchetto di pubblicazione con caption, hashtag, testo a schermo e piano
         del video.<br>
+        <b>5b.</b> Cambi idea? Nella sezione del post trovi
+        <b>"Scegli un'altra canzone"</b> (torna alla lista) e
+        <b>"Annulla tutto"</b> (azzera e ricomincia).<br>
         <b>6.</b> Copia caption e hashtag, apri TikTok e pubblica.<br><br>
         <i>Se il testo è un Salmo, l'app lo riconosce (anche con la numerazione
         Vulgate) e aggiunge la ricerca degli inni dedicati a quel Salmo.</i>

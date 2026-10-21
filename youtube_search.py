@@ -522,7 +522,9 @@ def _durata_secondi(testo_durata: str) -> int | None:
 
 
 def _punteggio_video(titolo: str, canale: str, secondi: int | None,
-                     parole_chiave: Iterable[str]) -> float:
+                     parole_chiave: Iterable[str],
+                     visualizzazioni: int = 0,
+                     riferimento: str = "") -> float:
     """Stima quanto un video è adatto come 'canzone' per il testo inserito."""
     # normalizzo i separatori: "Giovanni 14:6" == "Giovanni 14,6"
     t = (titolo or "").lower().replace(":", ",").replace(".", ",")
@@ -535,6 +537,17 @@ def _punteggio_video(titolo: str, canale: str, secondi: int | None,
             punteggio += 4.0
         if kw in c:
             punteggio += 1.0
+
+    # la canzone PARLA DI QUEL VERSETTO? (es. "Giovanni 14,6" nel titolo)
+    # è il segnale più forte di adattamento al tuo testo
+    if riferimento:
+        _rif = (riferimento or "").lower().replace(":", ",").replace(".", ",")
+        _libro = _rif.split(" ")[0].strip()
+        _numeri = re.findall(r"\d+", _rif)
+        if _libro and _libro in t:
+            punteggio += 4.0
+            if len(_numeri) >= 2 and _numeri[1] in re.findall(r"\d+", t):
+                punteggio += 5.0     # stesso capitolo E stesso versetto
 
     for s in SUFFISSI_GENRE:
         if s in t:
@@ -557,6 +570,12 @@ def _punteggio_video(titolo: str, canale: str, secondi: int | None,
 
     if "- topic" in c:                  # audio ufficiale: utile ma meno "canzone"
         punteggio -= 0.5
+
+    # quante persone lo hanno ascoltato: a parita' di adattamento vince
+    # il brano piu' conosciuto
+    if visualizzazioni > 0:
+        import math
+        punteggio += min(7.0, math.log10(visualizzazioni) * 1.5 + 0.8)
 
     return punteggio
 
@@ -739,33 +758,50 @@ def _cerca_con_ytdlp(query: str, max_risultati: int,
 
 
 def ordina_per_rilevanza(risultati: list[Risultato],
-                         parole_chiave: Iterable[str]) -> list[Risultato]:
+                         parole_chiave: Iterable[str],
+                         riferimento: str = "") -> list[Risultato]:
     """Assegna il punteggio e riordina (il più pertinente in alto)."""
     for r in risultati:
-        r.punteggio = _punteggio_video(r.titolo, r.canale, r.secondi, parole_chiave)
+        r.punteggio = _punteggio_video(
+            r.titolo, r.canale, r.secondi, parole_chiave,
+            visualizzazioni=getattr(r, "visualizzazioni", 0) or 0,
+            riferimento=riferimento)
     return sorted(risultati, key=lambda r: -r.punteggio)
 
 
 def ricerca_multipla(query_list: list[str], max_risultati: int = 5,
                       parole_chiave: Iterable[str] = (),
-                      max_durata: int | None = None) -> list[Risultato]:
+                      max_durata: int | None = None,
+                      escludi: Iterable[str] = (),
+                      offset: int = 0,
+                      riferimento: str = "") -> list[Risultato]:
     """
     Esegue più query e unisce i risultati, eliminando i duplicati.
     È questo il cuore del "cervello": il testo genera 2-3 query diverse
     e i risultati vengono fusi per trovare la canzone più adatta.
+
+    escludi: video_id già mostrati (così "cerca meglio" porta canzoni NUOVE)
+    offset:  scarta i primi N risultati ordinati (per scorrere la lista)
+    riferimento: es. "Giovanni 14,6" -> privilegia i brani che parlano di
+                 QUEL versetto
     """
+    esclusi = {e for e in (escludi or ()) if e}
     unici: dict[str, Risultato] = {}
     for query in query_list:
         try:
             for r in cerca_youtube(query, max_risultati=max_risultati,
                                    parole_chiave=parole_chiave,
                                    max_durata=max_durata):
-                if r.video_id not in unici:
-                    unici[r.video_id] = r
+                if r.video_id in unici or r.video_id in esclusi:
+                    continue
+                unici[r.video_id] = r
         except ErroreRicerca:
             continue  # una query fallita non deve bloccare le altre
     risultati = list(unici.values())
-    return ordina_per_rilevanza(risultati, parole_chiave)[:max_risultati]
+    ordinati = ordina_per_rilevanza(risultati, parole_chiave, riferimento)
+    if offset:
+        ordinati = ordinati[offset:]
+    return ordinati[:max_risultati]
 
 
 # --------------------------------------------------------------------------
@@ -839,10 +875,6 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
     # ---- il VERSETTO esatto richiesto ----
     if versetto:
         _v = str(versetto)
-        # numeri di versetto citati nel titolo, in ogni formato:
-        # "23:6"  "23,6"  "23.6"  "23 6"  "23v6"
-        _citati = re.findall(
-            r"\b\d{1,3}\s*[:.,]?\s*v?\s*(\d{1,3})\b(?=\s*(?:-|–|—|\b|$))", t)
         # numeri "capitolo:versetto" espliciti (serve il capitolo per capire
         # se il numero trovato e' un versetto o un altro capitolo)
         _espliciti = re.findall(
