@@ -334,4 +334,3 @@ Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due
 
 Il prompt per l'interpretazione (per chi vuole usare ChatGPT) si trova
 nell'app, sotto "Il prompt per l'interpretazione".
-Aggiornato 21/10/2026
