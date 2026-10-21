@@ -650,95 +650,267 @@ html(
     """)
 
 # ==========================================================================
-# PASSAGGIO 1 - SCRIVI (correzione + analisi)
-# ==========================================================================
-
-html('<div class="step">PASSAGGIO 1</div><h3>\U0001F4DD Scrivi il tuo testo</h3>')
-
-# Se c'è una correzione in attesa, il pannello sta PRIMA della text area
-# (così il bottone "Applica" può aggiornare il campo senza errori di stato).
-correzione = st.session_state["correzione"]
-if correzione and correzione.get("problemi"):
-    html(
-        f'<div class="box box-ok">'
-        f'<b>Testo corretto</b><br>{esc(correzione["testo"])}</div>')
-    with st.expander(f"Correzioni trovate ({len(correzione['problemi'])})", expanded=True):
-        for p in correzione["problemi"]:
-            html(
-                f'<div class="note">\u2022 <b>{esc(p.get("breve") or p.get("messaggio", ""))}</b>'
-                f' &mdash; <i>{esc(p.get("evidenzia", ""))}</i>'
-                f'{" \u2192 " + esc(", ".join(p.get("sostituzioni", [])[:3])) if p.get("sostituzioni") else ""}'
-                f'</div>')
-    if st.button("\u2705 Applica il testo corretto", use_container_width=True):
-        st.session_state["testo_input"] = correzione["testo"]
-        st.session_state["correzione"] = None
-        st.rerun()
-elif correzione:
-    st.info("\u2705 Il tuo testo è già corretto: nessun errore rilevato.")
-
-testo = st.text_area(
-    "Versetto, capitolo o pensiero (es. Marco 12,28-31)",
-    placeholder=(
-        "Es. «Il Signore è il mio pastore: nulla mi mancherà.»\n"
-        "Oppure: «Dio, per il tuo amore io Ti ringrazio»"
-    ),
-    key="testo_input",
-    height=170,
-    max_chars=2000,
-    label_visibility="collapsed",
+NOTA_TRADUZIONE = (
+    '<div class="note">Testo biblico: <b>Sacra Bibbia - Versione Riveduta 2020</b> '
+    "(traduzione <b>evangelica protestante</b>, la linea delle chiese "
+    "pentecostali/ADI: <b>66 libri</b> = canon protestante, non cattolico. "
+    "L'app usa solo questa, mai la traduzione cattolica.</div>"
 )
 
-stile_scelto = st.selectbox(
-    "Stile della lode cercata",
-    list(STILI.keys()),
-    index=0,
-    help="Sceglie il filtro che viene aggiunto alla tua ricerca. "
-         "Consigliato: 'Lodi pentecostali / ADI'.",
-    key="stile_lode",
-)
-
-if testo and len(testo) > 1900:
-    html('<div class="note">Testo troncato a 2000 caratteri '
-                '(per non rallentare la ricerca).</div>')
-
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("\u2728 Correggi il testo", use_container_width=True):
-        if not (testo or "").strip():
-            st.warning("Incolla prima il testo da correggere \U0001F4D8")
-        else:
-            with st.spinner("Controllo grammaticale..."):
-                st.session_state["correzione"] = correggi_testo(testo)
-                st.session_state["analisi"] = analizza_testo(
-                    st.session_state["correzione"]["testo"],
-                    estrai_parole_chiave(st.session_state["correzione"]["testo"]),
-                )
-            st.rerun()
-with col2:
-    if st.button("\U0001F4D6 Trova il testo adatto", use_container_width=True):
-        if not (testo or "").strip():
-            st.warning("Scrivi prima una parola, una frase o un pensiero \U0001F4D8")
-        else:
-            with st.spinner("\U0001F50D Cerco il versetto che parla al tuo pensiero..."):
-                try:
-                    st.session_state["versetti"] = cerca_versetti_cached(testo.strip(), 5)
-                except Exception as exc:
-                    st.error(f"\u26A0\uFE0F Errore nella ricerca del testo biblico: {exc}")
-                    st.session_state["versetti"] = []
-            if not st.session_state["versetti"]:
-                st.info("Nessun versetto trovato. Prova con parole piu' semplici "
-                        "oppure scrivi il versetto per intero.")
-
-if st.button("\U0001F50E Trova Canzone Adatta", type="primary",
-              use_container_width=True):
-    esegui_ricerca(testo)
-
-# richiesta di ricerca lanciata dalla scelta di un versetto
-if st.session_state.get("_cerca_subito"):
-    st.session_state["_cerca_subito"] = False
-    esegui_ricerca(st.session_state.get("testo_input", ""))
 
 # --------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------
+# DUE MODALITA' a schede: per versetto, oppure ricerca in tutta la Bibbia
+# --------------------------------------------------------------------------
+tab_verso, tab_biblia = st.tabs([
+    "\U0001F3A5 Versetto -> canzone",
+    "\U0001F4D6 Cerca in tutta la Bibbia",
+])
+
+with tab_verso:
+    # ==========================================================================
+
+    html('<div class="step">PASSAGGIO 1</div><h3>\U0001F4DD Scrivi il tuo testo</h3>')
+
+    # Se c'è una correzione in attesa, il pannello sta PRIMA della text area
+    # (così il bottone "Applica" può aggiornare il campo senza errori di stato).
+    correzione = st.session_state["correzione"]
+    if correzione and correzione.get("problemi"):
+        html(
+            f'<div class="box box-ok">'
+            f'<b>Testo corretto</b><br>{esc(correzione["testo"])}</div>')
+        with st.expander(f"Correzioni trovate ({len(correzione['problemi'])})", expanded=True):
+            for p in correzione["problemi"]:
+                html(
+                    f'<div class="note">\u2022 <b>{esc(p.get("breve") or p.get("messaggio", ""))}</b>'
+                    f' &mdash; <i>{esc(p.get("evidenzia", ""))}</i>'
+                    f'{" \u2192 " + esc(", ".join(p.get("sostituzioni", [])[:3])) if p.get("sostituzioni") else ""}'
+                    f'</div>')
+        if st.button("\u2705 Applica il testo corretto", use_container_width=True):
+            st.session_state["testo_input"] = correzione["testo"]
+            st.session_state["correzione"] = None
+            st.rerun()
+    elif correzione:
+        st.info("\u2705 Il tuo testo è già corretto: nessun errore rilevato.")
+
+    testo = st.text_area(
+        "Versetto, capitolo o pensiero (es. Marco 12,28-31)",
+        placeholder=(
+            "Es. «Il Signore è il mio pastore: nulla mi mancherà.»\n"
+            "Oppure: «Dio, per il tuo amore io Ti ringrazio»"
+        ),
+        key="testo_input",
+        height=170,
+        max_chars=2000,
+        label_visibility="collapsed",
+    )
+
+    stile_scelto = st.selectbox(
+        "Stile della lode cercata",
+        list(STILI.keys()),
+        index=0,
+        help="Sceglie il filtro che viene aggiunto alla tua ricerca. "
+             "Consigliato: 'Lodi pentecostali / ADI'.",
+        key="stile_lode",
+    )
+
+    if testo and len(testo) > 1900:
+        html('<div class="note">Testo troncato a 2000 caratteri '
+                    '(per non rallentare la ricerca).</div>')
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("\u2728 Correggi il testo", use_container_width=True):
+            if not (testo or "").strip():
+                st.warning("Incolla prima il testo da correggere \U0001F4D8")
+            else:
+                with st.spinner("Controllo grammaticale..."):
+                    st.session_state["correzione"] = correggi_testo(testo)
+                    st.session_state["analisi"] = analizza_testo(
+                        st.session_state["correzione"]["testo"],
+                        estrai_parole_chiave(st.session_state["correzione"]["testo"]),
+                    )
+                st.rerun()
+    with col2:
+        if st.button("\U0001F4D6 Trova il testo adatto", use_container_width=True):
+            if not (testo or "").strip():
+                st.warning("Scrivi prima una parola, una frase o un pensiero \U0001F4D8")
+            else:
+                with st.spinner("\U0001F50D Cerco il versetto che parla al tuo pensiero..."):
+                    try:
+                        st.session_state["versetti"] = cerca_versetti_cached(testo.strip(), 5)
+                    except Exception as exc:
+                        st.error(f"\u26A0\uFE0F Errore nella ricerca del testo biblico: {exc}")
+                        st.session_state["versetti"] = []
+                if not st.session_state["versetti"]:
+                    st.info("Nessun versetto trovato. Prova con parole piu' semplici "
+                            "oppure scrivi il versetto per intero.")
+
+    if st.button("\U0001F50E Trova Canzone Adatta", type="primary",
+                  use_container_width=True):
+        esegui_ricerca(testo)
+
+    # richiesta di ricerca lanciata dalla scelta di un versetto
+    if st.session_state.get("_cerca_subito"):
+        st.session_state["_cerca_subito"] = False
+        esegui_ricerca(st.session_state.get("testo_input", ""))
+
+    # --------------------------------------------------------------------------
+
+with tab_biblia:
+    # --------------------------------------------------------------------------
+
+    st.markdown(
+        '<hr><div class="step">CERCA LIBERA</div>'
+        '<h3>\U0001F4D6 Cerca in tutta la Bibbia</h3>'
+        '<div class="note">Scrivi un libro ("genesi", "apocalisse"), un tema '
+        '("pastore", "Pentecoste", "misericordia") o una parola: esce il '
+        'passaggio completo, e sotto scegli cosa approfondire.</div>'
+        + NOTA_TRADUZIONE +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    _col_a, _col_b = st.columns([3, 1])
+    with _col_a:
+        _query = st.text_input(
+            "Cerca un libro, un tema o una parola",
+            value=st.session_state.get("query_biblia", ""),
+            placeholder="es. genesi, apocalisse, pastore, Pentecoste, consolazione",
+            key="query_biblia",
+            label_visibility="collapsed",
+        )
+    with _col_b:
+        if st.button("\U0001F50E Cerca", key="btn_cerca_biblia", use_container_width=True):
+            if not (_query or "").strip():
+                st.warning("Scrivi prima cosa vuoi cercare \U0001F4DD")
+            else:
+                with st.spinner("\U0001F50D Cerco in tutta la Bibbia..."):
+                    _libri = cerca_libri(_query)
+                    _passaggi = [] if _libri else cerca_passaggi(_query, contesto=2,
+                                                               max_passaggi=10)
+                st.session_state["biblia_libri"] = _libri
+                st.session_state["biblia_passaggi"] = _passaggi
+                st.session_state["biblia_query"] = _query
+                st.rerun()
+
+    _libri = st.session_state.get("biblia_libri") or []
+    _passaggi = st.session_state.get("biblia_passaggi") or []
+
+    if _libri:
+        st.markdown(
+            f'<div class="box box-ok"><b>\U0001F4D6 Libri trovati per '
+            f'"{esc(st.session_state.get("biblia_query", ""))}"</b></div>',
+            unsafe_allow_html=True,
+        )
+        for _libro in _libri[:4]:
+            _capitoli = capitoli_del(_libro)
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="card-title">\U0001F4D6 {esc(_libro)}</div>'
+                    f'<div class="card-meta">{len(_capitoli)} capitoli</div>',
+                    unsafe_allow_html=True,
+                )
+                _cap = st.selectbox("Capitolo", _capitoli, index=0,
+                                    key=f"cap_{_libro}", label_visibility="collapsed")
+                _testo_cap = testo_capitolo(_libro, _cap)
+                with st.expander(f"Leggi {_libro} {_cap} (testo completo)", expanded=True):
+                    st.markdown(
+                        f'<div class="box" style="max-height:460px;overflow:auto;'
+                        f'white-space:pre-wrap;">{esc(_testo_cap)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                _c1, _c2 = st.columns(2)
+                with _c1:
+                    blocco_copia(_testo_cap, f"copia_{_libro}_{_cap}",
+                                 "\U0001F4CB Copia il capitolo")
+                with _c2:
+                    if st.button("\U0001F50E Studia questo capitolo",
+                                 key=f"studia_{_libro}_{_cap}", use_container_width=True):
+                        st.session_state["riferimento_forzato"] = {
+                            "libro": _libro, "libro_en": "", "abbreviazione": "",
+                            "capitolo": _cap, "versetto": 1, "versetto_fine": None,
+                            "riferimento": f"{_libro} {_cap}",
+                            "riferimento_en": f"{_libro} {_cap}",
+                        }
+                        st.rerun()
+
+    elif _passaggi:
+        st.markdown(
+            f'<div class="box box-ok"><b>\U0001F4D6 Passaggi trovati per '
+            f'"{esc(st.session_state.get("biblia_query", ""))}"</b>'
+            '<br><span class="note">Ecco il testo completo del paragrafo. '
+            'Sotto scegli cosa vuoi approfondire.</span></div>',
+            unsafe_allow_html=True,
+        )
+        for _i, _p in enumerate(_passaggi, start=1):
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="badge">#{_i}</div>'
+                    f'<div class="card-title">\U0001F4D6 {esc(_p["riferimento"])}</div>'
+                    f'<div class="card-meta">{_p["n_versetti"]} versetti '
+                    f'&bull; trovato in: {esc(", ".join(_p["corrispondenze"][:5]))}</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f'<div class="box" style="max-height:380px;overflow:auto;'
+                    f'white-space:pre-wrap;">{esc(_p["testo"])}</div>',
+                    unsafe_allow_html=True,
+                )
+                _c1, _c2 = st.columns(2)
+                with _c1:
+                    blocco_copia(_p["testo"], f"copia_pass_{_i}", "\U0001F4CB Copia")
+                with _c2:
+                    if st.button("\U0001F50E Studia questo passaggio",
+                                 key=f"studia_pass_{_i}", use_container_width=True):
+                        st.session_state["riferimento_forzato"] = {
+                            "libro": _p["libro"], "libro_en": "",
+                            "abbreviazione": "", "capitolo": _p["capitolo"],
+                            "versetto": 1, "versetto_fine": None,
+                            "riferimento": _p["riferimento"],
+                            "riferimento_en": _p["riferimento"],
+                        }
+                        st.rerun()
+
+        st.markdown(
+            '<div class="step">APPROFONDISCI</div>'
+            '<h3>\U0001F50E Cosa vuoi approfondire?</h3>',
+            unsafe_allow_html=True,
+        )
+        _opzioni = [p["riferimento"] for p in _passaggi]
+        _scelta = st.selectbox("Scegli il passaggio da studiare", _opzioni, index=0,
+                               key="approfondisci_passaggio")
+        _numeri = st.text_input(
+            "Quali numeri vuoi vedere? (opzionale)",
+            value="",
+            placeholder="es. 12,28-31  oppure  23  oppure  1-6",
+            key="approfondisci_numeri",
+            help="Lascia vuoto per studiare tutto il passaggio. Scrivi i numeri "
+                 "per restringere (capitolo, capitolo-versetto, o intervallo).",
+        )
+        if st.button("\U0001F50D Applica e studia", key="btn_approfondisci",
+                     type="primary", use_container_width=True):
+            _p = _passaggi[_opzioni.index(_scelta)]
+            _rif = {"libro": _p["libro"], "libro_en": "", "abbreviazione": "",
+                    "capitolo": _p["capitolo"], "versetto": 1, "versetto_fine": None,
+                    "riferimento": _scelta, "riferimento_en": _scelta}
+            if _numeri.strip():
+                _r2 = rileva_riferimento(f'{_p["libro"]} {_p["capitolo"]} {_numeri}')
+                if _r2 and _r2.get("versetto"):
+                    _rif = _r2
+            st.session_state["riferimento_forzato"] = _rif
+            st.rerun()
+
+    else:
+        st.markdown(
+            '<div class="note">Nessuna ricerca fatta ancora. Prova con un esempio: '
+            '"pastore", "Pentecoste", "genesi", "consolazione".</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ==========================================================================
+
 # Analisi del testo (temi, tono, Salmo)
 # --------------------------------------------------------------------------
 
@@ -1229,167 +1401,6 @@ if riferimento:
                 with c2:
                     st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
 
-NOTA_TRADUZIONE = (
-    '<div class="note">Testo biblico: <b>Sacra Bibbia - Versione Riveduta 2020</b> '
-    "(traduzione <b>evangelica protestante</b>, la linea delle chiese "
-    "pentecostali/ADI: <b>66 libri</b> = canon protestante, non cattolico. "
-    "L'app usa solo questa, mai la traduzione cattolica.</div>"
-)
-
-
-# --------------------------------------------------------------------------
-# CERCA IN TUTTA LA BIBBIA (libero: libro, tema, parola)
-# --------------------------------------------------------------------------
-
-st.markdown(
-    '<hr><div class="step">CERCA LIBERA</div>'
-    '<h3>\U0001F4D6 Cerca in tutta la Bibbia</h3>'
-    '<div class="note">Scrivi un libro ("genesi", "apocalisse"), un tema '
-    '("pastore", "Pentecoste", "misericordia") o una parola: esce il '
-    'passaggio completo, e sotto scegli cosa approfondire.</div>'
-    + NOTA_TRADUZIONE +
-    '</div>',
-    unsafe_allow_html=True,
-)
-
-_col_a, _col_b = st.columns([3, 1])
-with _col_a:
-    _query = st.text_input(
-        "Cerca un libro, un tema o una parola",
-        value=st.session_state.get("query_biblia", ""),
-        placeholder="es. genesi, apocalisse, pastore, Pentecoste, consolazione",
-        key="query_biblia",
-        label_visibility="collapsed",
-    )
-with _col_b:
-    if st.button("\U0001F50E Cerca", key="btn_cerca_biblia", use_container_width=True):
-        if not (_query or "").strip():
-            st.warning("Scrivi prima cosa vuoi cercare \U0001F4DD")
-        else:
-            with st.spinner("\U0001F50D Cerco in tutta la Bibbia..."):
-                _libri = cerca_libri(_query)
-                _passaggi = [] if _libri else cerca_passaggi(_query, contesto=2,
-                                                           max_passaggi=10)
-            st.session_state["biblia_libri"] = _libri
-            st.session_state["biblia_passaggi"] = _passaggi
-            st.session_state["biblia_query"] = _query
-            st.rerun()
-
-_libri = st.session_state.get("biblia_libri") or []
-_passaggi = st.session_state.get("biblia_passaggi") or []
-
-if _libri:
-    st.markdown(
-        f'<div class="box box-ok"><b>\U0001F4D6 Libri trovati per '
-        f'"{esc(st.session_state.get("biblia_query", ""))}"</b></div>',
-        unsafe_allow_html=True,
-    )
-    for _libro in _libri[:4]:
-        _capitoli = capitoli_del(_libro)
-        with st.container(border=True):
-            st.markdown(
-                f'<div class="card-title">\U0001F4D6 {esc(_libro)}</div>'
-                f'<div class="card-meta">{len(_capitoli)} capitoli</div>',
-                unsafe_allow_html=True,
-            )
-            _cap = st.selectbox("Capitolo", _capitoli, index=0,
-                                key=f"cap_{_libro}", label_visibility="collapsed")
-            _testo_cap = testo_capitolo(_libro, _cap)
-            with st.expander(f"Leggi {_libro} {_cap} (testo completo)", expanded=True):
-                st.markdown(
-                    f'<div class="box" style="max-height:460px;overflow:auto;'
-                    f'white-space:pre-wrap;">{esc(_testo_cap)}</div>',
-                    unsafe_allow_html=True,
-                )
-            _c1, _c2 = st.columns(2)
-            with _c1:
-                blocco_copia(_testo_cap, f"copia_{_libro}_{_cap}",
-                             "\U0001F4CB Copia il capitolo")
-            with _c2:
-                if st.button("\U0001F50E Studia questo capitolo",
-                             key=f"studia_{_libro}_{_cap}", use_container_width=True):
-                    st.session_state["riferimento_forzato"] = {
-                        "libro": _libro, "libro_en": "", "abbreviazione": "",
-                        "capitolo": _cap, "versetto": 1, "versetto_fine": None,
-                        "riferimento": f"{_libro} {_cap}",
-                        "riferimento_en": f"{_libro} {_cap}",
-                    }
-                    st.rerun()
-
-elif _passaggi:
-    st.markdown(
-        f'<div class="box box-ok"><b>\U0001F4D6 Passaggi trovati per '
-        f'"{esc(st.session_state.get("biblia_query", ""))}"</b>'
-        '<br><span class="note">Ecco il testo completo del paragrafo. '
-        'Sotto scegli cosa vuoi approfondire.</span></div>',
-        unsafe_allow_html=True,
-    )
-    for _i, _p in enumerate(_passaggi, start=1):
-        with st.container(border=True):
-            st.markdown(
-                f'<div class="badge">#{_i}</div>'
-                f'<div class="card-title">\U0001F4D6 {esc(_p["riferimento"])}</div>'
-                f'<div class="card-meta">{_p["n_versetti"]} versetti '
-                f'&bull; trovato in: {esc(", ".join(_p["corrispondenze"][:5]))}</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f'<div class="box" style="max-height:380px;overflow:auto;'
-                f'white-space:pre-wrap;">{esc(_p["testo"])}</div>',
-                unsafe_allow_html=True,
-            )
-            _c1, _c2 = st.columns(2)
-            with _c1:
-                blocco_copia(_p["testo"], f"copia_pass_{_i}", "\U0001F4CB Copia")
-            with _c2:
-                if st.button("\U0001F50E Studia questo passaggio",
-                             key=f"studia_pass_{_i}", use_container_width=True):
-                    st.session_state["riferimento_forzato"] = {
-                        "libro": _p["libro"], "libro_en": "",
-                        "abbreviazione": "", "capitolo": _p["capitolo"],
-                        "versetto": 1, "versetto_fine": None,
-                        "riferimento": _p["riferimento"],
-                        "riferimento_en": _p["riferimento"],
-                    }
-                    st.rerun()
-
-    st.markdown(
-        '<div class="step">APPROFONDISCI</div>'
-        '<h3>\U0001F50E Cosa vuoi approfondire?</h3>',
-        unsafe_allow_html=True,
-    )
-    _opzioni = [p["riferimento"] for p in _passaggi]
-    _scelta = st.selectbox("Scegli il passaggio da studiare", _opzioni, index=0,
-                           key="approfondisci_passaggio")
-    _numeri = st.text_input(
-        "Quali numeri vuoi vedere? (opzionale)",
-        value="",
-        placeholder="es. 12,28-31  oppure  23  oppure  1-6",
-        key="approfondisci_numeri",
-        help="Lascia vuoto per studiare tutto il passaggio. Scrivi i numeri "
-             "per restringere (capitolo, capitolo-versetto, o intervallo).",
-    )
-    if st.button("\U0001F50D Applica e studia", key="btn_approfondisci",
-                 type="primary", use_container_width=True):
-        _p = _passaggi[_opzioni.index(_scelta)]
-        _rif = {"libro": _p["libro"], "libro_en": "", "abbreviazione": "",
-                "capitolo": _p["capitolo"], "versetto": 1, "versetto_fine": None,
-                "riferimento": _scelta, "riferimento_en": _scelta}
-        if _numeri.strip():
-            _r2 = rileva_riferimento(f'{_p["libro"]} {_p["capitolo"]} {_numeri}')
-            if _r2 and _r2.get("versetto"):
-                _rif = _r2
-        st.session_state["riferimento_forzato"] = _rif
-        st.rerun()
-
-else:
-    st.markdown(
-        '<div class="note">Nessuna ricerca fatta ancora. Prova con un esempio: '
-        '"pastore", "Pentecoste", "genesi", "consolazione".</div>',
-        unsafe_allow_html=True,
-    )
-
-# ==========================================================================
 # PASSAGGIO 2/3 - CERCA e SCEGLI
 # ==========================================================================
 
