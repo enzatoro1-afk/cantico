@@ -59,6 +59,16 @@ I TUOI POST SONO PRIVATI
 - Quello che scrivi (versetto, ricerche, interpretazioni) resta sempre
   nel tuo telefono: non lo vede nessuno.
 
+---------------------------------------------
+LA BIBBIA: RIVEDUTA 2020 (EVANGELICA)
+---------------------------------------------
+Il testo che leggi e' SEMPRE la Sacra Bibbia - Versione Riveduta 2020:
+la traduzione protestante, quella delle chiese pentecostali e ADI.
+- 66 libri = canon protestante (niente deuterocanonici)
+- mai la traduzione cattolica
+Ho verificato tutti i 31.100 versetti, uno per uno, con la fonte
+ufficiale: sono identici.
+
 In allegato trovi anche il codice completo (ZIP): serve se un giorno vuoi
 ricreare l'app, cambiare i colori o le ricerche, o farla installare da
 qualcun altro (si pubblica gratis su Streamlit Cloud, guida dentro).
