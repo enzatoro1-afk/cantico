@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 app.py
 ======
@@ -263,6 +263,44 @@ def esc(testo: str) -> str:
 
 def _js_string(testo: str) -> str:
     return json.dumps(testo, ensure_ascii=False).replace("</", "<\\/")
+
+
+# Salva la chiave Gemini nel BROWSER di chi la inserisce (localStorage):
+# resta privata, non finisce sul server e non consuma la quota degli altri.
+_SCRIPT_SALVA_CHIAVE = """
+<script>
+(function () {
+  try {
+    localStorage.setItem("cantico_chiave_gemini", "__CHIAVE__");
+  } catch (e) {}
+})();
+</script>
+"""
+
+# Riempi il campo "Chiave Google Gemini" con la chiave salvata nel browser
+_SCRIPT_LEGGI_CHIAVE = """
+<script>
+(function () {
+  try {
+    var k = localStorage.getItem("cantico_chiave_gemini");
+    if (!k) return;
+    var campi = document.querySelectorAll('input[type="password"]');
+    for (var i = 0; i < campi.length; i++) {
+      var lab = campi[i].closest('div[data-testid="stTextInput"]');
+      if (lab && /Chiave Google Gemini/i.test(lab.innerText || "")) {
+        if (campi[i].value) return;
+        var proto = Object.getPrototypeOf(campi[i]);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(campi[i], k);
+        campi[i].dispatchEvent(new Event('input', { bubbles: true }));
+        campi[i].dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+"""
 
 
 def _esc_attr(testo: str) -> str:
@@ -865,17 +903,34 @@ with st.sidebar:
             st.session_state["chiave_gemini"] = ""
             st.rerun()
     else:
+        # riprendi la chiave salvata nel TUO browser (solo per te)
+        html(_SCRIPT_LEGGI_CHIAVE, unsafe_allow_javascript=True)
+        # La chiave si ricorda NEL BROWSER (solo per te, la quota e' tua):
+        # nessun altro utente la vede e nessuno la consuma al posto tuo.
         st.checkbox(
-            "Ricorda la chiave su questo server (per tutti gli utenti)",
+            "Ricorda la chiave su QUESTO dispositivo (solo per me)",
+            key="ricorda_dispositivo",
+            help="Salva la chiave nel TUO browser (come una password salvata). "
+                 "Nessun altro utente dell'app la vede, e la quota gratuita "
+                 "resta tua. Non finisce MAI su GitHub ne' sul server.",
+        )
+        if st.session_state.get("ricorda_dispositivo") and _chiave_gemini:
+            html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
+                                               _js_string(_chiave_gemini)),
+                 unsafe_allow_javascript=True)
+            st.success("\u2705 Chiave ricordata su questo dispositivo: non la "
+                       "devi più reinserire. Resta solo tua.")
+        st.checkbox(
+            "Condividi la chiave con TUTTI gli utenti dell'app",
             key="ricorda_chiave",
-            help="Salva la chiave nel server di Streamlit: non la dovrai "
-                 "reinserire ogni volta e funziona anche per chi usa l'app. "
-                 "Non finisce MAI su GitHub.",
+            help="Salva la chiave sul server di Streamlit: tutti potranno "
+                 "usare Gemini, ma la quota gratuita e' condivisa. "
+                 "Consigliato solo se l'app resta per te e i tuoi cari.",
         )
         if st.session_state.get("ricorda_chiave") and _chiave_gemini:
             if ricorda_chiave_gemini(_chiave_gemini):
-                st.success("\u2705 Chiave salvata su questo server: da ora "
-                           "in poi Gemini e' attivo per tutti.")
+                st.success("\u2705 Chiave salvata sul server: da ora in poi "
+                           "Gemini e' attivo per tutti.")
                 st.rerun()
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
