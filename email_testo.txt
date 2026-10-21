@@ -30,10 +30,16 @@ COME SI USA (30 secondi)
   tutte diverse e ordinate per quanto parlano del tuo versetto. Puoi
   ripeterlo quante volte vuoi.
 - Nella sezione "Da dove vuoi l'interpretazione?" trovi il pulsante
-  "Interpreta con IA gratuita": scrive l'interpretazione del TUO versetto
-  con un'intelligenza artificiale gratis (non serve nessuna chiave).
-  Ci mette 10-40 secondi. Parti sempre e solo dal testo del tuo versetto,
-  quindi due versetti diversi danno due interpretazioni diverse.
+  "Scrivi l'interpretazione con l'IA": scrive l'interpretazione del TUO
+  versetto come un maestro della Scrittura (5 sezioni: il testo, il
+  contesto, il significato, dalla voce di Dio al nostro cuore, per la
+  lode). Parti sempre e solo dal testo del tuo versetto, quindi due
+  versetti diversi danno due interpretazioni diverse.
+  * Per la qualita' migliore (gratis): prendi la tua chiave Google
+    Gemini su aistudio.google.com/apikey e incollala nella barra
+    laterale, sopra "Chiave Google Gemini". Ci metti un minuto.
+    Senza chiave funziona lo stesso, ma la qualita' e' inferiore.
+- C'e' anche "Riscrivi": un'altra versione della stessa interpretazione.
 - "Copia Titolo": te lo mette negli appunti -> lo cerchi nella libreria
   audio di TikTok e pubblichi.
 - La sezione finale ti prepara caption, hashtag, testo da schermo, la data
