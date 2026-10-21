@@ -509,6 +509,13 @@ def _password_attesa() -> str:
     v = (os.environ.get("APP_PASSWORD_SHA256") or "").strip().lower()
     if v:
         return v
+    # 3) modulo accesso.py del progetto (c contiene solo l'hash SHA-256)
+    try:
+        from accesso import PASSWORD_SHA256
+        if PASSWORD_SHA256:
+            return PASSWORD_SHA256.strip().lower()
+    except Exception:
+        pass
     try:
         import re as _re
         percorso = os.path.join(os.path.dirname(os.path.abspath(__file__)),
