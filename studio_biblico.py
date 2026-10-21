@@ -417,44 +417,58 @@ def estrai_spiegazione(video_id: str, max_caratteri: int = 60000) -> dict | None
 # FASE 1: interpretazione dottrinale pentecostale + parole chiave spirituali
 # --------------------------------------------------------------------------
 
-PROMPT_INTERPRETAZIONE = """Sei un assistente biblico di dottrina Cristiana Evangelica Pentecostale (linea ADI / Assemblee di Dio).
+PROMPT_INTERPRETAZIONE = """Sei un MAESTRO DELLA SCRITTURA. Spiega il passaggio con rigore dottrinale evangelico pentecostale, profondita' e parole che si possano cantare.
 
 RIFERIMENTO BIBLICO: {riferimento}
 TESTO BIBLICO (Riveduta 2020, da interpretare):
 {testo_versetto}
 
-Scrivi l'interpretazione di QUESTO passaggio (e solo di questo), con questi
-4 titoli esatti. Ogni sezione massimo 2-3 frasi brevi (non troncare mai
-la risposta):
+Scrivi l'interpretazione di QUESTO passaggio (e solo di questo) con questi
+5 titoli esatti. Scrivi tutte le sezioni per intero (non troncare):
 
-1. IL TESTO
-   Riassumi in una frase il testo, con le sue immagini principali.
+**1. IL TESTO**
+Cosa dice il testo, con le sue immagini principali. Spiega le parole chiave
+del versetto nel loro senso piu' profondo (non un dizionario: il significato
+che vive dentro il passaggio).
 
-2. IL CONTESTO
-   Spiega in 2 frasi il contesto in cui il testo vive (chi parla, a chi,
-   che cosa succede intorno) e che cosa significa nel suo contesto.
+**2. IL CONTESTO**
+Dove nasce questo testo, chi parla, a chi parla, e che cosa sta succedendo
+intorno. Spiega perche' queste parole servono proprio qui. Solo se lo sai
+con certezza, accenna al contesto storico o letterario.
 
-3. IL SIGNIFICATO (dottrina evangelica pentecostale)
-   3-4 frasi: che cosa afferma il testo nella dottrina evangelica
-   pentecostale, il suo punto centrale, e perche' puo' diventare una
-   lode. Tocca le immagini e le parole chiave del testo.
+**3. IL SIGNIFICATO (dottrina evangelica pentecostale)
+Il cuore del passaggio: che cosa afferma, il punto centrale, e perche' la
+dottrina della grazia lo illumina in questo modo. Mostra il nesso fra le
+immagini del testo e la speranza del credente. 4-6 frasi.
 
-4. PER LA LODE
-   2 frasi: come questo versetto puo' diventare un inno/una lode (quale
-   promessa si canta, quale risposta di fede si da').
+**4. DALLA VOCE DI DIO AL NOSTRO CUORE**
+Che cosa Dio sta dicendo a chi ascolta questa parola, e come si risponde con
+la fede. 3-4 frasi, con un tono che tocchi il cuore.
+
+**5. PER LA LODE**
+Come questo versetto diventa un inno: quale promessa si canta, quale nome
+di Dio si proclama, quale risposta di fede si da'. 3 frasi, con parole che
+siano gia' un inno.
 
 REGOLE:
 - Parti SEMPRE e SOLO dal testo sopra. Non parlare di un altro versetto.
 - Usa i nomi ESATTAMENTE come compaiono nel testo (se il testo dice
   "Gesù", scrivi "Gesù": non sostituire il nome con un altro).
 - Non inventare nomi, luoghi, numeri o episodi che non sono nel testo.
+- Se citi un altro passaggio biblico, cito' solo quelli di cui sei
+  certissimo; meglio nessuno che uno sbagliato.
 - Non citare canzoni, inni o titoli di brani: le canzoni le cerca
   l'applicazione da sola, tu curi solo il significato.
-- Scrivi in italiano semplice, con parole che si possano cantare.
+- Scrivi frasi SEMPLICI e CORRETTE, una per volta. Non usare paroloni
+  rari ne' frasi lunghe: se una frase e' difficile da capire, riscrivila
+  piu' semplice. Niente parole inventate.
+- Scrivi in italiano ricco e vivo, con parole che si possano cantare.
 - Non ripetere letteralmente il testo biblico: spiegare.
 
-Alla fine scrivi una riga finale con le 3 parole chiave spirituali piu'
-forti, separate da virgola (es. 'Parole chiave: Fortezza, Salvezza, Fedelta')."""
+Alla fine scrivi SEMPRE questa riga finale (anche se ti sembra ovvia),
+perche' l'app la usa per cercare la canzone piu' adatta al tuo testo:
+'Parole chiave: Parola1, Parola2, Parola3'
+(scegli 3 parole spirituali forti, in maiuscolo, separate da virgola)."""
 
 # lessico spirituale pesato: dal piu' forte al piu' generico
 LESSICO_SPIRITUALE = (
@@ -570,20 +584,10 @@ def _immagini_del_versetto(testo: str) -> list[str]:
             if _val not in trovate:
                 trovate.append(_val)
     if not trovate:
-        # fallback: le parole piu' lunghe e significative del versetto
-        parole = [p for p in re.findall(r"[a-z]{6,}", t)
-                  if p not in ("questo", "questa", "questi", "quelle", "quello",
-                               "signore", "nostro", "vostro", "loro", "sono",
-                               "essere", "aveva", "hanno", "tutti", "anche",
-                               "quando", "perche", "mentre", "adesso", "dove",
-                               "come", "della", "delle", "dello", "degli",
-                               "abbiamo", "possono", "volto", "parte",
-                               "giacche", "mancherà", "manchera", "eterno",
-                               "davide", "nessuno", "perche'",
-                               "generico", "studio", "esposizione", "passaggio",
-                               "dottrina", "pentecostale", "evangelica",
-                               "interpretazione", "significato", "contesto")]
-        trovate = list(dict.fromkeys(parole))[:3]
+        # NESSUNA immagine curata: meglio non dire nulla di falso.
+        # Preferisco usare il tema (che e' gia' stato calcolato) invece di
+        # tirare fuori verbi e parole vuote ("contendi", "quelli", ...)
+        return []
     return trovate[:4]
 
 
@@ -675,6 +679,31 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
                     "a chi non lo conosce.",
         "Battesimo": "Per il BATTESIMO: parla del nuovo inizio in Cristo, che "
                      "si riceve per fede e si vive in santita'.",
+        "Protezione": "Per la PROTEZIONE: questo testo dice che Dio non lascia "
+                      "solo chi combatte. Egli si mette davanti a chi e' "
+                      "aggredito, e la lode che nasce da qui e' la "
+                      "confessione: 'il Signore mi difende'.",
+        "Giustizia": "Per la GIUSTIZIA: questo testo parla di un Dio che "
+                     "vede e raddrizza. Non e' un Dio che guarda altrove: e' "
+                     "il Signore che fa giustizia e chiama l'umanita' a "
+                     "camminare sulla via stretta e giusta.",
+        "Gratitudine": "Per la RINGRAZIAMENTO: questo testo e' un canto di "
+                        "grazia. Non perche' tutto vada bene, ma perche' "
+                        "Dio ha donato la sua bonta' senza meritarla: e' "
+                        "la lode che esce dal cuore riconoscente.",
+        "Cammino": "Per il CAMMINO: questo testo descrive un cammino con Dio. "
+                   "Non si arriva da soli: si cammina con chi dice 'io sono "
+                   "la via', e ogni passo diventa un atto di fiducia.",
+        "Verità": "Per la VERITA': questo testo chiede cuore pulito e "
+                  "parola che non mente. La lode che nasce da qui e' la "
+                  "lode della verita' conosciuta e vissuta.",
+        "Confessione": "Per la CONFESSIONE: questo testo apre la porta del "
+                       "cuore a Dio. Non e' una condanna: e' il modo in cui "
+                       "la grazia rende possibile un nuovo inizio.",
+        "Regno": "Per il REGNO: questo testo annuncia che Dio regna e che il "
+                 "suo regno e' la speranza di chi vive sotto un mondo che "
+                 "sembra piu' forte. La lode e' l'attesa e l'annuncio di "
+                 "quello che sta per venire.",
     }
     frase = frasi_tema.get(tema, frasi_tema["Salvezza"])
     nucleo = ", ".join(parole_chiave[:3]) if parole_chiave else "la fiducia in Dio"
@@ -697,6 +726,72 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
     _soggetto = _soggetto_del_versetto(testo_versetto)
     _frase_soggetto = (f"Questo passo parla di {_soggetto}"
                        if _soggetto else f"Questo passo parla di {tema.lower()}")
+    # il punto centrale cambia con il TEMA (non e' piu' identico per tutti)
+    _punto_centrale = {
+        "Salvezza": "Dio agisce per primo e l'uomo risponde con fede: non e' "
+                    "l'uomo a muoversi per primo, e' Dio che prende "
+                    "l'iniziativa; la nostra risposta e' la fede, cioe' "
+                    "affidarsi a Lui con tutto il cuore.",
+        "Consolazione": "Quando il peso della vita si fa sentire, questo "
+                        "testo non promette una scorciatoia: promette la "
+                        "presenza di chi non abbandona il suo popolo. La "
+                        "consolazione nasce dall'affidamento, non dalla "
+                        "forza di se'.",
+        "Proclamazione": "Qui non si canta per riempire un silenzio, ma per "
+                         "annunciare: questo testo e' una dichiarazione di "
+                         "vittoria, e la Chiesa lo intona per esaltare Dio e "
+                         "chiamare l'assemblea all'adorazione.",
+        "Fede": "Il testo non e' una lezione da imparare a memoria, ma una "
+                "base su cui piantare i piedi: si cammina quando si sa "
+                "perche' e con chi si cammina.",
+        "Amore": "Il cuore di questo testo e' un amore che non si ritira: "
+                 "quello che Dio offre tiene anche quando le persone "
+                 "falliscono.",
+        "Coraggio": "Qui il coraggio non e' non sentire paura, e' decidere "
+                    "comunque di affidarsi a Dio davanti alla prova.",
+        "Speranza": "La speranza di questo testo non e' ottimismo: e' la "
+                    "certezza che le promesse di Dio valgono.",
+        "Preghiera": "La preghiera e' il modo in cui questo testo cerca "
+                      "Dio, e il modo in cui Dio si fa trovare.",
+        "Guarigione": "Qui la guarigione e' annunciata per il corpo e per "
+                      "lo spirito: il tocco di Dio tocca tutta la persona.",
+        "Umiltà": "Il testo chiede umiltà: non misurare la propria fede con "
+                  "la misura del mondo, ma con la bonta' di chi ci chiama.",
+        "Paternità": "Il cuore di questo testo e' un cuore di figlio: Dio "
+                     "prende cura di chi e' suo.",
+        "Servizio": "Qui il servizio non e' un compito: e' il modo in cui "
+                    "il popolo di Dio risponde a quanto ha ricevuto.",
+        "Battesimo": "Questo testo parla di un inizio nuovo: quello che si "
+                     " riceve per fede e che si vive ogni giorno.",
+        "Protezione": "Il punto centrale e' questo: quando l'avversario "
+                      "stringe, Dio non guarda altrove. Egli si mette "
+                      "davanti a chi combatte, e li copre: la nostra "
+                      "risposta e' il riposo, non la paura.",
+        "Giustizia": "Il punto centrale e' questo: Dio vede la giustizia "
+                     "che gli uomini non vedono, e la raddrizza. Non e' "
+                     "indifferente: e' il giudice che difende il debole, e "
+                     "la nostra risposta e' fidarsi del suo giudizio.",
+        "Gratitudine": "Il punto centrale e' questo: la riconoscenza. Dio "
+                        "ha donato la sua bonta' senza che noi "
+                        "meritassimo, e la risposta giusta e' la lode, non "
+                        "il silenzio.",
+        "Cammino": "Il punto centrale e' questo: il cammino si fa con Dio, "
+                   "non da soli. Chi dice 'io sono la via' e' la strada; il "
+                   "nostro passo e' affidamento, e la lode nasce dal viaggio.",
+        "Verità": "Il punto centrale e' questo: la verita' che libera non e' "
+                  "quella che giudica, ma quella che illumina il cuore e lo "
+                  "cambia. La risposta e' una vita vera, e la lode nasce "
+                  "dalla liberta'.",
+        "Confessione": "Il punto centrale e' questo: Dio non aspetta che "
+                       "ci rendiamo perfetti per accoglierci. Egli apre la "
+                       "porta del cuore, e la risposta e' il pentimento che "
+                       "libera, non il nascondersi.",
+        "Regno": "Il punto centrale e' questo: il regno di Dio e' gia' "
+                 "presente e viene, e nessun avversario puo' impedirlo. La "
+                 "nostra risposta e' l'attesa piena di speranza, e la lode "
+                 "e' l'annuncio di chi regna.",
+    }
+    _punto = _punto_centrale.get(tema, _punto_centrale["Salvezza"])
     _segno = ""
     if _immagini:
         _segno = (f"Il nucleo di questo testo sta nelle immagini di "
@@ -724,11 +819,7 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
 
         f"3. IL SIGNIFICATO (dottrina evangelica pentecostale)\n"
         f"{'-' * 50}\n"
-        f"{_frase_soggetto}. Il punto centrale, nella dottrina evangelica "
-        f"pentecostale, e' questo: Dio agisce per primo e l'uomo risponde con "
-        f"fede. Non e' l'uomo a muoversi per primo, e' Dio che prende "
-        f"l'iniziativa; la nostra risposta e' la fede, cioe' affidarsi a Lui "
-        f"con tutto il cuore.\n\n"
+        f"{_frase_soggetto}. {_punto}\n\n"
         f"{_segno}\n\n"
 
         f"4. L'APPLICAZIONE (le 4 domande dello studio induttivo)\n"

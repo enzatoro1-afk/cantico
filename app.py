@@ -33,8 +33,9 @@ import hotreload  # noqa: E402  (deve stare PRIMA delle import locali)
 
 _RI_CARICATI = hotreload.ricarica()
 
-from ai_client import (chiave_da_secrets, interpreta_con_ia, interpreta_gratis,
-                       link_chatgpt)
+from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
+                       interpreta_con_ia, interpreta_gemini, interpreta_gratis,
+                       link_chatgpt, parole_chiave_dall_ia, qualita_ia)
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
@@ -392,6 +393,46 @@ def _riferimento_corrente() -> dict:
     return st.session_state.get("riferimento_forzato") or {}
 
 
+def _chiedi_ia(prompt: str, chiave_gemini: str = "",
+               chiave_openai: str = "") -> dict:
+    """
+    Chiede l'interpretazione all'IA migliore disponibile, in ordine:
+      1) Google Gemini  (se hai la chiave: la qualita' migliore)
+      2) IA gratuita senza chiave (sempre disponibile)
+      3) ChatGPT API (se hai la chiave OpenAI)
+    Ogni risposta viene controllata: se e' "rotta" (italiano sbagliato)
+    si passa al servizio successivo.
+    Non solleva mai: se fallisce tutto, torna un errore e l'app usa il
+    motore di studio.
+    """
+    _problemi: list[str] = []
+
+    if chiave_gemini:
+        _r = interpreta_gemini(prompt, chiave=chiave_gemini)
+        if _r.get("testo") and qualita_ia(_r["testo"]):
+            return _r
+        _problemi.append("Gemini: " + (_r.get("errore") or "risposta non "
+                                                            "utilizzabile"))
+    else:
+        _problemi.append("Gemini: nessuna chiave")
+
+    _r = interpreta_gratis(prompt)
+    if _r.get("testo") and qualita_ia(_r["testo"]):
+        return _r
+    _problemi.append("IA gratuita: " + (_r.get("errore") or
+                                        "risposta non utilizzabile"))
+
+    if chiave_openai:
+        _r = interpreta_con_ia(prompt, chiave=chiave_openai)
+        if _r.get("testo") and qualita_ia(_r["testo"]):
+            return _r
+        _problemi.append("OpenAI: " + (_r.get("errore") or
+                                        "risposta non utilizzabile"))
+
+    return {"testo": "", "parole_chiave": [], "modello": "", "fonte": "IA",
+            "errore": " | ".join(_problemi)}
+
+
 def _studia_versetto() -> None:
     """
     FASE 1: interpretazione dottrinale pentecostale del versetto
@@ -496,6 +537,36 @@ def _studia_versetto() -> None:
     interpretazione = interpretazione_dotrinale(
         versetto, temi[0], estrai_parole_chiave(testo_intero, 4),
         includi_contesto=not _solo_versetto)
+
+    # --- INTERPRETAZIONE CON IA GRATUITA (predefinita) ---
+    # Il motore di studio e' il ripiego: se l'IA gratuita risponde, l'interpretazione
+    # e' scritta sul TUO versetto (e quindi diversa per ogni passaggio).
+    if st.session_state.get("usa_ia_gratuita", True):
+        _prompt = PROMPT_INTERPRETAZIONE.format(
+            riferimento=riferimento.get("riferimento", ""),
+            testo_versetto=(versetto.get("testo_pulito", "") + "\n\n"),
+        )
+        with st.spinner("\U0001F9E0 Sto scrivendo l'interpretazione del tuo "
+                        "versetto (come un maestro della Scrittura)..."):
+            _ris_ia = _chiedi_ia(
+                _prompt,
+                chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                chiave_openai=st.session_state.get("chiave_ia", ""))
+        if _ris_ia.get("testo"):
+            # le parole chiave che scrive l'IA stessa guidano la ricerca
+            # della canzone: cosi' la canzone e' legata all'interpretazione
+            _kw_ia = parole_chiave_dall_ia(_ris_ia["testo"], 3)
+            if not _kw_ia:
+                _kw_ia = estrai_parole_chiave_spirituali(_ris_ia["testo"])[:3]
+            interpretazione = {
+                "testo": _ris_ia["testo"],
+                "parole_chiave": _kw_ia,
+                "fonte": _ris_ia.get("fonte", "IA"),
+                "riferimento": riferimento.get("riferimento", ""),
+            }
+            st.session_state["ia_note"] = _ris_ia.get("nota", "")
+        else:
+            st.session_state["ia_note"] = _ris_ia.get("errore", "")
 
     # --- FASE 2: query musicale forzata ---
     parole_spirituali = interpretazione["parole_chiave"][:3]
@@ -689,27 +760,40 @@ richiedi_accesso()
 with st.sidebar:
     st.markdown("### \U0001F9E0 Interpretazione con IA")
     st.markdown(
-        "<div class=\"note\">L'interpretazione dottrinale puo' arrivare da tre "
-        "luoghi:<br>"
-        "<b>1)</b> dalle <b>predicazioni reali</b> che l'app trova su YouTube "
-        "(funziona senza account)<br>"
-        "<b>2)</b> da <b>ChatGPT</b> con la tua chiave API<br>"
-        "<b>3)</b> dall'<b>IA che hai sul telefono</b>: l'app ti copia il "
-        "prompt gia' pronto e tu lo incolli qui<br><br>"
+        "<div class=\"note\">L'interpretazione la scrive un'<b>IA che conosce la "
+        "Scrittura</b>. Ci sono due strade:<br>"
+        "<b>1)</b> <b>Google Gemini</b> (gratis, la piu' bella): metti la "
+        "tua chiave qui sotto &rarr; <a href='https://aistudio.google.com/apikey' "
+        "target='_blank'>aistudio.google.com/apikey</a> (ci metti un secondo, "
+        "e' gratis e illimitata per l'uso quotidiano)<br>"
+        "<b>2)</b> <b>IA gratuita senza chiave</b>: l'app usa subito un servizio "
+        "gratuito, ma e' piu' lento e a volte occupato<br><br>"
+        "C'è anche la <b>chiave API OpenAI</b>, se preferisci ChatGPT.<br><br>"
         "<b>Le canzoni le cerca sempre l'app</b> (brani reali, filtro "
-        "pentecostale): ChatGPT non consiglia mai titoli di canzoni.</div>",
+        "pentecostale): l'IA non consiglia mai titoli di canzoni, ma le sue "
+        "parole chiavi guidano la ricerca.</div>",
         unsafe_allow_html=True,
+    )
+    _chiave_gemini = st.text_input(
+        "Chiave Google Gemini (gratis)",
+        value=chiave_gemini_da_secrets(),
+        type="password",
+        help="La prendi gratis su aistudio.google.com/apikey. Con questa "
+             "chiave l'interpretazione viene scritta da Gemini, con la "
+             "profondita' di un maestro della Scrittura. Se la lasci vuota, "
+             "l'app usa comunque l'IA gratuita senza chiave.",
+        key="chiave_gemini",
     )
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
         value=chiave_da_secrets(),
         type="password",
-        help="Lasciala vuota se preferisci le predicazioni reali o l'IA del "
-             "telefono. Va in .streamlit/secrets.toml per non riscriverla.",
+        help="Lasciala vuota se usi Gemini o l'IA gratuita. Va in "
+             ".streamlit/secrets.toml per non riscriverla.",
         key="chiave_ia",
     )
     html(
-        "<div class=\"note\">La chiave resta nel server di Streamlit. "
+        "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
         "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
 
     st.markdown("---")
@@ -1241,6 +1325,15 @@ if riferimento_verso and not studio.get("errore"):
                 use_container_width=True,
                 on_click=_studia_versetto,
             )
+            st.checkbox(
+                "Studia con l'IA gratuita (scritta sul tuo versetto)",
+                value=st.session_state.get("usa_ia_gratuita", True),
+                key="usa_ia_gratuita",
+                help="Attivo: l'app scrive l'interpretazione con un'IA "
+                     "gratuita (senza chiave), quindi e' diversa per ogni "
+                     "versetto. Ci mette 10-40 secondi. Se la IA non "
+                     "risponde, si usa comunque lo studio del versetto.",
+            )
         with col_b:
             st.button(
                 "\U0001F3B5 Canzone per questo versetto",
@@ -1260,6 +1353,8 @@ elif studio and studio.get("versetto"):
     html(
         '<div class="step">FASE 1 - INTERPRETAZIONE</div>'
         "<h3>\U0001F4D3 L'interpretazione del versetto</h3>")
+    if st.session_state.get("ia_note"):
+        st.info("Nota: " + st.session_state["ia_note"])
     lunghezza = st.radio(
         "Quanto vuoi leggere dell'interpretazione?",
         ["Completa (tutto il testo)", "Media (abbroncata)", "Breve (riassunto)"],
@@ -1288,7 +1383,7 @@ elif studio and studio.get("versetto"):
     # COPIA l'interpretazione (sempre) + SCARICALA
     _nome_file = (f"interpretazione_{v.get('riferimento', 'versetto')}"
                   .replace(" ", "_").replace(",", "-").replace(":", "-"))
-    col_i1, col_i2 = st.columns(2)
+    col_i1, col_i2, col_i3 = st.columns(3)
     with col_i1:
         blocco_copia(interp.get("testo", ""), "copia_interp",
                      "\U0001F4CB Copia l'interpretazione")
@@ -1300,6 +1395,14 @@ elif studio and studio.get("versetto"):
             mime="text/plain",
             key="dl_interp",
         )
+    with col_i3:
+        if st.button("\U0001F504 Riscrivi (un'altra versione)",
+                     key="riscrivi_interp", use_container_width=True,
+                     help="Chiede all'IA un'altra interpretazione dello stesso "
+                          "versetto: utile se vuoi un tono diverso o se la "
+                          "prima non ti convince."):
+            st.session_state["_ia_richiesta"] = "gratis"
+            st.rerun()
     parole = interp.get("parole_chiave", [])[:3]
     if parole:
         html(
@@ -1398,11 +1501,13 @@ elif studio and studio.get("versetto"):
 
     c_m1, c_m2, c_m3 = st.columns(3)
     with c_m1:
-        if st.button("\U0001F9E0 Interpreta con IA gratuita",
+        if st.button("\U0001F9E0 Scrivi l'interpretazione con l'IA",
                      key="ia_gratis", use_container_width=True,
-                     help="L'app scrive l'interpretazione con un'IA gratuita "
-                          "che non richiede nessuna chiave. Ci mette 10-30 "
-                          "secondi. Parti sempre dal testo del TUO versetto."):
+                     help="L'app scrive l'interpretazione come un maestro della "
+                          "Scrittura: con la chiave Google Gemini (gratis) se "
+                          "l'hai messa in alto, altrimenti con l'IA gratuita "
+                          "senza chiave. Parti sempre dal testo del TUO "
+                          "versetto, quindi e' diversa per ogni passaggio."):
             st.session_state["_ia_richiesta"] = "gratis"
     with c_m2:
         if st.button("\U0001F4AC Chiedi a ChatGPT",
@@ -1422,18 +1527,23 @@ elif studio and studio.get("versetto"):
     if st.session_state.get("_ia_richiesta") == "gratis":
         st.session_state["_ia_richiesta"] = None
         with st.spinner("\U0001F9E0 Sto scrivendo l'interpretazione "
-                        "(IA gratuita, 10-30 secondi)..."):
-            _ris = interpreta_gratis(_prompt_attuale)
-        if _ris.get("errore"):
-            st.warning(f"IA gratuita non disponibile: {_ris['errore']}")
+                        "(come un maestro della Scrittura)..."):
+            _ris = _chiedi_ia(
+                _prompt_attuale,
+                chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                chiave_openai=st.session_state.get("chiave_ia", ""))
+        if _ris.get("errore") and not _ris.get("testo"):
+            st.warning(f"IA non disponibile: {_ris['errore']}")
             st.info("Nessun problema: l'app usa comunque lo studio del versetto "
                     "e le predicazioni reali che ha trovato su YouTube.")
         elif _ris.get("testo"):
-            from studio_biblico import estrai_parole_chiave_spirituali
+            _kw = parole_chiave_dall_ia(_ris["testo"], 3)
+            if not _kw:
+                _kw = estrai_parole_chiave_spirituali(_ris["testo"])[:3]
             st.session_state["versetto_studio"]["interpretazione"] = {
                 "testo": _ris["testo"],
-                "parole_chiave": estrai_parole_chiave_spirituali(_ris["testo"])[:3],
-                "fonte": _ris.get("fonte", "IA gratuita"),
+                "parole_chiave": _kw,
+                "fonte": _ris.get("fonte", "IA"),
                 "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
             }
             st.rerun()

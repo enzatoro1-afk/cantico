@@ -12,6 +12,7 @@ E' FACOLTATIVO: senza chiave API l'app continua a funzionare con il motore
 from __future__ import annotations
 
 import json
+import re
 
 try:
     import requests
@@ -100,6 +101,85 @@ def link_chatgpt(prompt: str) -> str:
 
 
 # --------------------------------------------------------------------------
+# GOOGLE GEMINI (piano gratuito di Google AI Studio)
+# --------------------------------------------------------------------------
+# La chiave si prende gratis su https://aistudio.google.com/apikey
+# Il piano gratuito dà centinaia di richieste al giorno.
+
+URL_GEMINI = "https://generativelanguage.googleapis.com/v1beta/models"
+MODELLI_GEMINI = ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest",
+                  "gemini-1.5-flash", "gemini-2.0-flash-lite")
+LINK_CHIAVE_GEMINI = "https://aistudio.google.com/apikey"
+
+
+def chiave_gemini_da_secrets() -> str:
+    """Cerca la chiave Gemini nelle secrets di Streamlit."""
+    try:
+        import streamlit as st
+        return (st.secrets.get("GEMINI_API_KEY", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def interpreta_gemini(prompt: str, chiave: str = "", modello: str = "",
+                      timeout: int = 120) -> dict:
+    """
+    Chiede l'interpretazione a Google Gemini (piano gratuito).
+    Se la chiave manca o il modello non risponde, prova il modello successivo.
+    Non solleva mai: l'errore torna nel dizionario.
+    """
+    vuoto = {"testo": "", "parole_chiave": [], "modello": "", "fonte": "Gemini"}
+    if requests is None:
+        return {**vuoto, "errore": "requests non installato"}
+
+    chiave = (chiave or chiave_gemini_da_secrets() or "").strip()
+    if not chiave:
+        return {**vuoto, "errore": "Nessuna chiave Gemini: inseriscila in alto "
+                                   "(e' gratis su aistudio.google.com/apikey)."}
+
+    modelli = (modello,) if modello else MODELLI_GEMINI
+    ultimo = ""
+    for m in modelli:
+        try:
+            risposta = requests.post(
+                f"{URL_GEMINI}/{m}:generateContent",
+                params={"key": chiave},
+                json={
+                    "systemInstruction": {"parts": [{"text": SISTEMA_BIBLICO}]},
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "temperature": 0.45,
+                        "maxOutputTokens": 4000,
+                    },
+                },
+                timeout=timeout,
+            )
+            if risposta.status_code == 200:
+                dati = risposta.json()
+                parti = (dati.get("candidates") or [{}])[0].get(
+                    "content", {}).get("parts", [])
+                testo = "\n".join(p.get("text", "") for p in parti).strip()
+                testo = _pulisci_giornale(testo)
+                if len(testo) > 120:
+                    return {"testo": testo, "parole_chiave": [],
+                            "errore": None, "modello": m,
+                            "fonte": f"Google Gemini ({m})"}
+                ultimo = f"{m}: risposta troppo corta"
+            elif risposta.status_code == 400 and "API key" in risposta.text:
+                return {**vuoto, "errore": "Chiave Gemini non valida."}
+            elif risposta.status_code == 404:
+                ultimo = f"{m}: modello non disponibile"
+                continue
+            else:
+                ultimo = (f"{m}: errore {risposta.status_code} "
+                           f"({risposta.text[:120]})")
+        except Exception as exc:
+            ultimo = f"{m}: {exc}"
+
+    return {**vuoto, "errore": ultimo or "Gemini non raggiungibile"}
+
+
+# --------------------------------------------------------------------------
 # IA GRATUITA SENZA CHIAVE API
 # --------------------------------------------------------------------------
 # Pollinations AI: risponde senza registrazione e senza chiave.
@@ -110,23 +190,77 @@ URL_POLLINATIONS = "https://text.pollinations.ai/"
 MODELLO_POLLINATIONS = "openai"
 
 SISTEMA_BIBLICO = (
-    "Sei un teologo evangelico pentecostale (linea ADI / Assemblee di Dio). "
-    "Rispondi in ITALIANO, con titoli in grassetto e senza preamboli.\n"
-    "REGOLE FONDAMENTALI (non violarle):\n"
+    "Sei un MAESTRO DELLA SCRITTURA: un biblista evangelico pentecostale "
+    "(linea ADI / Assemblee di Dio) con trent'anni di insegnamento, che "
+    "spiega la Bibbia con rigore dottrinale, profondita' teologica e "
+    "calore di cuore. Scrivi in ITALIANO, con titoli in grassetto.\n\n"
+    "COME PARLI:\n"
+    "- profondita' teologica reale: spiega il cuore del testo, non le "
+    "parole in superficie;\n"
+    "- conosci la Scrittura e la dottrina della grazia: mostrati, ma senza "
+    "pedanteria;\n"
+    "- scrivi come parli a un fratello davanti al fuoco, non come un "
+    "manuale;\n"
+    "- parole che si possano CANTARE: ritmo, concretezza, affettuosita'.\n\n"
+    "REGOLE ASSOLUTE (non violarle):\n"
     "1) Parti SEMPRE e SOLO dal testo biblico che ti do: spiega QUEL testo, "
-    "non un altro. Non citare altri versetti come se fossero il soggetto.\n"
-    "2) NON INVENTARE MAI. In particolare:\n"
+    "non un altro.\n"
+    "2) NON INVENTARE MAI:\n"
     "   - usa i nomi ESATTAMENTE come compaiono nel testo (se il testo dice "
-    "'Gesù', scrivi 'Gesù', non un altro nome);\n"
+    "'Gesù', scrivi 'Gesù': non sostituire il nome con un altro);\n"
     "   - non aggiungere luoghi, persone, eventi, numeri o dettagli che non "
     "sono nel testo;\n"
+    "   - se citi un altro passaggio biblico, cito' solo quelli di cui sei "
+    "certissimo; meglio nessuno che uno sbagliato;\n"
     "   - se non sai qualcosa, non scriverlo.\n"
     "3) Non citare canzoni, inni o titoli di brani musicali.\n"
-    "4) Scrivi in modo che si possa cantare: parole semplici, cuore, "
-    "affidamento a Dio, speranza, coraggio.\n"
-    "5) Non troncare la risposta: scrivi tutte e 4 le sezioni, ma brevi "
-    "(massimo 2-3 frasi per sezione)."
+    "4) Scrivi TUTTE le sezioni richieste, senza troncare la risposta."
 )
+
+
+def parole_chiave_dall_ia(testo: str, numero: int = 3) -> list[str]:
+    """
+    Legge la riga finale 'Parole chiave: Fortezza, Salvezza, Fedelta'
+    che l'IA scrive: sono le parole che l'IA stessa ritiene piu' forti
+    per il versetto. Servono per cercare la canzone piu' adatta.
+    Se la riga non c'e', usa l'estrazione lessicale.
+    """
+    t = (testo or "")
+    m = re.findall(r"parole\s+chiave\s*:\s*(.+)", t, flags=re.IGNORECASE)
+    if m:
+        grezze = re.split(r"[,;·•]|\s+e\s+", m[-1])
+        parole = [p.strip(" .*-\n\t") for p in grezze]
+        parole = [p for p in parole if 2 < len(p) < 30]
+        if parole:
+            return parole[:numero]
+    return []
+
+
+def qualita_ia(testo: str) -> bool:
+    """
+    Controlla che la risposta dell'IA sia utilizzabile.
+    I modelli piccoli scrivono a volte in italiano "rotto" (parole inventate,
+    frasi spezzate): meglio ricadere sul motore di studio che mostrare
+    una pagina di nonsenso.
+    """
+    t = (testo or "").strip()
+    if len(t) < 500:
+        return False
+    # 1) deve avere almeno 3 delle 5 sezioni richieste
+    sezioni = ("IL TESTO", "IL CONTESTO", "IL SIGNIFICATO", "PER LA LODE",
+               "DALLA VOCE DI DIO")
+    trovate = sum(1 for s in sezioni if s in t.upper())
+    if trovate < 3:
+        return False
+    # 2) non deve ripetere lo stesso blocco (segno di output rotto)
+    righe = [r.strip() for r in t.split("\n") if len(r.strip()) > 40]
+    if len(righe) >= 3 and len(set(righe)) < len(righe) * 0.7:
+        return False
+    # 3) troppe parole lunghe e sconosciute = italiano rotto
+    parole = re.findall(r"[a-zA-Zà-ÿ]{13,}", t.lower())
+    if len(parole) > 6 and len(set(parole)) / len(parole) < 0.5:
+        return False
+    return True
 
 
 def _pulisci_giornale(testo: str) -> str:
@@ -181,7 +315,7 @@ def interpreta_gratis(prompt: str, timeout: int = 120,
                         {"role": "system", "content": SISTEMA_BIBLICO},
                         {"role": "user", "content": prompt},
                     ],
-                    "max_tokens": 2500,
+                    "max_tokens": 4000,
                 },
                 timeout=timeout,
                 headers={"User-Agent": "Mozilla/5.0 (compatible; CANTICO/1.0)"},

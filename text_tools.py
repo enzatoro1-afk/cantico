@@ -266,7 +266,9 @@ def query_per_salmo(salmo: dict) -> list[str]:
 
 TEMI = {
     "Consolazione": ["pace", "consola", "conforto", "riposo", "serenita", "calma",
-                      "rifugio", "sonno", "tranquillo"],
+                      "rifugio", "sonno", "tranquillo", "pastore", "consolatore",
+                      "ombra", "ombre", "dimora", "dimorare", "riposo", "erro",
+                      "pastor"],
     "Proclamazione": ["lode", "lodi", "adora", "adorazione", "esalta", "celebra",
                       "canta", "canto", "magnifica", "alleluia", "gloria"],
     "Salvezza": ["salvezza", "peccato", "grazia", "redenz", "croce", "risurrez",
@@ -281,9 +283,29 @@ TEMI = {
     "Guarigione": ["guarigione", "sana", "cura", "ferita", "malattia", "sanare"],
     "Speranza": ["speranza", "attendo", "attesa", "futuro", "promessa", "verrà",
                  "confida", "confido", "aspetta", "aspettare", "aiuto",
-                 "soccorso", "scudo", "spererò"],
-    "Umiltà": ["umilta", "servo", "piccolo", "ultimo", "lavate", "polvere"],
+                 "soccorso", "scudo", "spererò", "manchera",
+                 "mancherà", "cercare", "cercherai"],
     "Paternità": ["padre", "abba", "figlio", "padre nostro"],
+    # temi aggiunti: coprono i Salmi che non parlano di lode ne' di peccato
+    "Protezione": ["combatti", "contendi", "contendere", "difende", "difesa",
+                   "difendere", "scudo", "lancia", "aggrediscono", "aggredire",
+                   "persecutori", "nemici", "respinge", "protegge", "protegger",
+                   "rifugio", "soccorso", "salva"],
+    "Giustizia": ["giustizia", "giudizio", "giudica", "giusto", "ingiusto",
+                  "ingiustizia", "rettitudine", "legge", "sentiero",
+                  "equita", "condanna", "assolve"],
+    "Gratitudine": ["ringrazia", "ringraziamento", "grazie", "benedir",
+                    "benedizione", "benedetto", "cantare la bonta", "bonta",
+                    "favore", "misericordia di dio"],
+    "Cammino": ["cammino", "camminare", "camminerai", "via", "strada",
+                "sentiero", "piedi", "orme", "passi", "andare", "seguire",
+                "stazione"],
+    "Verità": ["verita", "verace", "testimonia", "testimonianza", "sincerita",
+               "leale", "falso", "inganno"],
+    "Confessione": ["confessa", "confessione", "colpa", "pentimento", "pentita",
+                    "trasgressione", "infallibile", "peccatore", "peccatori"],
+    "Regno": ["regno", "regna", "trono", "corona", "re", "sovrano", "autorita",
+              "potere", "principe"],
 }
 
 
@@ -299,7 +321,10 @@ def analizza_testo(testo: str, parole_chiave: list[str] | None = None) -> dict:
     temi = []
     punteggi: dict[str, int] = {}
     for tema, keywords in TEMI.items():
-        hits = [k for k in keywords if k in testo_norm]
+        # NB: confronto per PAROLA intera, non per sottostringa:
+        # altrimenti "re" (di Regno) matcherebbe dentro "pastore", "Eterno"...
+        hits = [k for k in keywords
+                if re.search(rf"\b{re.escape(k)}\b", testo_norm)]
         if hits:
             punteggi[tema] = len(hits) + sum(1 for p in parole if p in keywords)
             temi.append(tema)

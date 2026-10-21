@@ -353,20 +353,47 @@ l'analisi su quelle. Esempio:
 | Marco 12,10 | "una promessa che parla di **pietra**" |
 | Salmo 23,1 | "una promessa che parla di **pastore**" |
 
-### 🆓 "Interpreta con IA gratuita" (nessuna chiave API)
+### 🆓 "Scrivi l'interpretazione con l'IA" (nessuna chiave necessaria)
 
 Nella sezione **"Da dove vuoi l'interpretazione?"** c'è il pulsante
-**🧠 Interpreta con IA gratuita**: scrive l'interpretazione con un'IA
-gratuita che **non richiede chiave, account o pagamento** (Pollinations AI).
-Ci mette 10-40 secondi.
+**🧠 Scrivi l'interpretazione con l'IA**. Funziona **anche senza toccare
+nulla**: l'app sceglie da sola l'IA migliore disponibile, in quest'ordine:
 
-- Il prompt parte **sempre e solo dal testo del tuo versetto**
-- Il prompt ha regole esplicite: usare i nomi **esattamente** come sono nel
-  testo, non inventare nulla, non citare canzoni
-- Se il servizio è occupato, l'app aspetta e riprova da sola (limite:
-  1 risposta ogni 30 secondi per IP)
-- Se proprio non risponde, l'app **torna al motore di studio** (che funziona
-  sempre) e tu non resti senza interpretazione
+| Ordine | IA | Serve la chiave? | Qualità |
+|---|---|---|---|
+| 1° | **Google Gemini** (`gemini-2.0-flash`) | sì, **gratis** | ⭐⭐⭐⭐⭐ |
+| 2° | IA gratuita senza chiave (Pollinations) | no | ⭐⭐⭐ |
+| 3° | ChatGPT API | sì (OpenAI) | ⭐⭐⭐⭐⭐ |
+
+**Come si prende la chiave Gemini (gratis, 1 minuto)**
+1. Apri <https://aistudio.google.com/apikey> con il tuo account Google
+2. "Create API key" → copiala
+3. Incolla la chiave nella barra laterale dell'app, sopra **"Chiave Google
+   Gemini (gratis)"**
+
+Così la stessa chiave vale per **tutti** quelli che usano l'app (si può
+mettere anche nei *Secrets* di Streamlit Cloud come `GEMINI_API_KEY`).
+
+**L'IA scrive come un maestro della Scrittura**: 5 sezioni (Il testo, Il
+contesto, Il significato, Dalla voce di Dio al nostro cuore, Per la lode),
+con regole esplicite nel prompt:
+- parte **sempre e solo** dal testo del tuo versetto
+- usa i nomi **esattamente** come sono nel testo (niente allucinazioni)
+- non cita altri passaggi di cui non è sicuro
+- non cita canzoni (le cerca l'app)
+
+**Controllo qualità**: se la risposta dell'IA è "rotta" (italiano sbagliato,
+ripetizioni), l'app **la scarta** e prova il servizio successivo; se
+falliscono tutti, usa il motore di studio del versetto. Non vedrai mai una
+pagina di nonsenso.
+
+**Le parole chiave collegano IA e canzoni**: l'IA scrive alla fine
+`Parole chiave: Fede, Speranza, Amore`, e sono **quelle** che l'app usa per
+cercare la canzone. Quindi la canzone proposta parla davvero
+dell'interpretazione.
+
+C'è anche **🔄 Riscrivi** (un'altra versione della stessa interpretazione)
+accanto al pulsante "Copia".
 
 Le altre due opzioni restano: **"Chiedi a ChatGPT"** (copia il prompt e
 apre ChatGPT) e **"Interpreta con ChatGPT"** (la tua chiave API OpenAI).
