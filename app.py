@@ -2471,6 +2471,11 @@ if risultati:
                          'suno.com (o vuoi usare un brano tuo), caricalo '
                          'qui: l\'app ci fa sopra il video verticale. '
                          'Accetta .mp3, .m4a, .wav.</div>')
+                    if st.session_state.get("suno_protegto"):
+                        st.link_button(
+                            "\U0001F3A7 Apri la mia libreria su suno.com",
+                            "https://suno.com/library",
+                            use_container_width=True)
                     _brano = st.file_uploader(
                         "Il brano (file audio)",
                         type=["mp3", "m4a", "wav", "aac", "ogg"],
