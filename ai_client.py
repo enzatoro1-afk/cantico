@@ -115,10 +115,62 @@ MODELLI_GEMINI = ("gemini-3.8-flash", "gemini-flash-latest",
 LINK_CHIAVE_GEMINI = "https://aistudio.google.com/apikey"
 
 
+def _percorso_chiave_server() -> str:
+    """File (nel container, MAI su GitHub) dove ricordare la chiave."""
+    import os
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        ".chiave_gemini_server.json")
+
+
+def _chiave_dal_server() -> str:
+    """Legge la chiave ricordata sul server (se c'e')."""
+    try:
+        import json
+        import os
+        p = _percorso_chiave_server()
+        if not os.path.exists(p):
+            return ""
+        with open(p, "r", encoding="utf-8") as f:
+            return str((json.load(f) or {}).get("GEMINI_API_KEY", "")).strip()
+    except Exception:
+        return ""
+
+
+def ricorda_chiave_gemini(chiave: str) -> bool:
+    """
+    Salva la chiave sul server, cosi' non va reinserita a ogni sessione
+    (vale per tutti gli utenti dell'app). Il file NON e' su GitHub.
+    """
+    chiave = (chiave or "").strip()
+    if not chiave:
+        return False
+    try:
+        import json
+        with open(_percorso_chiave_server(), "w", encoding="utf-8") as f:
+            json.dump({"GEMINI_API_KEY": chiave}, f)
+        return True
+    except Exception:
+        return False
+
+
+def dimentica_chiave_gemini() -> bool:
+    """Cancella la chiave ricordata sul server."""
+    try:
+        import os
+        p = _percorso_chiave_server()
+        if os.path.exists(p):
+            os.remove(p)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def chiave_gemini_da_secrets() -> str:
     """
     Cerca la chiave Gemini nei secrets di Streamlit, poi nel file locale
-    .streamlit/secrets.toml, poi nell'ambiente.
+    .streamlit/secrets.toml, poi nel server (chiave ricordata), poi
+    nell'ambiente.
     Nomi accettati: GEMINI_API_KEY, GOOGLE_API_KEY (quello usato dalla
     SDK ufficiale 'google-genai').
     """
@@ -148,7 +200,8 @@ def chiave_gemini_da_secrets() -> str:
                     return v
     except Exception:
         pass
-    return ""
+    # chiave ricordata sul server (per l'app online)
+    return _chiave_dal_server()
 
 
 def _gemini_con_sdk(prompt: str, chiave: str, modello: str,

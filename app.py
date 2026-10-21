@@ -34,8 +34,9 @@ import hotreload  # noqa: E402  (deve stare PRIMA delle import locali)
 _RI_CARICATI = hotreload.ricarica()
 
 from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
-                       interpreta_con_ia, interpreta_gemini, interpreta_gratis,
-                       link_chatgpt, parole_chiave_dall_ia, qualita_ia)
+                       dimentica_chiave_gemini, interpreta_con_ia,
+                       interpreta_gemini, interpreta_gratis, link_chatgpt,
+                       parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini)
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
@@ -841,7 +842,7 @@ with st.sidebar:
         "Chiave Google Gemini (gratis)",
         value=chiave_gemini_da_secrets(),
         type="password",
-        help="La prendi gratis su aistudio.google.com/apikey. Con questa "
+        help="La prendi gratis su aistudio.google.com/api-keys. Con questa "
              "chiave l'interpretazione viene scritta da Gemini, con la "
              "profondita' di un maestro della Scrittura. Se la lasci vuota, "
              "l'app usa comunque l'IA gratuita senza chiave.",
@@ -852,6 +853,24 @@ with st.sidebar:
             '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
             '(chiave gia\' configurata): le interpretazioni vengono scritte '
             'da Gemini.</div>')
+        if st.button("\U0001F5D1 Togli la chiave da questo server",
+                     use_container_width=True, key="dimentica_chiave"):
+            dimentica_chiave_gemini()
+            st.session_state["chiave_gemini"] = ""
+            st.rerun()
+    else:
+        st.checkbox(
+            "Ricorda la chiave su questo server (per tutti gli utenti)",
+            key="ricorda_chiave",
+            help="Salva la chiave nel server di Streamlit: non la dovrai "
+                 "reinserire ogni volta e funziona anche per chi usa l'app. "
+                 "Non finisce MAI su GitHub.",
+        )
+        if st.session_state.get("ricorda_chiave") and _chiave_gemini:
+            if ricorda_chiave_gemini(_chiave_gemini):
+                st.success("\u2705 Chiave salvata su questo server: da ora "
+                           "in poi Gemini e' attivo per tutti.")
+                st.rerun()
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
         value=chiave_da_secrets(),

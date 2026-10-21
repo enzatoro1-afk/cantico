@@ -5,6 +5,7 @@ venv/
 .env
 .streamlit/secrets.toml
 .secrets/
+.chiave_gemini_server.json
 *.key
 archivio_post.json
 archivio_*.json

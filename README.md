@@ -385,6 +385,19 @@ nulla**: l'app sceglie da sola l'IA migliore disponibile, in quest'ordine:
 In alternativa si può incollare la chiave ogni volta nella barra laterale
 dell'app (campo "Chiave Google Gemini").
 
+**Opzione comoda: "Ricorda la chiave su questo server"**
+Nella barra laterale, sotto il campo della chiave, c'è una spunta
+**"Ricorda la chiave su questo server (per tutti gli utenti)"**. Se la
+spunti, la chiave viene salvata in un file dentro il container
+(`.chiave_gemini_server.json`, **in `.gitignore`**):
+- non la reinserisci più (vale per tutte le sessioni e per tutti gli utenti)
+- **non finisce MAI su GitHub**
+- c'è anche il bottone "🗑 Togli la chiave da questo server"
+
+> Nota: su Streamlit Cloud il filesystem del container viene azzerato a ogni
+> nuovo deploy, quindi dopo un aggiornamento dell'app la chiave ricordata
+> sparisce e va reinserita una volta (o rimessa nei Secrets).
+
 L'app usa la **SDK ufficiale `google-genai`** (la stessa del tuo esempio:
 `from google import genai` → `genai.Client()` → `client.models.generate_content(...)`)
 e, se il pacchetto non è installato, ripiega su una chiamata HTTP diretta.
