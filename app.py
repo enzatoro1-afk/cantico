@@ -277,23 +277,26 @@ _SCRIPT_SALVA_CHIAVE = """
 </script>
 """
 
-# Riempi il campo "Chiave Google Gemini" con la chiave salvata nel browser
+# Riempi il campo "Chiave Google Gemini" con la chiave salvata nel browser.
+# NB: si riempie UNA volta sola per pagina: se lo rifacessimo a ogni rerun,
+# l'evento 'input' rilancierebbe l'app all'infinito.
 _SCRIPT_LEGGI_CHIAVE = """
 <script>
 (function () {
   try {
+    if (window.__canticoGeminiMesso) return;
     var k = localStorage.getItem("cantico_chiave_gemini");
     if (!k) return;
     var campi = document.querySelectorAll('input[type="password"]');
     for (var i = 0; i < campi.length; i++) {
       var lab = campi[i].closest('div[data-testid="stTextInput"]');
       if (lab && /Chiave Google Gemini/i.test(lab.innerText || "")) {
-        if (campi[i].value) return;
+        if (campi[i].value) { window.__canticoGeminiMesso = true; return; }
         var proto = Object.getPrototypeOf(campi[i]);
         var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
         setter.call(campi[i], k);
+        window.__canticoGeminiMesso = true;
         campi[i].dispatchEvent(new Event('input', { bubbles: true }));
-        campi[i].dispatchEvent(new Event('change', { bubbles: true }));
         return;
       }
     }

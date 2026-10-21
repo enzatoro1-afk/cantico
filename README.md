@@ -293,9 +293,34 @@ Su Streamlit Cloud il file dell'archivio vive nel container: resta per la
 sessione del servizio. Se il filesystem non e' scrivibile, l'app comunque
 continua a funzionare (l'archivio resta in memoria).
 
----
+## 🖥️ Se scarichi l'app e la fai girare sul tuo computer
 
-## 🔐 Privacy: l'archivio è privato
+```bash
+pip install -r requirements.txt
+python -m streamlit run app.py
+```
+→ http://localhost:8501
+
+**Per attivare Gemini** (facoltativo, gratis): crea il file
+`.streamlit/secrets.toml` **nella cartella del progetto** con:
+
+```toml
+GEMINI_API_KEY = "la-tua-chiave-di-Google-AI-Studio"
+```
+
+(il file è già in `.gitignore`: la chiave **non** finisce su GitHub)
+
+Oppure, senza toccare i file: incolla la chiave nella barra laterale
+dell'app, campo "Chiave Google Gemini", e spunta
+**"Ricorda la chiave su QUESTO dispositivo"** (resta nel tuo browser,
+solo tua, la quota non la consuma nessun altro).
+
+**Su Streamlit Cloud** la chiave si mette nei *Secrets*
+(share.streamlit.io → la tua app → ⋮ → Settings → Secrets → `GEMINI_API_KEY`).
+Attenzione: i Secrets sono condivisi da tutti gli utenti dell'app, quindi la
+quota gratuita è di tutti. Se l'app è solo tua, meglio la chiave nel browser.
+
+---
 
 **Ogni persona che usa l'app vede solo i propri post.**
 
@@ -445,14 +470,17 @@ nulla**: l'app sceglie da sola l'IA migliore disponibile, in quest'ordine:
 In alternativa si può incollare la chiave ogni volta nella barra laterale
 dell'app (campo "Chiave Google Gemini").
 
-**Opzione comoda: "Ricorda la chiave su questo server"**
-Nella barra laterale, sotto il campo della chiave, c'è una spunta
-**"Ricorda la chiave su questo server (per tutti gli utenti)"**. Se la
-spunti, la chiave viene salvata in un file dentro il container
-(`.chiave_gemini_server.json`, **in `.gitignore`**):
-- non la reinserisci più (vale per tutte le sessioni e per tutti gli utenti)
-- **non finisce MAI su GitHub**
-- c'è anche il bottone "🗑 Togli la chiave da questo server"
+**Opzione comoda: "Ricorda su QUESTO dispositivo" (solo per te)**
+Nella barra laterale, sotto il campo della chiave, ci sono due spunte:
+
+1. **"Ricorda la chiave su QUESTO dispositivo (solo per me)"** ← consigliata
+   La chiave viene salvata nel **tuo browser** (come una password salvata):
+   - non la reinserisci più
+   - **nessun altro utente la vede** e **la quota resta tua**
+   - non finisce né su GitHub né sul server
+2. "Condividi la chiave con TUTTI gli utenti dell'app"
+   La chiave viene salvata nel container (`.chiave_gemini_server.json`,
+   **in `.gitignore`**): vale per tutti, ma la **quota è condivisa**.
 
 > Nota: su Streamlit Cloud il filesystem del container viene azzerato a ogni
 > nuovo deploy, quindi dopo un aggiornamento dell'app la chiave ricordata
