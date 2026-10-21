@@ -181,6 +181,7 @@ class Risultato:
     durata: str = ""
     secondi: int | None = None
     punteggio: float = 0.0
+    visualizzazioni: int = 0
 
     @property
     def url(self) -> str:
@@ -469,6 +470,30 @@ def _testo(node: Any) -> str:
     return ""
 
 
+def _numero_italiano(testo: str) -> int:
+    """'1.234 visualizzazioni' -> 1234 ; '1,2 M' -> 1200000"""
+    testo = (testo or "").lower().replace("\u00a0", " ")
+    numero = ""
+    for ch in testo:
+        if ch.isdigit():
+            numero += ch
+        elif ch in ".," and numero and len(numero) < 9:
+            continue
+        else:
+            break
+    if not numero:
+        return 0
+    try:
+        n = int(numero.replace(".", "").replace(",", ""))
+    except ValueError:
+        return 0
+    if " m" in testo or " mln" in testo:
+        n *= 1000000
+    elif " k" in testo:
+        n *= 1000
+    return n
+
+
 def _durata_secondi(testo_durata: str) -> int | None:
     """'5:16' -> 316 | '1:18:35' -> 4715 | 'LIVE' -> None"""
     testo_durata = (testo_durata or "").strip()
@@ -487,7 +512,8 @@ def _durata_secondi(testo_durata: str) -> int | None:
 def _punteggio_video(titolo: str, canale: str, secondi: int | None,
                      parole_chiave: Iterable[str]) -> float:
     """Stima quanto un video è adatto come 'canzone' per il testo inserito."""
-    t = (titolo or "").lower()
+    # normalizzo i separatori: "Giovanni 14:6" == "Giovanni 14,6"
+    t = (titolo or "").lower().replace(":", ",").replace(".", ",")
     c = (canale or "").lower()
     punteggio = 0.0
 
@@ -587,6 +613,7 @@ def cerca_youtube(query: str, max_risultati: int = 5,
             continue
         durata = _testo(v.get("lengthText"))
         secondi = _durata_secondi(durata)
+        visualizzazioni = _numero_italiano(_testo(v.get("viewCountText")))
         # scarto i video troppo lunghi (compilazioni, culti registrati)
         if max_durata is not None and secondi is not None and secondi > max_durata:
             continue
@@ -600,6 +627,7 @@ def cerca_youtube(query: str, max_risultati: int = 5,
                 canale=canale.strip(),
                 durata=durata.strip(),
                 secondi=_durata_secondi(durata),
+                visualizzazioni=visualizzazioni,
             )
         )
 
@@ -783,12 +811,20 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
         punteggio += 9.0
     elif libro_citato and libro_citato in t:
         if capitolo_citato and capitolo_citato in t:
-            punteggio += 5.0        # stesso libro e capitello
+            punteggio += 5.0        # stesso libro e capitolo
         else:
             punteggio -= 3.0        # stesso libro, capitolo diverso
     else:
         # il video non parla del nostro passaggio: quasi nessun peso
         punteggio -= 2.0
+
+    # parla di un ALTRO VERSETTO dello stesso capitolo? penalizzo
+    _versetto_richiesto = str(parole_rif[2]) if len(parole_rif) > 2 else ""
+    if _versetto_richiesto:
+        import re as _re
+        _altri = _re.findall(r"\b(\d{1,3})\s*,\s*\d{1,3}\b", t)
+        if _altri and _versetto_richiesto not in _altri:
+            punteggio -= 4.0
 
     # è un canto, non una spiegazione?
     e_canto = any(p in t for p in PAROLE_CANTO)
@@ -810,6 +846,20 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
     # solo contenuti evangelici/pentecostali
     punteggio += punteggio_confessione(titolo, canale)
 
+    return punteggio
+
+
+def _punteggio_interpretazione_con_viste(titolo: str, canale: str,
+                                         secondi: int | None,
+                                         parole_rif: Iterable[str],
+                                         visualizzazioni: int) -> float:
+    """Come _punteggio_interpretazione, ma tiene conto di quante persone
+    hanno ascoltato il video: fra le interpretazioni che citano davvero
+    il versetto, vince la piu' ascoltata."""
+    punteggio = _punteggio_interpretazione(titolo, canale, secondi, parole_rif)
+    if visualizzazioni > 0:
+        import math
+        punteggio += min(6.0, math.log10(visualizzazioni) * 1.6)
     return punteggio
 
 
@@ -850,7 +900,7 @@ def cerca_interpretazioni(libro: str, capitolo: int, versetto: int | None,
     risultati = list(unici.values())
     parole_rif = [f"{libro} {capitolo}", libro, str(capitolo)]
     for r in risultati:
-        r.punteggio = _punteggio_interpretazione(
-            r.titolo, r.canale, r.secondi, parole_rif)
+        r.punteggio = _punteggio_interpretazione_con_viste(
+            r.titolo, r.canale, r.secondi, parole_rif, r.visualizzazioni)
     risultati.sort(key=lambda x: -x.punteggio)
     return risultati[:max_risultati]

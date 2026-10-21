@@ -358,9 +358,14 @@ def _studia_versetto() -> None:
             + filtro pentecostale + parole negative.
     """
     testo = st.session_state.get("testo_input", "") or ""
-    riferimento = rileva_riferimento(testo)
 
-    # l'utente puo' scegliere QUANTI versetti studiare (es. "18-21")
+    # 1) se l'utente ha scelto un ambito (versetto / capitolo / intervallo)
+    #    uso QUELLO, non quello digitato
+    riferimento = st.session_state.get("riferimento_forzato")
+    if not riferimento:
+        riferimento = rileva_riferimento(testo)
+
+    # 2) l'utente puo' scegliere QUANTI versetti studiare (es. "18-21")
     _sotto = (st.session_state.get("sotto_passaggio") or "").strip()
     if riferimento and _sotto:
         _r2 = rileva_riferimento(
@@ -1195,6 +1200,12 @@ elif studio and studio.get("versetto"):
         testo_interp = testo_interp[:2200]
     # "Completa" -> testo integro, senza tagli
     totale = len(interp.get("testo", ""))
+    _fonte_int = st.session_state.get("interp_pertinente", "")
+    if _fonte_int:
+        html(
+            f'<div class="note">Interpretazione presa da: <b>{esc(_fonte_int)}</b></div>',
+            unsafe_allow_html=True,
+        )
     html(
         f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
         f' <span class="note">({totale:,} caratteri totali)</span><br>'
@@ -1241,13 +1252,28 @@ elif studio and studio.get("versetto"):
         st.rerun()
 
     with st.expander("Le interpretazioni che ho trovato (esposizioni, studi, prediche)"):
-        for i, r in enumerate(studio.get("interpretazioni", []), start=1):
+        html(
+            '<div class="note">Ordinate per <b>affinità al tuo versetto</b> e, '
+            'a parità, per <b>quante persone le hanno ascoltate</b>: la prima è '
+            'la più ascoltata fra quelle che parlano davvero del tuo passaggio.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        _interp_list = studio.get("interpretazioni", [])
+        for i, r in enumerate(_interp_list, start=1):
             with st.container(border=True):
+                _v = getattr(r, "visualizzazioni", 0)
+                _badge = f'#{i}'
+                if i == 1 and _interp_list:
+                    _badge += " &bull; <b>LA PIU&#39; ASCOLTATA</b>"
                 html(
-                    f'<div class="badge">#{i}</div>'
+                    f'<div class="badge">{_badge}</div>'
                     f'<div class="card-title">{esc(r.titolo)}</div>'
                     f'<div class="card-meta">{esc(r.canale)}'
-                    + (f' &bull; {esc(r.durata)}' if r.durata else "") + '</div>')
+                    + (f' &bull; {esc(r.durata)}' if r.durata else "")
+                    + (f' &bull; {_v:,}'.replace(",", ".") + " visualizzazioni"
+                       if _v else "")
+                    + '</div>')
                 c1, c2 = st.columns(2)
                 with c1:
                     blocco_copia(r.titolo, f"interp{i}")
