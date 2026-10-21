@@ -1232,8 +1232,11 @@ if riferimento_verso and not studio.get("errore"):
             html(
                 '<div class="step">IL VERSETTO ESATTO</div>'
                 f'<h3>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</h3>'
-                f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)} '
-                '(66 libri = canon protestante evangelico).</div>')
+                f'<div class="note">Testo integrale dalla {esc(NOME_TRADUZIONE)}: '
+                'traduzione <b>evangelica protestante</b> (la linea delle '
+                'chiese pentecostali/ADI), <b>66 libri</b> = canon protestante. '
+                'Niente traduzione cattolica, niente libri deuterocanonici.'
+                '</div>')
             html(
                 f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
                 f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>')
