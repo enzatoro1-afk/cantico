@@ -366,13 +366,31 @@ nulla**: l'app sceglie da sola l'IA migliore disponibile, in quest'ordine:
 | 3° | ChatGPT API | sì (OpenAI) | ⭐⭐⭐⭐⭐ |
 
 **Come si prende la chiave Gemini (gratis, 1 minuto)**
-1. Apri <https://aistudio.google.com/apikey> con il tuo account Google
-2. "Create API key" → copiala
-3. Incolla la chiave nella barra laterale dell'app, sopra **"Chiave Google
-   Gemini (gratis)"**
+1. Apri <https://aistudio.google.com/api-keys> con il tuo account Google
+2. "Crea chiave API" → copiala
+3. **Per l'app online** (vale per tutti): mettila nei *Secrets* di
+   Streamlit Cloud
+   - apri <https://share.streamlit.io> → la tua app → **⋮ → Settings →
+     Secrets**
+   - scrivi `GEMINI_API_KEY = "la-tua-chiave"` → **Save**
+   - l'app si riavvia da sola e la barra laterale mostra
+     "✅ Gemini è già attivo"
+4. **Per l'app sul PC**: la chiave va in
+   `.streamlit/secrets.toml` (questo file è in `.gitignore`, **mai** su
+   GitHub):
+   ```toml
+   GEMINI_API_KEY = "la-tua-chiave"
+   ```
 
-Così la stessa chiave vale per **tutti** quelli che usano l'app (si può
-mettere anche nei *Secrets* di Streamlit Cloud come `GEMINI_API_KEY`).
+In alternativa si può incollare la chiave ogni volta nella barra laterale
+dell'app (campo "Chiave Google Gemini").
+
+L'app usa la **SDK ufficiale `google-genai`** (la stessa del tuo esempio:
+`from google import genai` → `genai.Client()` → `client.models.generate_content(...)`)
+e, se il pacchetto non è installato, ripiega su una chiamata HTTP diretta.
+Prova i modelli in ordine (`gemini-3.8-flash`, `gemini-flash-latest`,
+`gemini-2.5-flash`, `gemini-3.5-flash`, `gemini-flash-lite-latest`) e usa
+il primo che risponde, così non si blocca quando Google è sotto carico.
 
 **L'IA scrive come un maestro della Scrittura**: 5 sezioni (Il testo, Il
 contesto, Il significato, Dalla voce di Dio al nostro cuore, Per la lode),

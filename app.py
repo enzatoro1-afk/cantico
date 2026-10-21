@@ -847,6 +847,11 @@ with st.sidebar:
              "l'app usa comunque l'IA gratuita senza chiave.",
         key="chiave_gemini",
     )
+    if chiave_gemini_da_secrets():
+        html(
+            '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
+            '(chiave gia\' configurata): le interpretazioni vengono scritte '
+            'da Gemini.</div>')
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
         value=chiave_da_secrets(),

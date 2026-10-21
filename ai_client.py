@@ -107,16 +107,74 @@ def link_chatgpt(prompt: str) -> str:
 # Il piano gratuito dà centinaia di richieste al giorno.
 
 URL_GEMINI = "https://generativelanguage.googleapis.com/v1beta/models"
-MODELLI_GEMINI = ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest",
-                  "gemini-1.5-flash", "gemini-2.0-flash-lite")
+# I modelli disponibili cambiano spesso: l'app li prova in ordine e usa
+# il primo che risponde.
+MODELLI_GEMINI = ("gemini-3.8-flash", "gemini-flash-latest",
+                  "gemini-2.5-flash", "gemini-3.5-flash",
+                  "gemini-flash-lite-latest")
 LINK_CHIAVE_GEMINI = "https://aistudio.google.com/apikey"
 
 
 def chiave_gemini_da_secrets() -> str:
-    """Cerca la chiave Gemini nelle secrets di Streamlit."""
+    """
+    Cerca la chiave Gemini nei secrets di Streamlit, poi nel file locale
+    .streamlit/secrets.toml, poi nell'ambiente.
+    Nomi accettati: GEMINI_API_KEY, GOOGLE_API_KEY (quello usato dalla
+    SDK ufficiale 'google-genai').
+    """
+    for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        try:
+            import streamlit as st
+            v = (st.secrets.get(nome, "") or "").strip()
+            if v:
+                return v
+        except Exception:
+            pass
+        v = (__import__("os").environ.get(nome, "") or "").strip()
+        if v:
+            return v
+    # file dei secrets locale ( utile quando l'app gira sul PC)
     try:
-        import streamlit as st
-        return (st.secrets.get("GEMINI_API_KEY", "") or "").strip()
+        import os
+        import tomllib
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           ".streamlit", "secrets.toml")
+        if os.path.exists(_p):
+            with open(_p, "rb") as f:
+                _d = tomllib.load(f)
+            for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+                v = str(_d.get(nome, "") or "").strip()
+                if v:
+                    return v
+    except Exception:
+        pass
+    return ""
+
+
+def _gemini_con_sdk(prompt: str, chiave: str, modello: str,
+                    timeout: int) -> str:
+    """
+    Usa la SDK ufficiale 'google-genai' (la stessa del tuo esempio).
+    Restituisce il testo della risposta, oppure "" se fallisce.
+    """
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError:
+        return ""
+    try:
+        client = genai.Client(api_key=chiave)
+        config = types.GenerateContentConfig(
+            system_instruction=SISTEMA_BIBLICO,
+            temperature=0.45,
+            max_output_tokens=4000,
+        )
+        risposta = client.models.generate_content(
+            model=modello,
+            contents=prompt,
+            config=config,
+        )
+        return (risposta.text or "").strip()
     except Exception:
         return ""
 
@@ -140,6 +198,13 @@ def interpreta_gemini(prompt: str, chiave: str = "", modello: str = "",
     modelli = (modello,) if modello else MODELLI_GEMINI
     ultimo = ""
     for m in modelli:
+        # 1) SDK ufficiale 'google-genai' (quella di google)
+        _sdk = _gemini_con_sdk(prompt, chiave, m, timeout)
+        if len(_sdk) > 120:
+            return {"testo": _pulisci_giornale(_sdk), "parole_chiave": [],
+                    "errore": None, "modello": m,
+                    "fonte": f"Google Gemini ({m})"}
+        # 2) fallback: HTTP diretto (funziona anche senza la SDK)
         try:
             risposta = requests.post(
                 f"{URL_GEMINI}/{m}:generateContent",
