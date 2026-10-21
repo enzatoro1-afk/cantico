@@ -766,20 +766,29 @@ def _punteggio_interpretazione(titolo: str, canale: str, secondi: int | None,
             break
 
     # il titolo cita il versetto indicato? (es. "Salmo 23" in "Salmo 23 - ...")
+    # Se il video parla di un ALTRO libro/capitolo, viene penalizzato forte.
     riferimento_pieno = ""
     for p in parole_rif:
         if p and " " in p:
             riferimento_pieno = p.lower()
             break
+    libro_citato = ""
+    for p in parole_rif:
+        if p and " " not in p and len(p) > 3:
+            libro_citato = p.lower()
+            break
+    capitolo_citato = str(parole_rif[-1]) if parole_rif else ""
+
     if riferimento_pieno and riferimento_pieno in t:
-        punteggio += 6.0
+        punteggio += 9.0
+    elif libro_citato and libro_citato in t:
+        if capitolo_citato and capitolo_citato in t:
+            punteggio += 5.0        # stesso libro e capitello
+        else:
+            punteggio -= 3.0        # stesso libro, capitolo diverso
     else:
-        for p in parole_rif:
-            if p and len(p) > 3 and p.lower() in t:
-                punteggio += 2.5
-                break
-        if str(parole_rif[-1]) and str(parole_rif[-1]) in t and len(t) < 90:
-            punteggio += 1.0
+        # il video non parla del nostro passaggio: quasi nessun peso
+        punteggio -= 2.0
 
     # è un canto, non una spiegazione?
     e_canto = any(p in t for p in PAROLE_CANTO)

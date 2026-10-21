@@ -423,9 +423,20 @@ def _studia_versetto() -> None:
         if not t or len(t["testo"]) < 250:
             continue
         basso = t["testo"].lower()
-        pertinenti = sum(1 for p in parole_verso if p and p in basso)
-        if pertinenti >= 2:
+        # 1) deve citare il NUMERO del nostro versetto
+        _num = str(riferimento.get("versetto") or "")
+        _cita_numero = True
+        if _num:
+            _cita_numero = bool(re.search(
+                r"(?:v(?:ersetto|\.|°)?\s*|,\s*|^)\b" + re.escape(_num) + r"\b",
+                basso))
+        # 2) deve contenere le parole DISTINTE del nostro versetto
+        _confronti = [p for p in parole_verso if len(p) > 3]
+        _presenti = [p for p in _confronti if p in basso]
+        _rapporto = (len(_presenti) / len(_confronti)) if _confronti else 0
+        if _cita_numero and _rapporto >= 0.34:
             trascrizione = t["testo"]
+            st.session_state["interp_pertinente"] = r.titolo
             break
 
     versetto["trascrizione"] = trascrizione
@@ -1062,6 +1073,46 @@ if riferimento_verso and not studio.get("errore"):
             html(
                 f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
                 f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>')
+
+            # ---- COSA VUOI VEDERE? solo il versetto, il capitolo, un intervallo ----
+            _v = riferimento_verso.get("versetto")
+            _cap_n = riferimento_verso.get("capitolo")
+            _ambito = st.radio(
+                "Cosa vuoi vedere di questo passaggio?",
+                [f"Solo il versetto (v.{_v})" if _v else "Il versetto",
+                 f"Tutto il capitolo ({riferimento_verso['libro']} {_cap_n})",
+                 "Un intervallo scelto da me"],
+                index=0,
+                key="ambito_versetto",
+                help="Scegli se vedere solo il versetto, tutto il capitolo, "
+                     "o un intervallo preciso (es. 14,6-14,10).",
+            )
+            if _ambito.startswith("Un intervallo"):
+                _txt = st.text_input(
+                    "Scrivi l'intervallo",
+                    value="",
+                    placeholder="es. 6-10   oppure  14,6-14,10",
+                    key="intervallo_personalizzato",
+                )
+                if st.button("\U0001F50D Applica l'intervallo",
+                             key="applica_intervallo_pers", use_container_width=True):
+                    _rif = rileva_riferimento(
+                        f"{riferimento_verso['libro']} {_cap_n} {_txt}")
+                    if _rif and _rif.get("versetto"):
+                        st.session_state["riferimento_forzato"] = _rif
+                        st.rerun()
+                    else:
+                        st.warning("Scrivi l'intervallo, es. 6-10")
+            else:
+                _rif = dict(riferimento_verso)
+                if _ambito.startswith("Tutto il capitolo"):
+                    _rif["versetto"] = 1
+                    _rif["versetto_fine"] = None
+                    _rif["riferimento"] = (f"{riferimento_verso['libro']} {_cap_n}")
+                if st.button("\U0001F50D Applica", key="applica_ambito",
+                             use_container_width=True):
+                    st.session_state["riferimento_forzato"] = _rif
+                    st.rerun()
 
         contesto = [] if (solo_capitolo or not mostra_contesto) else (
             versetto_esatto.get("contesto_prima", []) +
