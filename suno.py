@@ -143,15 +143,54 @@ def _percorso_cookie() -> str:
 
 
 def _cookie_grezzo() -> str:
-    """Il cookie di sessione di suno.com (mai nei secrets: file locale)."""
+    """
+    Il cookie di sessione di suno.com.
+
+    Lo cerca in tre posti, in quest'ordine:
+      1) la sessione del browser (se l'utente lo ha incollato nell'app)
+      2) il file locale .suno_cookie.txt (in .gitignore)
+      3) la variabile d'ambiente SUNO_COOKIE
+    """
+    try:
+        import streamlit as st
+        v = str(st.session_state.get("cookie_suno", "") or "").strip()
+        if v:
+            return v
+    except Exception:
+        pass
     try:
         p = _percorso_cookie()
         if os.path.exists(p):
             with open(p, "r", encoding="utf-8") as f:
-                return f.read().strip()
+                v = f.read().strip()
+            if v:
+                return v
     except Exception:
         pass
     return (os.environ.get("SUNO_COOKIE", "") or "").strip()
+
+
+def salva_cookie_suno(cookie: str) -> str:
+    """
+    Salva il cookie di suno.com nel file locale (se si puo').
+    Restituisce un messaggio per l'utente.
+    """
+    cookie = (cookie or "").strip()
+    if len(cookie) < 20 or "=" not in cookie:
+        return "Il cookie sembra incompleto: incolla tutta la riga."
+    try:
+        with open(_percorso_cookie(), "w", encoding="utf-8", newline="\n") as f:
+            f.write(cookie)
+    except Exception as exc:
+        return (f"Salvato solo per questa sessione (non sono riuscito a "
+                f"scrivere il file: {exc})")
+    return "Cookie salvato sul computer (file .suno_cookie.txt, in .gitignore)."
+
+
+def cookie_suno_scaduto() -> bool:
+    """True se il cookie non c'e' piu' o non e' piu' valido."""
+    ok, _nota = suno_disponibile()
+    return not ok
 
 
 def _cookie_dict() -> dict:

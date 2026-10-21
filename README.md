@@ -413,8 +413,15 @@ niente** (niente Node.js, niente servizi, niente account).
      `.gitignore`: il cookie **non** finisce su GitHub.
 3. Nell'app: motore **"Suno (i tuoi crediti gratuiti)"** → "Componi e canta".
 
-> Il cookie vale circa un'ora (è una sessione di browser). Quando scade,
-> l'app lo dice e basta rinnovarlo con lo stesso comando.
+> **Il cookie vale circa un'ora** (è una sessione di browser). Quando
+> scade l'app lo dice e basta rinnovarlo. Ci sono due modi, entrambi senza
+> passare dalla chat:
+>
+> - ** Dentro l'app** (più comodo): apri la barra laterale → *"Suno: i crediti
+>   gratuiti del TUO account"* → incolla il nuovo cookie → **"Attiva subito
+>   (per me)"** → **"Verifica i crediti"** per essere sicuro.
+> - **Dal terminale**: `python AGGIORNA_COOKIE_SUNO.py` (scrive il file
+>   `.suno_cookie.txt`).
 >
 > Se preferisci la via "servizio open source" (Node.js sulla porta 8000),
 > c'è anche quella: `python AVVIA_SUNO.py`. L'app la usa solo come riserva.

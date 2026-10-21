@@ -42,8 +42,8 @@ from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
 from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_tiktok,
                     genera_canzone, genera_canzone_gratuita,
                     genera_canzone_senza_pagare)
-from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG,
-                  genera_canzone_suno, struttura_canzone, suno_disponibile)
+from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG, genera_canzone_suno,
+                  salva_cookie_suno, struttura_canzone, suno_disponibile)
 from configura import (ISTRUZIONE_SUNO, PASSI, TESTO_SUNO, leggi_secrets,
                       scrivi_secrets, stato_configurazione)
 from testi_canzone import scrivi_testi_canzone
@@ -475,7 +475,7 @@ def _id_utente() -> str:
     """
     _cookie = ""
     try:
-        _cookie = (st.context.cookies.get("cantico_uid", "") or "").strip()
+        _cookie = str(st.context.cookies.get("cantico_uid", "") or "").strip()
     except Exception:
         _cookie = ""
     if _cookie:
@@ -1161,10 +1161,44 @@ with st.sidebar:
                     if _v_gem and ricorda_chiave_gemini(_v_gem.strip()):
                         st.success("\u2705 Chiave salvata sul server: da ora "
                                    "in poi Gemini e' attivo per tutti.")
-                with st.expander("Suno: i crediti gratuiti del TUO account"):
-                    html('<div class="box">'
-                         + ISTRUZIONE_SUNO.replace("\n", "<br>") + '</div>')
-
+    # --- Suno: i crediti gratuiti del TUO account (sempre visibile) ---
+    with st.expander("Suno: i crediti gratuiti del TUO account"):
+        html('<div class="box">'
+             + ISTRUZIONE_SUNO.replace("\n", "<br>") + '</div>')
+        st.link_button(
+            "\U0001F310 Apri suno.com (per copiare il cookie)",
+            "https://suno.com/library",
+            use_container_width=True)
+        _cookie_suno = st.text_input(
+            "Incolla qui il cookie di suno.com",
+            type="password",
+            placeholder="__client=... oppure __session=...",
+            help="Lo copi da suno.com (F12 -> Network -> una "
+                 "richiesta -> Request Headers -> riga 'cookie'). "
+                 "Resta nel TUO browser: non passa da nessun "
+                 "altro e non finisce su GitHub.",
+            key="campo_cookie_suno",
+        )
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            if st.button("\u2705 Attiva subito (per me)",
+                         use_container_width=True,
+                         key="attiva_cookie_suno"):
+                if _cookie_suno:
+                    st.session_state["cookie_suno"] = \
+                        _cookie_suno.strip()
+                    _msg = salva_cookie_suno(_cookie_suno)
+                    st.success("\u2705 " + _msg)
+                    st.rerun()
+                else:
+                    st.info("Incolla prima il cookie.")
+        with _c2:
+            if st.button("\U0001F50E Verifica i crediti",
+                         use_container_width=True,
+                         key="verifica_crediti_suno"):
+                _ok, _nota = suno_disponibile()
+                (st.success if _ok else st.error)(
+                    "\u2705 " + _nota if _ok else _nota)
 
     st.markdown("---")
     st.markdown("### \U0001F510 Archivio privato")
@@ -2430,9 +2464,10 @@ if risultati:
             if _motore.startswith("Suno"):
                 _ok_suno, _nota_suno = suno_disponibile()
                 if not _ok_suno:
-                    st.info("Suno non e' raggiungibile: " + _nota_suno +
-                            " (vedi il README per avviarlo). Prova un altro "
-                            "motore qui sotto.")
+                    st.info("Suno non e' raggiungibile: " + _nota_suno + ". "
+                            "Attivalo dalla barra laterale (Espandi > 'Suno: "
+                            "i crediti gratuiti del TUO account') oppure "
+                            "prova un altro motore qui sotto.")
             if st.button("\U0001F3BC Componi e canta la canzone",
                          use_container_width=True, key="componi_canzone"):
                 _testi_finali = struttura_canzone(_testi_canzone)

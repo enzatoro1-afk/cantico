@@ -32,7 +32,7 @@ SUFFISSO = ".json"
 
 def _hash_codice(codice: str) -> str:
     """Codice -> identificatore anonimo del file (il codice resta segreto)."""
-    return hashlib.sha256(("cantico-archivio:" + (codice or "").strip())
+    return hashlib.sha256(("cantico-archivio:" + str(codice or "").strip())
                           .encode("utf-8")).hexdigest()[:20]
 
 
