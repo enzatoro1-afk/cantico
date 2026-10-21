@@ -127,12 +127,24 @@ SUFFISSI_GENRE = (
 
 TERMINI_CATTOLICI = (
     "cattolic", "cattolico", "cattolica", "cattolici", "vaticano", "vatican",
-    "papa ", "parrocchia", "liturgia", "mariano", "mariana", "madonna",
-    "santuario", "monaci", "monastero", "suore", "indulgenza", "rosario",
+    "papa ", "parrocchia", "parrocchie", "liturgia", "mariano", "mariana",
+    "madonna", "santuario", "santuari ", "monaci", "monastero", "suore",
+    "indulgenza", "rosario",
     "catechismo", "dottrina della chiesa", "viatico", "canonizz", "beatific",
     "chiesa di roma", "chiesa ortodossa", "chiesa copta", "chiesa cattolica",
     "vespro", "lauretana", "ave maria", "salve regina", "vescovo", "diocesi",
     "chiesa madre", "santuari", "madre church",
+    "monsignor", "cardinale", "cattedrale", "parroco", "suor ",
+    "assunzione", "immacolata", "congregazione", "sant' ",
+    "santa maria ", "san giuseppe ", "padrino", "padrone",
+    # inglese
+    "catholic", "cathedral", "jesuit", "cardinal", "pope", "papacy",
+    "papal", "homily", "homilies", "rosary", "indulgence", "catechism",
+    "immaculate", "assumption",
+    # (NOTA: "bible study" generico NON e' cattolico -> non lo escludo)
+    "sacred heart", "our lady of", "roman rite", "catholic university",
+    "holy mass", "daily mass", "st. mary church", "st. peter church",
+    "eucharist", "blessed sacrament", "reverend father",
 )
 
 TERMINI_EVANGELICI = (
@@ -923,7 +935,8 @@ def cerca_interpretazioni(libro: str, capitolo: int, versetto: int | None,
         except ErroreRicerca:
             continue
 
-    risultati = list(unici.values())
+    # difesa extra: niente contenuti cattolici fra le interpretazioni
+    risultati = [r for r in unici.values() if not è_cattolico(r.titolo, r.canale)]
     parole_rif = [f"{libro} {capitolo}", libro, str(capitolo)]
     for r in risultati:
         r.punteggio = _punteggio_interpretazione_con_viste(

@@ -1265,17 +1265,28 @@ elif studio and studio.get("versetto"):
 
     with st.expander("Le interpretazioni che ho trovato (esposizioni, studi, prediche)"):
         html(
-            '<div class="note">Ordinate per <b>affinità al tuo versetto</b> e, '
-            'a parità, per <b>quante persone le hanno ascoltate</b>: la prima è '
-            'la più ascoltata fra quelle che parlano davvero del tuo passaggio.'
+            '<div class="note">Ordinate per <b>affinità al tuo versetto</b>: '
+            'prima chi parla proprio di <b>quel</b> versetto, poi chi ne parla '
+            'meglio e ha più ascolti. Ogni riga mostra <b>canale</b>, '
+            '<b>durata</b> e <b>visualizzazioni</b>.'
             '</div>',
         )
         _interp_list = studio.get("interpretazioni", [])
+        # il video con piu' ascolti (badge reale, non finto)
+        _idx_top = 0
+        _max_v = 0
+        for _k, _rr in enumerate(_interp_list):
+            _vv = getattr(_rr, "visualizzazioni", 0) or 0
+            if _vv > _max_v:
+                _max_v = _vv
+                _idx_top = _k
         for i, r in enumerate(_interp_list, start=1):
             with st.container(border=True):
                 _v = getattr(r, "visualizzazioni", 0)
                 _badge = f'#{i}'
                 if i == 1 and _interp_list:
+                    _badge += " &bull; <b>LA PIU&#39; ADATTA AL TUO VERSETTO</b>"
+                elif (i - 1) == _idx_top and _max_v > 0 and i != 1:
                     _badge += " &bull; <b>LA PIU&#39; ASCOLTATA</b>"
                 html(
                     f'<div class="badge">{_badge}</div>'
