@@ -56,18 +56,24 @@ COME SI USA (30 secondi)
   audio di TikTok e pubblichi.
 - La sezione finale ti prepara caption, hashtag, testo da schermo, la data
   e l'ora migliore per pubblicare, e tiene l'archivio dei post.
+- Nella sezione "Crea una canzone ORIGINALE" l'app scrive le parole di un
+  brano nuovo sul tuo versetto, lo fa CANTARE e ti prepara il VIDEO .mp4
+  verticale 9:16, pronto da caricare su TikTok (sfondo con il testo del
+  verso, nero, o una tua foto). Tutto gratis.
 - Se cambi idea sulla canzone, nella sezione del post trovi "Scegli un'altra
   canzone" (torna indietro) e "Annulla tutto" (azzera e ricomincia).
 
 ---------------------------------------------
 I TUOI POST SONO PRIVATI
 ---------------------------------------------
-- Alla fine della pagina, nella sezione ARCHIVIO, ognuno sceglie il
-  PROPRIO codice (o tocca "Genera un codice per me").
-- Con il codice, i tuoi post restano tuoi: nessun altro che usa l'app li
-  vede, e tu non vedi quelli degli altri.
-- Se non metti nessun codice, l'archivio funziona lo stesso ma vale solo
-  finche' non chiudi il browser.
+- L'app ti riconosce da sola (un cookie nel tuo browser): NON devi
+  creare nessun codice e non devi ricordare nessuna password.
+- I tuoi post restano tuoi: nessun altro che usa l'app li vede, e tu non
+  vedi quelli degli altri.
+- Se vuoi ritrovare i tuoi post anche su un altro telefono, nella
+  sezione ARCHIVIO c'è un riquadro facoltativo con un codice.
+- Nella sezione ARCHIVIO trovi anche "Cancella i miei dati": sparisce
+  tutto quello che hai salvato.
 - Quello che scrivi (versetto, ricerche, interpretazioni) resta sempre
   nel tuo telefono: non lo vede nessuno.
 
