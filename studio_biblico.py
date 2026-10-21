@@ -418,11 +418,43 @@ def estrai_spiegazione(video_id: str, max_caratteri: int = 60000) -> dict | None
 # --------------------------------------------------------------------------
 
 PROMPT_INTERPRETAZIONE = """Sei un assistente biblico di dottrina Cristiana Evangelica Pentecostale (linea ADI / Assemblee di Dio).
-Prendi il seguente riferimento: {riferimento}
-{testo_versetto}Estrai il testo intero se e' presente solo il capitolo.
-Fornisci una breve interpretazione teologica focalizzata sui temi della lode, della fede, del ravvedimento o della consolazione spirituale.
-NON citare canzoni, inni o titoli di brani: le canzoni le cerca l'applicazione da sola, tu curi solo il significato.
-Alla fine scrivi una riga finale con le 3 parole chiave spirituali piu' forti, separate da virgola (es. 'Parole chiave: Fortezza, Salvezza, Fedelta')." """
+
+RIFERIMENTO BIBLICO: {riferimento}
+TESTO BIBLICO (Riveduta 2020, da interpretare):
+{testo_versetto}
+
+Scrivi l'interpretazione di QUESTO passaggio (e solo di questo), con questi
+4 titoli esatti. Ogni sezione massimo 2-3 frasi brevi (non troncare mai
+la risposta):
+
+1. IL TESTO
+   Riassumi in una frase il testo, con le sue immagini principali.
+
+2. IL CONTESTO
+   Spiega in 2 frasi il contesto in cui il testo vive (chi parla, a chi,
+   che cosa succede intorno) e che cosa significa nel suo contesto.
+
+3. IL SIGNIFICATO (dottrina evangelica pentecostale)
+   3-4 frasi: che cosa afferma il testo nella dottrina evangelica
+   pentecostale, il suo punto centrale, e perche' puo' diventare una
+   lode. Tocca le immagini e le parole chiave del testo.
+
+4. PER LA LODE
+   2 frasi: come questo versetto puo' diventare un inno/una lode (quale
+   promessa si canta, quale risposta di fede si da').
+
+REGOLE:
+- Parti SEMPRE e SOLO dal testo sopra. Non parlare di un altro versetto.
+- Usa i nomi ESATTAMENTE come compaiono nel testo (se il testo dice
+  "Gesù", scrivi "Gesù": non sostituire il nome con un altro).
+- Non inventare nomi, luoghi, numeri o episodi che non sono nel testo.
+- Non citare canzoni, inni o titoli di brani: le canzoni le cerca
+  l'applicazione da sola, tu curi solo il significato.
+- Scrivi in italiano semplice, con parole che si possano cantare.
+- Non ripetere letteralmente il testo biblico: spiegare.
+
+Alla fine scrivi una riga finale con le 3 parole chiave spirituali piu'
+forti, separate da virgola (es. 'Parole chiave: Fortezza, Salvezza, Fedelta')."""
 
 # lessico spirituale pesato: dal piu' forte al piu' generico
 LESSICO_SPIRITUALE = (
@@ -478,6 +510,100 @@ def estrai_parole_chiave_spirituali(testo: str, numero: int = 3) -> list[str]:
 
     ordinati = sorted(punteggi.items(), key=lambda kv: (-kv[1], kv[0]))
     return [p for p, _ in ordinati[:numero]]
+
+
+# immagini bibliche ricorrenti: sono gli elementi che rendono un versetto
+# unico (e che la Chiesa cantano). Servono a scrivere interpretazioni diverse
+# per ogni passaggio, anche senza IA.
+IMMAGINI_BIBLICHE = {
+    "pietra": "pietra", "pietre": "pietre", "roccia": "roccia",
+    "vite": "vite", "vigna": "vigna", "uva": "uva", "cantico": "cantico",
+    "pane": "pane", "pane": "pane", "focolare": "focolare", "mensa": "mensa",
+    "vino": "vino", "calice": "calice", "sangue": "sangue",
+    "luce": "luce", "lume": "lume", "sole": "sole", "splendore": "splendore",
+    "stella": "stella", "stelle": "stelle",
+    "via": "via", "cammino": "cammino", "strada": "strada", "sentiero": "sentiero",
+    "porta": "porta", "portone": "portone",
+    "tempio": "tempio", "santuario": "santuario", "altare": "altare",
+    "casa": "casa", "casa": "casa", "tetto": "tetto", "stanza": "stanza",
+    "mano": "mano", "mani": "mani", "braccio": "braccio",
+    "cuore": "cuore", "cuori": "cuori", "anima": "anima", "mente": "mente",
+    "voce": "voce", "grido": "grido", "canto": "canto", "canta": "canto",
+    "salvezza": "salvezza", "redenzione": "redenzione", "peccato": "peccato",
+    "peccati": "peccato", "grazia": "grazia", "misericordia": "misericordia",
+    "fede": "fede", "speranza": "speranza", "amore": "amore",
+    "verita": "verita", "verita": "verita", "via": "via",
+    "morte": "morte", "vita": "vita", "resurrezione": "resurrezione",
+    "croce": "croce", "preghiera": "preghiera", "orazione": "orazione",
+    "digiuno": "digiuno", "sacrificio": "sacrificio", "offerta": "offerta",
+    "regno": "regno", "trono": "trono", "corona": "corona", "potere": "potere",
+    "autorita": "autorita", "servizio": "servizio", "lavore": "lavore",
+    "pane": "pane", "miele": "miele", "sale": "sale", "luce": "luce",
+    "albero": "albero", "radice": "radice", "seme": "seme", "frutto": "frutto",
+    "ghiaccio": "ghiaccio", "fuoco": "fuoco", "fiamma": "fiamma",
+    "nuvola": "nuvola", "cielo": "cielo", "terra": "terra", "vento": "vento",
+    "mare": "mare", "onda": "onda", "fiume": "fiume", "pioggia": "pioggia",
+    "gabbia": "gabbia", "catena": "catena", "carcer": "carcer",
+    "battesimo": "battesimo", "acqua": "acqua", "lavacro": "lavacro",
+    "dea": "dea", "popolo": "popolo", "nazione": "nazione", "genti": "genti",
+}
+
+
+def _immagini_del_versetto(testo: str) -> list[str]:
+    """
+    Le immagini/punti chiave che il versetto tocca (dal testo, non da tema).
+    Restituisce le parole ORIGINALI del testo (con gli accenti).
+    """
+    t = senza_accenti(testo or "")
+    trovate: list[str] = []
+    # parole del testo originale, per risalire alla forma con accenti
+    originali = re.findall(r"[\wÀ-ÿ']+", testo or "")
+    for parola in IMMAGINI_BIBLICHE:
+        if re.search(rf"\b{re.escape(parola)}\w{{0,3}}\b", t):
+            # cerco la parola originale corrispondente
+            _orig = None
+            for o in originali:
+                if senza_accenti(o).lower().startswith(parola[:max(4, len(parola) - 2)]):
+                    _orig = o.lower()
+                    break
+            _val = _orig or parola
+            if _val not in trovate:
+                trovate.append(_val)
+    if not trovate:
+        # fallback: le parole piu' lunghe e significative del versetto
+        parole = [p for p in re.findall(r"[a-z]{6,}", t)
+                  if p not in ("questo", "questa", "questi", "quelle", "quello",
+                               "signore", "nostro", "vostro", "loro", "sono",
+                               "essere", "aveva", "hanno", "tutti", "anche",
+                               "quando", "perche", "mentre", "adesso", "dove",
+                               "come", "della", "delle", "dello", "degli",
+                               "abbiamo", "possono", "volto", "parte",
+                               "giacche", "mancherà", "manchera", "eterno",
+                               "davide", "nessuno", "perche'",
+                               "generico", "studio", "esposizione", "passaggio",
+                               "dottrina", "pentecostale", "evangelica",
+                               "interpretazione", "significato", "contesto")]
+        trovate = list(dict.fromkeys(parole))[:3]
+    return trovate[:4]
+
+
+def _soggetto_del_versetto(testo: str) -> str:
+    """
+    Di cosa parla questo versetto, in una frase breve.
+    Si basa sulle immagini reali del testo, cosi' due versetti diversi
+    non possono finire con la stessa frase.
+    """
+    t = (testo or "").strip()
+    if not t:
+        return ""
+    _imm = _immagini_del_versetto(t)
+    if not _imm:
+        return ""
+    if len(_imm) == 1:
+        return f"una promessa che parla di {_imm[0]}"
+    if len(_imm) == 2:
+        return f"una promessa che parla di {_imm[0]} e {_imm[1]}"
+    return f"una promessa che parla di {_imm[0]}, {_imm[1]} e {_imm[2]}"
 
 
 def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
@@ -566,6 +692,24 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
                         "si capisce da solo, perche' nasce dentro una "
                         "conversazione viva con il popolo di Dio.")
 
+    # --- elementi SPECIFICI del versetto (per non ripetere lo stesso testo) ---
+    _immagini = _immagini_del_versetto(testo_versetto)
+    _soggetto = _soggetto_del_versetto(testo_versetto)
+    _frase_soggetto = (f"Questo passo parla di {_soggetto}"
+                       if _soggetto else f"Questo passo parla di {tema.lower()}")
+    _segno = ""
+    if _immagini:
+        _segno = (f"Il nucleo di questo testo sta nelle immagini di "
+                  f"{', '.join(_immagini[:3])}. Sono parole che la Chiesa ha "
+                  f"sempre cantato: non come uno spettacolo, ma come la "
+                  f"dichiarazione di una fiducia che regge anche nella notte.")
+    else:
+        _segno = (f"Il nucleo spirituale di questo testo sta in {nucleo}. "
+                  f"Leggendo il passaggio con questa lente, si capisce perche' la "
+                  f"Chiesa lo ha sempre cantato e predicato: non come uno "
+                  f"spettacolo, ma come la dichiarazione di una fiducia che "
+                  f"regge anche nella notte.")
+
     corpo = (
         f"{riferimento}\n"
         f"{'=' * (len(riferimento) + 2)}\n\n"
@@ -580,15 +724,12 @@ def interpretazione_dotrinale(versetto: dict | None, tema: str = "",
 
         f"3. IL SIGNIFICATO (dottrina evangelica pentecostale)\n"
         f"{'-' * 50}\n"
-        f"Questo passo parla di {tema.lower()}. Il punto centrale, nella "
-        f"dottrina evangelica pentecostale, e' questo: Dio agisce per primo e "
-        f"l'uomo risponde con fede. Non e' l'uomo a muoversi per primo, e' Dio "
-        f"che prende l'iniziativa; la nostra risposta e' la fede, cioe' "
-        f"affidarsi a Lui con tutto il cuore.\n\n"
-        f"Il nucleo spirituale di questo testo sta in {nucleo}. "
-        f"Leggendo il passaggio con questa lente, si capisce perche' la "
-        f"Chiesa lo ha sempre cantato e predicato: non come uno spettacolo, ma "
-        f"come la dichiarazione di una fiducia che regge anche nella notte.\n\n"
+        f"{_frase_soggetto}. Il punto centrale, nella dottrina evangelica "
+        f"pentecostale, e' questo: Dio agisce per primo e l'uomo risponde con "
+        f"fede. Non e' l'uomo a muoversi per primo, e' Dio che prende "
+        f"l'iniziativa; la nostra risposta e' la fede, cioe' affidarsi a Lui "
+        f"con tutto il cuore.\n\n"
+        f"{_segno}\n\n"
 
         f"4. L'APPLICAZIONE (le 4 domande dello studio induttivo)\n"
         f"{'-' * 47}\n"

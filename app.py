@@ -33,7 +33,8 @@ import hotreload  # noqa: E402  (deve stare PRIMA delle import locali)
 
 _RI_CARICATI = hotreload.ricarica()
 
-from ai_client import chiave_da_secrets, interpreta_con_ia, link_chatgpt
+from ai_client import (chiave_da_secrets, interpreta_con_ia, interpreta_gratis,
+                       link_chatgpt)
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
                          testo_capitolo)
@@ -457,14 +458,14 @@ def _studia_versetto() -> None:
     # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
     interpretazioni = cerca_interpretazioni(
         riferimento["libro"], riferimento["capitolo"], riferimento["versetto"],
-        riferimento["riferimento"], testo_intero, 5)
+        riferimento["riferimento"], testo_intero, 8)
 
     # la spiegazione scritta: trascrizione di una predicazione che parla
     # DAVVERO del versetto (controllo di pertinenza sulle parole chiave)
     trascrizione = None
     parole_verso = [p.lower() for p in
                     estrai_parole_chiave(testo_intero, 8)]
-    for r in interpretazioni[:4]:
+    for r in interpretazioni[:8]:
         t = estrai_spiegazione(r.video_id)
         if not t or len(t["testo"]) < 250:
             continue
@@ -1388,7 +1389,7 @@ elif studio and studio.get("versetto"):
                         else:
                             st.warning("Questo video non ha una trascrizione disponibile.")
 
-    # ---- 3 MODI PER AVERE L'INTERPRETAZIONE ----
+    # ---- MODI PER AVERE L'INTERPRETAZIONE ----
     _prompt_attuale = PROMPT_INTERPRETAZIONE.format(
         riferimento=studio.get("riferimento", {}).get("riferimento", ""),
         testo_versetto=(v.get("testo_pulito", "") + "\n\n"),
@@ -1397,10 +1398,12 @@ elif studio and studio.get("versetto"):
 
     c_m1, c_m2, c_m3 = st.columns(3)
     with c_m1:
-        if st.button("\U0001F9E0 Interpreta con ChatGPT",
-                     key="ia_api", use_container_width=True,
-                     help="Usa la tua chiave API OpenAI (se inserita)."):
-            st.session_state["_ia_richiesta"] = "api"
+        if st.button("\U0001F9E0 Interpreta con IA gratuita",
+                     key="ia_gratis", use_container_width=True,
+                     help="L'app scrive l'interpretazione con un'IA gratuita "
+                          "che non richiede nessuna chiave. Ci mette 10-30 "
+                          "secondi. Parti sempre dal testo del TUO versetto."):
+            st.session_state["_ia_richiesta"] = "gratis"
     with c_m2:
         if st.button("\U0001F4AC Chiedi a ChatGPT",
                      key="ia_link", use_container_width=True,
@@ -1408,9 +1411,32 @@ elif studio and studio.get("versetto"):
                           "telefono) gia' pronto."):
             st.session_state["_ia_richiesta"] = "link"
     with c_m3:
-        html(
-            "<div class=\"note\">Oppure incolla sotto l'interpretazione che "
-            "ti ha dato l'IA.</div>")
+        if st.button("\U0001F9E0 Interpreta con ChatGPT",
+                     key="ia_api", use_container_width=True,
+                     help="Usa la tua chiave API OpenAI (se inserita)."):
+            st.session_state["_ia_richiesta"] = "api"
+    html(
+        "<div class=\"note\">Nella casella qui sotto puoi anche incollare "
+        "l'interpretazione che ti ha dato un'altra IA.</div>")
+
+    if st.session_state.get("_ia_richiesta") == "gratis":
+        st.session_state["_ia_richiesta"] = None
+        with st.spinner("\U0001F9E0 Sto scrivendo l'interpretazione "
+                        "(IA gratuita, 10-30 secondi)..."):
+            _ris = interpreta_gratis(_prompt_attuale)
+        if _ris.get("errore"):
+            st.warning(f"IA gratuita non disponibile: {_ris['errore']}")
+            st.info("Nessun problema: l'app usa comunque lo studio del versetto "
+                    "e le predicazioni reali che ha trovato su YouTube.")
+        elif _ris.get("testo"):
+            from studio_biblico import estrai_parole_chiave_spirituali
+            st.session_state["versetto_studio"]["interpretazione"] = {
+                "testo": _ris["testo"],
+                "parole_chiave": estrai_parole_chiave_spirituali(_ris["testo"])[:3],
+                "fonte": _ris.get("fonte", "IA gratuita"),
+                "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
+            }
+            st.rerun()
 
     if st.session_state.get("_ia_richiesta") == "api":
         st.session_state["_ia_richiesta"] = None

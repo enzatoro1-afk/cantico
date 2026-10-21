@@ -29,6 +29,11 @@ COME SI USA (30 secondi)
 - "Cerca meglio": se nessuna ti convince, l'app te ne porta ALTRE 5,
   tutte diverse e ordinate per quanto parlano del tuo versetto. Puoi
   ripeterlo quante volte vuoi.
+- Nella sezione "Da dove vuoi l'interpretazione?" trovi il pulsante
+  "Interpreta con IA gratuita": scrive l'interpretazione del TUO versetto
+  con un'intelligenza artificiale gratis (non serve nessuna chiave).
+  Ci mette 10-40 secondi. Parti sempre e solo dal testo del tuo versetto,
+  quindi due versetti diversi danno due interpretazioni diverse.
 - "Copia Titolo": te lo mette negli appunti -> lo cerchi nella libreria
   audio di TikTok e pubblichi.
 - La sezione finale ti prepara caption, hashtag, testo da schermo, la data

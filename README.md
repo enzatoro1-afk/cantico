@@ -341,6 +341,36 @@ Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due
    l'interpretazione di studio secondo la dottrina evangelica pentecostale.
 4. Estrae le **3 parole chiave spirituali** (es. *fiducia, luce, pastore*).
 
+### 🎯 L'interpretazione è sempre diversa da versetto a versetto
+
+Il motore di studio **non** ripete lo stesso testo: guarda le **immagini reali**
+del versetto (pietra, via, vite, pane, luce, pastore...) e costruisce
+l'analisi su quelle. Esempio:
+
+| Versetto | Cosa dice l'interpretazione |
+|---|---|
+| Giovanni 14,6 | "una promessa che parla di **via, verità e vita**" |
+| Marco 12,10 | "una promessa che parla di **pietra**" |
+| Salmo 23,1 | "una promessa che parla di **pastore**" |
+
+### 🆓 "Interpreta con IA gratuita" (nessuna chiave API)
+
+Nella sezione **"Da dove vuoi l'interpretazione?"** c'è il pulsante
+**🧠 Interpreta con IA gratuita**: scrive l'interpretazione con un'IA
+gratuita che **non richiede chiave, account o pagamento** (Pollinations AI).
+Ci mette 10-40 secondi.
+
+- Il prompt parte **sempre e solo dal testo del tuo versetto**
+- Il prompt ha regole esplicite: usare i nomi **esattamente** come sono nel
+  testo, non inventare nulla, non citare canzoni
+- Se il servizio è occupato, l'app aspetta e riprova da sola (limite:
+  1 risposta ogni 30 secondi per IP)
+- Se proprio non risponde, l'app **torna al motore di studio** (che funziona
+  sempre) e tu non resti senza interpretazione
+
+Le altre due opzioni restano: **"Chiedi a ChatGPT"** (copia il prompt e
+apre ChatGPT) e **"Interpreta con ChatGPT"** (la tua chiave API OpenAI).
+
 **FASE 2 - Ricerca musicale forzata**
 ```
 [Salmo 23] + [fiducia luce pastore]
