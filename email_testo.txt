@@ -24,11 +24,18 @@ COME SI USA (30 secondi)
 - Scrivi il tuo versetto o pensiero nella casella di testo.
 - "Trova il testo adatto": l'app cerca il versetto biblico che parla al
   tuo pensiero (testo evangelico, non cattolico).
-- "Trova Canzone Adatta": l'app cerca 5 inni/canti di musica evangelica
+- "Trova Canzone Adatta": l'app cerca 15 inni/canti di musica evangelica
   pentecostale e ti spiega perche' sono adatti al tuo testo.
-- "Cerca meglio": se nessuna ti convince, l'app te ne porta ALTRE 5,
-  tutte diverse e ordinate per quanto parlano del tuo versetto. Puoi
-  ripeterlo quante volte vuoi.
+  La ricerca guarda anche in INGLESE e SPAGNOLO e nelle collezioni di
+  lode (Elevation Worship, Hillsong, Chris Adan, MUSICA CRISTIANA
+  ITALIANA, Adoracion Celestial...): trovi cosi' anche i brani moderni
+  dei cantanti, che su TikTok funzionano di piu'.
+  I brani con il cartellino verde sono di artisti/canali fidati.
+- "Copia Titolo" copia "TITOLO - ARTISTA" (il formato con cui il brano
+  si trova davvero nella libreria audio di TikTok).
+- "Cerca meglio": se nessuna canzone ti convince, l'app te ne porta
+  ALTRE 8, tutte diverse e ordinate per quanto parlano del tuo
+  versetto. Puoi ripeterlo quante volte vuoi.
 - Nella sezione "Da dove vuoi l'interpretazione?" trovi il pulsante
   "Scrivi l'interpretazione con l'IA": scrive l'interpretazione del TUO
   versetto come un maestro della Scrittura (5 sezioni: il testo, il
