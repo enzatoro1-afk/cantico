@@ -214,7 +214,20 @@ SISTEMA_BIBLICO = (
     "certissimo; meglio nessuno che uno sbagliato;\n"
     "   - se non sai qualcosa, non scriverlo.\n"
     "3) Non citare canzoni, inni o titoli di brani musicali.\n"
-    "4) Scrivi TUTTE le sezioni richieste, senza troncare la risposta."
+    "4) Scrivi TUTTE le sezioni richieste, senza troncare la risposta.\n"
+    "5) Rispondi DIRETTAMENTE con il testo in italiano: non mostrare le tue "
+    "ragionazioni, non dire 'we need to', non usare l'inglese."
+)
+
+# Sistema BREVE per l'IA gratuita: i modelli piccoli (quello senza chiave)
+# se ricevono un prompt di sistema pieno di regole "ragionano" fino a
+# esaurire i token e non scrivono MAI la risposta finale (arriva solo il
+# loro ragionamento in inglese). Con un sistema breve rispondono subito,
+# in italiano e con tutte le sezioni.
+SISTEMA_BREVE = (
+    "Sei un biblista evangelico pentecostale. Rispondi in ITALIANO, "
+    "direttamente con il testo dell'interpretazione, senza mostrare le tue "
+    "ragionazioni e senza prefazioni."
 )
 
 
@@ -223,7 +236,8 @@ def parole_chiave_dall_ia(testo: str, numero: int = 3) -> list[str]:
     Legge la riga finale 'Parole chiave: Fortezza, Salvezza, Fedelta'
     che l'IA scrive: sono le parole che l'IA stessa ritiene piu' forti
     per il versetto. Servono per cercare la canzone piu' adatta.
-    Se la riga non c'e', usa l'estrazione lessicale.
+    Se la riga non c'e', prendo le parole piu' significative del testo
+    scritto dall'IA (cosi' la canzone resta legata all'interpretazione).
     """
     t = (testo or "")
     m = re.findall(r"parole\s+chiave\s*:\s*(.+)", t, flags=re.IGNORECASE)
@@ -233,7 +247,41 @@ def parole_chiave_dall_ia(testo: str, numero: int = 3) -> list[str]:
         parole = [p for p in parole if 2 < len(p) < 30]
         if parole:
             return parole[:numero]
-    return []
+
+    # fallback: uso il lessico spirituale del progetto (gia' calibrato:
+    # pesa "fede", "salvezza", "grazia"... e scarta le parole generiche)
+    try:
+        from studio_biblico import estrai_parole_chiave_spirituali
+        _k = estrai_parole_chiave_spirituali(t, numero)
+        if _k:
+            return _k
+    except Exception:
+        pass
+
+    # ultimo ripiego: le parole piu' frequenti del testo
+    esclusi = {
+        "questo", "questa", "questi", "quelle", "quello", "signore",
+        "nostro", "vostro", "loro", "sono", "essere", "aveva", "hanno",
+        "tutti", "anche", "quando", "perche", "mentre", "adesso", "dove",
+        "come", "della", "delle", "dello", "degli", "abbiamo", "possono",
+        "versetto", "testo", "passaggio", "parola", "parole", "significato",
+        "contesto", "studio", "esposizione", "dottrina", "scrittura",
+        "interpretazione", "pentecostale", "evangelica", "vangelo", "dice",
+        "questo", "questa", "cioe", "cio", "puo", "deve", "vuole",
+        "egli", "loro", "dove", "come", "anche", "sono", "essere", "hanno",
+        "questi", "quelle", "quello", "tutti", "ogni", "suo", "sua", "dei",
+        "delle", "della", "dello", "degli", "nel", "per", "con", "non",
+        "una", "uno", "gli", "dai", "dal", "della", "verso", "ancora",
+        "riguardo", "proprio", "stesso", "soltanto", "appena", "tutto",
+    }
+    conteggio: dict[str, int] = {}
+    for p in re.findall(r"[A-Za-zÀ-ÿ]{4,}", t):
+        p = p.lower()
+        if p in esclusi:
+            continue
+        conteggio[p] = conteggio.get(p, 0) + 1
+    ordinati = sorted(conteggio.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [p for p, _ in ordinati[:numero]]
 
 
 def qualita_ia(testo: str) -> bool:
@@ -245,6 +293,12 @@ def qualita_ia(testo: str) -> bool:
     """
     t = (testo or "").strip()
     if len(t) < 500:
+        return False
+    # 0) NON deve essere il ragionamento del modello (in inglese)
+    if re.match(r"^\s*(we need to|we must|our task|the user)", t,
+                flags=re.IGNORECASE):
+        return False
+    if '"reasoning"' in t[:200] or '"role":"assistant"' in t[:200]:
         return False
     # 1) deve avere almeno 3 delle 5 sezioni richieste
     sezioni = ("IL TESTO", "IL CONTESTO", "IL SIGNIFICATO", "PER LA LODE",
@@ -261,6 +315,49 @@ def qualita_ia(testo: str) -> bool:
     if len(parole) > 6 and len(set(parole)) / len(parole) < 0.5:
         return False
     return True
+
+
+def _estrai_testo_ia(crudo: str) -> str:
+    """
+    Estrae il testo VERO dalla risposta dell'IA.
+    I modelli "ragionanti" possono rispondere in tre modi diversi:
+      1) testo semplice in italiano (quello che vogliamo);
+      2) JSON con "reasoning" ma senza "content": e' il loro ragionamento
+         in inglese, NON la risposta -> la scarto;
+      3) JSON con "content" (o "choices"): prendo il content.
+    """
+    grezzo = (crudo or "").strip()
+    if not grezzo:
+        return ""
+    if grezzo.startswith("{"):
+        try:
+            d = json.loads(grezzo)
+        except Exception:
+            d = None
+        if isinstance(d, dict):
+            # 3) content
+            for chiave in ("content", "text", "answer", "message"):
+                v = d.get(chiave)
+                if isinstance(v, str) and len(v.strip()) > 50:
+                    return _pulisci_giornale(v)
+                if isinstance(v, dict):
+                    for k2 in ("content", "text"):
+                        v2 = v.get(k2)
+                        if isinstance(v2, str) and len(v2.strip()) > 50:
+                            return _pulisci_giornale(v2)
+            # formato OpenAI
+            scelte = d.get("choices")
+            if isinstance(scelte, list) and scelte:
+                msg = scelte[0].get("message") or {}
+                v = msg.get("content")
+                if isinstance(v, str) and len(v.strip()) > 50:
+                    return _pulisci_giornale(v)
+            # 2) solo reasoning: NON e' la risposta
+            return ""
+    # testo semplice: se sembra un ragionamento inglese, scartalo
+    if re.match(r"^\s*we need to\b", grezzo, flags=re.IGNORECASE):
+        return ""
+    return _pulisci_giornale(grezzo)
 
 
 def _pulisci_giornale(testo: str) -> str:
@@ -312,16 +409,17 @@ def interpreta_gratis(prompt: str, timeout: int = 120,
                 json={
                     "model": MODELLO_POLLINATIONS,
                     "messages": [
-                        {"role": "system", "content": SISTEMA_BIBLICO},
+                        {"role": "system", "content": SISTEMA_BREVE},
                         {"role": "user", "content": prompt},
                     ],
                     "max_tokens": 4000,
+                    "stream": False,
                 },
                 timeout=timeout,
                 headers={"User-Agent": "Mozilla/5.0 (compatible; CANTICO/1.0)"},
             )
             if risposta.status_code == 200:
-                testo = _pulisci_giornale(risposta.text or "")
+                testo = _estrai_testo_ia(risposta.text or "")
                 if len(testo) > 120:
                     return {
                         "testo": testo,
@@ -330,7 +428,7 @@ def interpreta_gratis(prompt: str, timeout: int = 120,
                         "modello": MODELLO_POLLINATIONS,
                         "fonte": "IA gratuita (Pollinations)",
                     }
-                ultimo_errore = "risposta troppo corta"
+                ultimo_errore = "risposta non utilizzabile"
             elif risposta.status_code == 402:
                 ultimo_errore = ("servizio gratuito troppo richiesto "
                                   "(attendo e riprovo)")

@@ -478,6 +478,7 @@ LESSICO_SPIRITUALE = (
     ("pentecoste", 8), ("spiritualità", 7), ("santificazione", 7),
     ("confessione", 7), ("obbedienza", 7), ("coraggio", 7), ("protezione", 7),
     ("sostegno", 7), ("fiducia", 7), ("resurrezione", 7), ("risurrezione", 7),
+    ("fede", 7), ("devozione", 7), ("sacrificio", 7), ("pellegrino", 6),
     ("vita", 6), ("luce", 6), ("verità", 6), ("grazia", 6), ("amore", 6),
     ("lode", 6), ("adorazione", 6), ("preghiera", 6), ("pastore", 6),
     ("salvatore", 6), ("sacrificio", 6), ("croce", 6), ("pazienza", 5),

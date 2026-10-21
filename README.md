@@ -383,9 +383,16 @@ con regole esplicite nel prompt:
 - non cita canzoni (le cerca l'app)
 
 **Controllo qualità**: se la risposta dell'IA è "rotta" (italiano sbagliato,
-ripetizioni), l'app **la scarta** e prova il servizio successivo; se
-falliscono tutti, usa il motore di studio del versetto. Non vedrai mai una
-pagina di nonsenso.
+ripetizioni, oppure solo il **ragionamento** del modello invece della
+risposta) l'app **la scarta** e prova il servizio successivo; se falliscono
+tutti, usa il motore di studio del versetto. Non vedrai mai una pagina di
+nonsenso né un ragionamento in inglese.
+
+> Nota tecnica: l'IA gratuita senza chiave usa un modello piccolo che
+> "ragiona" prima di rispondere. Per questo l'app gli manda un'istruzione
+> **breve** e poi verifica che la risposta sia in italiano e contenga le
+> sezioni richieste; con Google Gemini (che è molto più bravo) la
+> qualità è di un altro livello.
 
 **Le parole chiave collegano IA e canzoni**: l'IA scrive alla fine
 `Parole chiave: Fede, Speranza, Amore`, e sono **quelle** che l'app usa per
