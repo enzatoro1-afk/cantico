@@ -16,8 +16,10 @@ Deploy gratuito:   Streamlit Community Cloud (vedi README.md)
 
 from __future__ import annotations
 
+import hashlib
 import html as html_mod
 import json
+import os
 from datetime import date, datetime, timedelta
 
 import streamlit as st
@@ -486,10 +488,116 @@ if st.session_state["archivio"] is None:
     st.session_state["archivio"] = carica_archivio()
 
 
+
+# --------------------------------------------------------------------------
+# ACCESSO: password + pagina di benvenuto
+# --------------------------------------------------------------------------
+
+def _sha(testo: str) -> str:
+    return hashlib.sha256((testo or "").encode("utf-8")).hexdigest()
+
+
+def _password_attesa() -> str:
+    """Legge l'hash della password dalle secrets (Cloud), dall'ambiente o
+    dal file locale .streamlit/secrets.toml (mai committato)."""
+    try:
+        v = st.secrets.get("APP_PASSWORD_SHA256", "")
+        if v:
+            return str(v).strip().lower()
+    except Exception:
+        pass
+    v = (os.environ.get("APP_PASSWORD_SHA256") or "").strip().lower()
+    if v:
+        return v
+    try:
+        import re as _re
+        percorso = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               ".streamlit", "secrets.toml")
+        if os.path.exists(percorso):
+            testo = open(percorso, encoding="utf-8").read()
+            m = _re.search(r'APP_PASSWORD_SHA256\s*=\s*"([^"]+)"', testo)
+            if m:
+                return m.group(1).strip().lower()
+    except Exception:
+        pass
+    return ""
+
+
+def richiedi_accesso() -> None:
+    """Mostra la pagina di benvenuto e chiede la password.
+    Se non c'e' password configurata, l'app resta aperta."""
+    if st.session_state.get("accesso_ok"):
+        return
+
+    attesa = _password_attesa()
+    if not attesa:
+        st.session_state["accesso_ok"] = True
+        return
+
+    st.markdown(
+        """
+        <div class="hero">
+          <h1>\U0001F3B5 CANTICO</h1>
+          <p><b>Dalla Parola alla Lode.</b> Per entrare ti serve la password
+             che ti ha dato chi ti ha mandato questo link.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="box">
+        <b>\U0001F4F1 PRIMA DI APRIRE L'APP (2 minuti, una volta sola)</b>
+        <ol style="margin:6px 0 0 18px;padding:0">
+          <li>Se hai gia' aperto questa pagina dal link che ti hanno mandato,
+              continua pure: adesso ti chiede la password.</li>
+          <li>Nel menu del browser (tre puntini su Android, l'icona di
+              condivisione su iPhone) scegli
+              <b>"Aggiungi alla schermata Home"</b>: da lì in poi l'app si
+              apre dalla tua Home, a schermo intero, come un'app vera.</li>
+          <li>Riapri l'app toccando l'icona e inserisci la password qui
+              sotto.</li>
+        </ol>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.form("login_accesso"):
+        password = st.text_input("Password", type="password",
+                                 label_visibility="collapsed",
+                                 placeholder="Password")
+        entra = st.form_submit_button("Entra", use_container_width=True)
+
+    if entra:
+        if _sha(password) == attesa:
+            st.session_state["accesso_ok"] = True
+            st.rerun()
+        else:
+            st.error("Password non corretta. Riprova (attenzione a maiuscole/minuscole).")
+
+    st.markdown(
+        '<div class="note" style="text-align:center;margin-top:14px;">'
+        'CANTICO &bull; dalla Parola alla Lode<br>'
+        'Testo biblico: Sacra Bibbia - Versione Riveduta 2020 (canon protestante)'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
 # --------------------------------------------------------------------------
 # Sidebar: interpretazione con IA (facoltativa) + spiegazione
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# ACCESSO (prima di tutto il resto)
+richiedi_accesso()
+
+
+# --------------------------------------------------------------------------
+# Sidebar: interpretazione con IA (facoltativa) + spiegazione
 with st.sidebar:
     st.markdown("### \U0001F9E0 Interpretazione con IA")
     st.markdown(
