@@ -401,6 +401,33 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 > (dove il servizio è attivo). Online restano disponibili ACE-Step,
 > MusicGen e AIMLAPI.
 
+## 🧩 Per chi scarica l'app: come si attiva tutto (2 minuti)
+
+L'app **funziona subito anche senza chiavi** (motore di studio + IA
+gratuita + video). Ma per avere l'interpretazione da "maestro della
+Scrittura" e la canzone cantata, servono due chiavi: **le crea e le
+incolla chi usa l'app**, dentro l'app stessa.
+
+**La finestra dentro l'app**: apri la barra laterale → se non hai ancora
+niente, compare **"🧩 Attiva tutto (2 minuti)"** con i passi esatti:
+
+1. **Google Gemini** → https://aistudio.google.com/api-keys
+   → "Create API key" → incolla qui → **"Attiva subito (per me)"**
+   *La chiave è attiva subito, anche sull'app online.*
+2. **Suno** (facoltativo, per la canzone cantata con i tuoi crediti
+   gratuiti) → le istruzioni sono nella stessa finestra
+3. **AIMLAPI** (facoltativo, alternativa a Suno) → https://aimlapi.com
+
+**Dove finiscono le chiavi** (scelte del wizard):
+- **"Attiva subito (per me)"** → valgono solo nella tua sessione
+- **"Salva sul computer"** → nel file `.streamlit/secrets.toml` (locale,
+  **in `.gitignore`**: non finiscono MAI su GitHub)
+- **"Condividi con tutti"** → sul server: la quota diventa di tutti
+
+> Nessun'altra persona (ne' io, ne' il server) vede le chiavi di chi le
+> ha inserite. Io scrivo il codice che le collega, ma **la chiave la
+> incolla sempre chi la possiede**.
+
 ---
 
 ## ❤️ Fatto per i creator cristiani

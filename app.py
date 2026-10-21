@@ -44,6 +44,8 @@ from musica import (MODELLI_CANTATI, STILE_DEFAULT, crea_video_tiktok,
                     genera_canzone_senza_pagare)
 from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG,
                   genera_canzone_suno, struttura_canzone, suno_disponibile)
+from configura import (ISTRUZIONE_SUNO, PASSI, TESTO_SUNO, leggi_secrets,
+                      scrivi_secrets, stato_configurazione)
 from testi_canzone import scrivi_testi_canzone
 from archivio import aggiungi_post, carica_archivio, elimina_post
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
@@ -178,6 +180,31 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+_SCRIPT_UID = """
+<script>
+(function () {
+  try {
+    var m = document.cookie.match(/(^|;\\s*)cantico_uid=([^;]+)/);
+    if (!m) {
+      var id = "";
+      try {
+        if (window.crypto && window.crypto.randomUUID) {
+          id = window.crypto.randomUUID().replace(/-/g, "");
+        }
+      } catch (e) {}
+      if (!id) {
+        id = Date.now().toString(16) + Math.random().toString(16).slice(2, 10);
+      }
+      document.cookie = "cantico_uid=" + id + "; path=/; max-age=31536000; SameSite=Lax";
+    }
+  } catch (e) {}
+})();
+</script>
+"""
+
+# eseguo lo script: il browser salva l'id dell'utente nel cookie
+html(_SCRIPT_UID, js=True)
 
 CSS = """
 <style>
@@ -433,6 +460,36 @@ def hashtag_str(hashtag: list[str] | None) -> str:
     return " ".join(h or [] for h in (hashtag or []))
 
 
+
+# Lo script che mette il cookie "cantico_uid": e' l'identita' del browser,
+# cosi' ogni utente ha i SUOI post, le SUE canzoni, il SUO archivio,
+# senza dover scrivere nessun codice.
+
+
+def _id_utente() -> str:
+    """
+    L'identita' di chi sta usando l'app: un codice automatico nel cookie
+    del browser. Ogni persona ha cosi' i suoi post e le sue cose, senza
+    dover configurare niente.
+    """
+    _cookie = ""
+    try:
+        _cookie = (st.context.cookies.get("cantico_uid", "") or "").strip()
+    except Exception:
+        _cookie = ""
+    if _cookie:
+        if st.session_state.get("uid_utente") != _cookie:
+            st.session_state["uid_utente"] = _cookie
+            st.session_state["archivio"] = carica_archivio(_cookie)
+        return _cookie
+    _sessione = st.session_state.get("uid_utente")
+    if not _sessione:
+        import uuid as _uuid
+        _sessione = _uuid.uuid4().hex[:16]
+        st.session_state["uid_utente"] = _sessione
+    return _sessione
+
+
 def _riferimento_breve(rif: dict) -> str:
     """Es. {'libro': 'Salmi', 'capitolo': 23} -> 'Salmo 23' (forma YouTube)."""
     libro = (rif.get("libro") or "").strip()
@@ -504,6 +561,30 @@ def _direzione_musicale(interpretazione: str) -> str:
         pass
 
     return " ".join(_parti[:3])
+
+
+def _chiave_gemini_attiva() -> str:
+    """
+    La chiave Gemini che vale davvero, in ordine di priorita':
+      1) quella incollata nel WIZARD (attiva subito, anche online)
+      2) quella nel campo della barra laterale
+      3) quella nei secrets di Streamlit / nel file locale
+      4) quella ricordata sul server (per tutti gli utenti)
+    """
+    for _k in ("cfg_gemini", "chiave_gemini"):
+        _v = str(st.session_state.get(_k, "") or "").strip()
+        if _v:
+            return _v
+    return (chiave_gemini_da_secrets() or "").strip()
+
+
+def _chiave_aimlapi_attiva() -> str:
+    """Come sopra, per AIMLAPI."""
+    for _k in ("cfg_aimlapi", "chiave_aimlapi"):
+        _v = str(st.session_state.get(_k, "") or "").strip()
+        if _v:
+            return _v
+    return (_chiave_aimlapi_da_secrets() or "").strip()
 
 
 def _chiedi_ia(prompt: str, chiave_gemini: str = "",
@@ -663,7 +744,7 @@ def _studia_versetto() -> None:
                         "versetto (come un maestro della Scrittura)..."):
             _ris_ia = _chiedi_ia(
                 _prompt,
-                chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                chiave_gemini=_chiave_gemini_attiva(),
                 chiave_openai=st.session_state.get("chiave_ia", ""))
         if _ris_ia.get("testo"):
             # le parole chiave che scrive l'IA stessa guidano la ricerca
@@ -748,9 +829,14 @@ for chiave, valore in (
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
 
-if st.session_state["archivio"] is None:
-    st.session_state["archivio"] = carica_archivio(
-        st.session_state.get("codice_archivio", ""))
+# l'archivio appartiene a chi sta usando l'app (id automatico dal cookie).
+# il "codice archivio" manuale, se impostato, ha la precedenza: serve per
+# ritrovare i propri post anche su un altro telefono.
+_ID_UTENTE = _id_utente()
+_CHIAVE_ARCHIVIO = (st.session_state.get("codice_archivio") or "").strip() \
+    or _ID_UTENTE
+if st.session_state.get("archivio") is None:
+    st.session_state["archivio"] = carica_archivio(_CHIAVE_ARCHIVIO)
 
 
 
@@ -945,7 +1031,7 @@ with st.sidebar:
             st.rerun()
     else:
         # riprendi la chiave salvata nel TUO browser (solo per te)
-        html(_SCRIPT_LEGGI_CHIAVE, unsafe_allow_javascript=True)
+        html(_SCRIPT_LEGGI_CHIAVE, js=True)
         html(
             '<div class="note">\U0001F511 <b>Senza chiave l\'app funziona '
             'lo stesso</b>: usa lo studio del versetto (costruito sul testo '
@@ -966,7 +1052,7 @@ with st.sidebar:
         if st.session_state.get("ricorda_dispositivo") and _chiave_gemini:
             html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
                                                _js_string(_chiave_gemini)),
-                 unsafe_allow_javascript=True)
+                 js=True)
             st.success("\u2705 Chiave ricordata su questo dispositivo: non la "
                        "devi più reinserire. Resta solo tua.")
         st.checkbox(
@@ -1002,6 +1088,116 @@ with st.sidebar:
     html(
         "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
         "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
+
+    # ---- CONFIGURAZIONE (per chi scarica l'app) ----
+    # Ogni utente crea le PROPRIE chiavi con la PROPRIA email e l'app
+    # gli funziona al 100%: niente altro da fare.
+    _stato = stato_configurazione()
+    if not (_stato.get("gemini") or _stato.get("aimlapi")
+            or _stato.get("suno")):
+        with st.expander("\U0001F9E9 Attiva tutto (2 minuti)",
+                         expanded=True):
+            html(
+                '<div class="box"><b>Questa app funziona gia\' cosi\'.</b> '
+                'Ma per l\'interpretazione scritta come un maestro della '
+                'Scrittura (e per la canzone cantata) servono due chiavi. '
+                '<b>Le crei tu, con la tua email</b>, in due minuti: '
+                '<ol style="margin:6px 0 0 18px;padding:0">'
+                '<li>premi il pulsante sotto: si apre la pagina ufficiale di '
+                'Google</li>'
+                '<li>crei la chiave (e\' gratis, e la fa per il tuo '
+                'account)</li>'
+                '<li>la incolli qui e premi "Attiva": <b>subito</b> '
+                'l\'app usa la tua chiave</li>'
+                '</ol>'
+                'Nessun altro vede la tua chiave: resta nel tuo browser.'
+                '</div>')
+
+            # --- passo 1+2: Gemini ---
+            html('<div class="step">PASSO 1</div>'
+                  '<b>Crea la tua chiave Gemini (gratis)</b>')
+            if st.link_button("\U0001F310 Apri Google AI Studio "
+                              "(crea la chiave qui)",
+                              "https://aistudio.google.com/api-keys",
+                              use_container_width=True):
+                st.info("Si e' aperta una nuova scheda: clicca 'Create API "
+                        "key', poi torna qui e incolla la chiave.")
+            _v_gem = st.text_input(
+                "PASSO 2 - incolla qui la tua chiave Gemini",
+                type="password", key="cfg_gemini",
+                placeholder="AIzaSy...",
+                help="La trovi subito dopo averla creata su "
+                     "aistudio.google.com/api-keys.")
+            if _v_gem:
+                st.session_state["cfg_gemini"] = _v_gem.strip()
+
+            # --- passo 3: attiva ---
+            html('<div class="step">PASSO 3</div>'
+                  '<b>Attiva e verifica</b>')
+            _b1, _b2 = st.columns(2)
+            with _b1:
+                if st.button("\U0001F4DD Attiva subito (per me)",
+                             use_container_width=True, key="cfg_attiva"):
+                    if _v_gem:
+                        st.session_state["cfg_gemini"] = _v_gem.strip()
+                        st.success("\u2705 Attivata! Prova 'Studia questo "
+                                   "passaggio': l'interpretazione la scrive "
+                                   "Gemini con la TUA chiave.")
+                    else:
+                        st.info("Incolla prima la chiave (passo 2).")
+            with _b2:
+                if st.button("\U0001F50E Verifica che funzioni",
+                             use_container_width=True, key="cfg_verifica"):
+                    _k = _chiave_gemini_attiva()
+                    if not _k:
+                        st.info("Nessuna chiave attiva: incollane una.")
+                    else:
+                        with st.spinner("Verifico con una frase sola..."):
+                            _r = _chiedi_ia("Rispondi con una sola parola: "
+                                             "quale e' il pastore buono?",
+                                             chiave_gemini=_k)
+                        if _r.get("testo"):
+                            st.success("\u2705 Funziona! La chiave e' "
+                                       "attiva e risponde.")
+                        else:
+                            st.error("La chiave non ha risposto: "
+                                     + str(_r.get("errore"))[:160])
+
+            st.markdown("---")
+            with st.expander("Opzionale: la canzone cantata (Suno o AIMLAPI)"):
+                html('<div class="note">Per sentire una canzone cantata che '
+                     'nascendo dal tuo versetto, servono i crediti di un '
+                     'motore musicale. Sono opzionali: senza, l\'app cerca '
+                     'le canzoni di lode gia\' esistenti e prepara il video.'
+                     '</div>')
+                _v_aim = st.text_input(
+                    "Chiave AIMLAPI (facoltativa)", type="password",
+                    key="cfg_aimlapi", placeholder="f3a9b74d...")
+                if _v_aim:
+                    st.session_state["cfg_aimlapi"] = _v_aim.strip()
+                if st.button("\U0001F4DD Salva la configurazione sul computer",
+                             use_container_width=True, key="cfg_salva"):
+                    _da = {}
+                    if _v_gem:
+                        _da["GEMINI_API_KEY"] = _v_gem.strip()
+                    if _v_aim:
+                        _da["AIMLAPI_KEY"] = _v_aim.strip()
+                    if _da:
+                        _okc, _msg = scrivi_secrets(_da)
+                        (st.success if _okc else st.error)(
+                            "\u2705 " + _msg if _okc else _msg)
+                    else:
+                        st.info("Incolla prima una chiave.")
+                if st.checkbox("Condividi la chiave con TUTTI gli utenti "
+                               "dell'app (la quota sara' di tutti)",
+                               value=False, key="cfg_condividi"):
+                    if _v_gem and ricorda_chiave_gemini(_v_gem.strip()):
+                        st.success("\u2705 Chiave salvata sul server: da ora "
+                                   "in poi Gemini e' attivo per tutti.")
+                with st.expander("Suno: i crediti gratuiti del TUO account"):
+                    html('<div class="box">'
+                         + ISTRUZIONE_SUNO.replace("\n", "<br>") + '</div>')
+
 
     st.markdown("---")
     st.markdown("### \U0001F510 Archivio privato")
@@ -1365,7 +1561,7 @@ with tab_riflessione:
                         _sc = scegli_versetto_ia(
                             _riflessione.strip(),
                             st.session_state["versetti"],
-                            chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                            chiave_gemini=_chiave_gemini_attiva(),
                             chiave_openai=st.session_state.get("chiave_ia", ""))
                     st.session_state["scelta_ia_versetto"] = _sc
                     if _sc.get("indice") is not None:
@@ -1871,7 +2067,7 @@ elif studio and studio.get("versetto"):
                         "(come un maestro della Scrittura)..."):
             _ris = _chiedi_ia(
                 _prompt_attuale,
-                chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                chiave_gemini=_chiave_gemini_attiva(),
                 chiave_openai=st.session_state.get("chiave_ia", ""))
         if _ris.get("errore") and not _ris.get("testo"):
             st.warning(f"IA non disponibile: {_ris['errore']}")
@@ -2236,7 +2432,7 @@ if risultati:
                         _riferimento or (testo or "")[:120], _interp,
                         temi=", ".join((st.session_state["analisi"] or {})
                                       .get("temi", [])[:3]),
-                        chiave_gemini=st.session_state.get("chiave_gemini", ""),
+                        chiave_gemini=_chiave_gemini_attiva(),
                         chiave_openai=st.session_state.get("chiave_ia", ""))
                 if _res.get("ok"):
                     st.session_state["canzone_testi"] = _res["testo"]
@@ -2299,7 +2495,7 @@ if risultati:
                     else:
                         _res_m = genera_canzone(
                             _testi_finali, _stile_finale,
-                            chiave=st.session_state.get("chiave_aimlapi", ""),
+                            chiave=_chiave_aimlapi_attiva(),
                             modello=st.session_state.get("modello_musica", ""))
                 if _res_m.get("ok"):
                     st.session_state["canzone_audio"] = _res_m["file"]
@@ -2530,7 +2726,7 @@ if post:
         }
         st.session_state["archivio"] = aggiungi_post(
             voce,
-            st.session_state.get("codice_archivio", ""),
+            _CHIAVE_ARCHIVIO,
             voci_correnti=st.session_state.get("archivio") or [])
         if st.session_state.get("codice_archivio"):
             st.success("\u2705 Post salvato nel tuo archivio privato.")
@@ -2712,7 +2908,7 @@ else:
                              use_container_width=True):
                     st.session_state["archivio"] = elimina_post(
                         voce.get("id", ""),
-                        st.session_state.get("codice_archivio", ""))
+                        _CHIAVE_ARCHIVIO)
                     st.rerun()
 
 html(
