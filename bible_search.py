@@ -216,13 +216,44 @@ def _cache_path() -> str:
         return os.path.join(tempfile.gettempdir(), NOME_CACHE)
 
 
+def _cache_valida(dati) -> bool:
+    """
+    Controlla che la cache sia davvero la Bibbia italiana (Riveduta 2020).
+    Se i nomi dei libri non sono quelli italiani, la cache e' "sporca"
+    (per esempio una copia in portoghese): meglio riscaricarla.
+    """
+    try:
+        if not isinstance(dati, list) or len(dati) != len(LIBRI_IT):
+            return False
+        # il primo e l'ultimo libro devono essere quelli italiani
+        if str(dati[0].get("name", "")).strip() != LIBRI_IT[0]:
+            return False
+        if str(dati[-1].get("name", "")).strip() != LIBRI_IT[-1]:
+            return False
+        # e il testo deve essere in italiano (non portoghese)
+        _t = ""
+        for _c in (dati[0].get("chapters") or [])[:1]:
+            if _c:
+                _t = str(_c[0])
+                break
+        if _t and any(w in _t.lower() for w in
+                       ("então", "não", "você", "senhor ", "filhos", "coração")):
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def scarica_bibbia() -> list[dict] | None:
     """Scarica (o recupera dalla cache) la Bibbia in italiano."""
     percorso = _cache_path()
     if os.path.exists(percorso):
         try:
             with open(percorso, "r", encoding="utf-8") as f:
-                return json.load(f)
+                dati = json.load(f)
+            if _cache_valida(dati):
+                return dati
+            # cache non valida: la scarto e riscarico quella giusta
         except Exception:
             pass
 
@@ -236,6 +267,8 @@ def scarica_bibbia() -> list[dict] | None:
                 continue
             risposta.encoding = "utf-8"
             dati = risposta.json()
+            if not _cache_valida(dati):
+                continue
             try:
                 with open(percorso, "w", encoding="utf-8") as f:
                     json.dump(dati, f, ensure_ascii=False)
