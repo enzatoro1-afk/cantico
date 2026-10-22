@@ -3742,6 +3742,30 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         else:
             st.warning("La canzone e' pronta ma il video non e' uscito: "
                        + str(_res_v.get("errore", ""))[:120])
+        # il POST (caption, hook, hashtag) viene preparato qui, cosi' non
+        # serve scegliere una canzone su YouTube per avere la caption
+        _post_esistente = st.session_state.get("post")
+        _caption_ia = (st.session_state.get("riflessione_ia") or {}).get(
+            "post", {}).get("caption", "")
+        if not _post_esistente or not _post_esistente.get("caption"):
+            _hashtag = genera_hashtag(testo, parole_chiave)
+            _formato = (st.session_state["analisi"] or {}).get(
+                "formato_post", "Versetto + domanda")
+            _caption = (_caption_ia or genera_caption(testo, _formato, _hashtag))
+            _hook = (st.session_state.get("riflessione_ia") or {}).get(
+                "post", {}).get("hook", "") or genera_hook(testo)
+            st.session_state["post"] = {
+                "titolo": "canzone originale sul tuo versetto",
+                "video_id": "", "canale": "l'app",
+                "hashtag": _hashtag, "formato": _formato,
+                "caption": _caption, "hook": _hook,
+                "corpo_ia": (st.session_state.get("riflessione_ia") or {}).get(
+                    "post", {}).get("corpo", []),
+            }
+            if _caption:
+                st.session_state["caption"] = _caption
+            if _hook:
+                st.session_state["hook"] = _hook
         st.rerun()
 
     if st.session_state.get("canzone_testi"):
@@ -3828,6 +3852,14 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
 
             # --- 3) il video per TikTok ---
             st.markdown("**3. Il video pronto per TikTok** (9:16 verticale)")
+            html(
+                '<div class="note box-ok"><b>Il post (caption, hashtag, l\'ora) '
+                'lo trovi qui:</b> in fondo, nel blocco '
+                '<b>"PASSAGGIO 3 - Prepara e pubblica"</b>. L\'app te lo '
+                'prepara da sola quando usi "FAI TUTTO" (caption sul tuo '
+                'versetto, testo a schermo e le 3 righe). Se hai anche scelto '
+                'una canzone su YouTube, la caption viene dalle tue parole '
+                'riflessione.</div>', unsafe_allow_html=True)
 
             # ---- 3a) L'IMMAGINE DEL POST, GENERATA DALL'AI ----
             with st.expander("\U0001F5BC️ Genera l'immagine del post (AI)",
