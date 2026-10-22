@@ -25,6 +25,7 @@ Funziona da browser, quindi è **perfetta per il telefono**.
 | 10 | **Data e orario** | Scegli la data e ricevi l'orario consigliato per un contenuto religioso (mattina presto, pausa pranzo, sera, domenica mattina...). |
 | 11 | **Archivio** | Tutti i post preparati restano salvati nell'app (in un file JSON), con download .txt e ricarica. |
 | 12 | **Studio biblico** | Riconosce il riferimento (Giovanni 3,16), propone i **4 passi** dello studio induttivo (testo, contesto, significato, applicazione) e cerca su YouTube le esposizioni/studi biblici pentecostali (ADI, chiese evangeliche) su quel passaggio. |
+| 13 | **Riflessione + post pronti** | Dopo l'interpretazione, l'IA scrive una **riflessione personale** (in prima persona) su quella interpretazione e la **riduce** in un post TikTok: testo a schermo (0-3 s), 3 righe da dire, caption, CTA, e il **momento giusto** per pubblicarlo (giorno + fascia oraria, con il perchè). |
 
 ---
 
@@ -46,6 +47,7 @@ Assistente-Canzone-TikTok/
 ├── musica.py              # ACE-Step / MusicGen + creazione del video .mp4
 ├── suno.py                # Suno (crediti gratuiti) + tag di stile + struttura
 ├── testi_canzone.py       # l'IA scrive le parole del brano
+├── riflessione.py         # l'IA scrive la riflessione e la riduce per TikTok
 ├── hotreload.py           # ricarica i moduli quando il codice cambia
 ├── AGGIORNA_COOKIE_SUNO.py # salva/aggiorna il cookie di suno.com in locale
 ├── AVVIA_SUNO.py          # (facoltativo) servizio open source di Suno
@@ -550,6 +552,28 @@ Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due
    l'interpretazione di studio secondo la dottrina evangelica pentecostale.
 4. Estrae le **3 parole chiave spirituali** (es. *fiducia, luce, pastore*).
 
+**FASE 1b - La riflessione e il post pronti** (nuova, automatica)
+5. L'IA prende l'interpretazione e ne scrive una **riflessione personale**,
+   in prima persona, come se la scrivesse il creator.
+6. La **riduce** in un post pronto per TikTok:
+   - **testo a schermo** (0-3 secondi, massimo 7 parole)
+   - **3 righe da dire** (una idea per riga)
+   - **caption** (massimo 220 caratteri, col versetto dentro)
+   - **CTA** (l'invito finale)
+   - **momento giusto per pubblicare** (giorno + fascia oraria, con il perchè
+     e un consiglio pratico)
+7. Tutto è copiabile con un tocco, e il pulsante **"Usa questo post per il mio
+   TikTok"** lo mette direttamente nel PASSAGGIO 3 (caption, testo a schermo
+   e le 3 righe), con la data e l'ora già impostate sul momento consigliato.
+
+> L'interruttore **"Fai anche la riflessione e il post TikTok"** (accanto a
+> "Studia con l'IA gratuita") accende o spegne questo passaggio: con la sola
+> IA gratuita raddoppia l'attesa, con la chiave Gemini è veloce.
+
+> **Senza IA l'app non resta a mani vuote**: la riflessione viene presa dalla
+> sezione "DALLA VOCE DI DIO AL NOSTRO CUORE" dell'interpretazione, e il
+> post viene ridotto in locale.
+
 ### 🎯 L'interpretazione è sempre diversa da versetto a versetto
 
 Il motore di studio **non** ripete lo stesso testo: guarda le **immagini reali**
@@ -563,7 +587,6 @@ l'analisi su quelle. Esempio:
 | Salmo 23,1 | "una promessa che parla di **pastore**" |
 
 ### 🆓 L'app funziona bene anche SENZA la chiave (per chi la scarica)
-
 Se qualcuno scarica il codice e lo usa per conto proprio, **non ha la
 chiave Gemini**: l'app deve comunque essere buona. E lo è:
 

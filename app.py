@@ -74,6 +74,26 @@ from post_generator import (
     link_tiktok_upload,
     suggerisci_orari,
 )
+try:
+    from riflessione import (genera_riflessione, genera_riflessione_e_post,
+                             momento_migliore, riduci_per_post)
+except Exception:  # il file potrebbe non essere ancora sul server
+    def genera_riflessione(*_a, **_k):
+        return {"testo": "", "parole_chiave": [], "fonte": "",
+                "errore": "Modulo non disponibile: aggiorna l'app."}
+
+    def genera_riflessione_e_post(*_a, **_k):
+        return {"riflessione": "", "parole_chiave": [], "post": {},
+                "fonte": "", "errore": "Modulo non disponibile: aggiorna l'app."}
+
+    def riduci_per_post(*_a, **_k):
+        return {"hook": "", "corpo": [], "caption": "", "cta": "",
+                "fonte": "", "errore": "Modulo non disponibile: aggiorna l'app."}
+
+    def momento_migliore(*_a, **_k):
+        return {"giorno": "", "fascia": "", "orario": "", "motivo": "",
+                "consiglio": "", "fonte": "",
+                "errore": "Modulo non disponibile: aggiorna l'app."}
 from tiktok_sounds import (
     MESSAGGIO_TIKTOK,
     cerca_suoni_tiktok,
@@ -695,6 +715,79 @@ def _chiedi_ia(prompt: str, chiave_gemini: str = "",
             "errore": " | ".join(_problemi)}
 
 
+def _mostra_post_ia(_post_ia: dict, suffisso: str = "ia") -> None:
+    """Mostra il post ridotto dall'IA (hook, 3 righe, caption, CTA)."""
+    if not (_post_ia.get("hook") or _post_ia.get("caption")):
+        return
+    html(
+        '<div class="step">IL POST TIKTOK</div>'
+        '<div class="note">La riflessione ridotta: quello che appare a '
+        'schermo e quello che dici. Tutto copiabile con un tocco.</div>')
+    with st.container(border=True):
+        html('<div class="badge">TESTO A SCHERMO (0-3 secondi)</div>'
+             f'<div class="card-title">{esc(_post_ia.get("hook", ""))}</div>')
+        blocco_copia(_post_ia.get("hook", ""), f"copia_hook_{suffisso}",
+                     "\U0001F4CB Copia il testo a schermo")
+        if _post_ia.get("corpo"):
+            html('<div class="badge" style="margin-top:8px">IL TESTO DA '
+                 'DIRE (3 righe)</div>')
+            for _riga in _post_ia.get("corpo", []):
+                html(f'<div class="note">&bull; {esc(_riga)}</div>')
+            blocco_copia("\n".join(_post_ia.get("corpo", [])),
+                         f"copia_corpo_{suffisso}",
+                         "\U0001F4CB Copia le 3 righe")
+        if _post_ia.get("caption"):
+            html('<div class="badge" style="margin-top:8px">CAPTION</div>'
+                 f'<div class="card-title">{esc(_post_ia.get("caption",""))}'
+                 '</div>')
+            blocco_copia(_post_ia.get("caption", ""), f"copia_caption_{suffisso}",
+                         "\U0001F4CB Copia la caption")
+        if _post_ia.get("cta"):
+            html(f'<div class="note">Invito: {esc(_post_ia.get("cta",""))}'
+                 '</div>')
+        # ---- IL MOMENTO GIUSTO PER PUBBLICARE ----
+        _mom = _post_ia.get("momento") or {}
+        if _mom.get("giorno"):
+            html(
+                '<div class="badge" style="margin-top:8px">QUANDO PUBBLICARE'
+                '</div>'
+                f'<div class="card-title">{esc(_mom.get("giorno",""))} &mdash; '
+                f'{esc(_mom.get("fascia",""))} ({esc(_mom.get("orario",""))})'
+                '</div>'
+                f'<div class="note">{esc(_mom.get("motivo",""))}</div>')
+            if _mom.get("consiglio"):
+                html(f'<div class="note"><b>Consiglio:</b> '
+                     f'{esc(_mom.get("consiglio",""))}</div>')
+
+
+def _salva_riflessione_ia(riflessione: str, post: dict, parole_chiave=None,
+                          fonte: str = "IA") -> dict:
+    """Mette in stato la riflessione e il post, e azzera il campo modificabile."""
+    _esito = {
+        "riflessione": (riflessione or "").strip(),
+        "parole_chiave": list(parole_chiave or []),
+        "post": post or {},
+        "fonte": fonte,
+    }
+    st.session_state["riflessione_ia"] = _esito
+    st.session_state.pop("riflessione_ia_testo", None)
+    return _esito
+
+
+def _rigenera_riflessione(testo_versetto: str, interpretazione: str,
+                          riferimento: str) -> dict:
+    """Chiede all'IA la riflessione + la riduzione per il post TikTok."""
+    _esito = genera_riflessione_e_post(
+        testo_versetto=testo_versetto,
+        interpretazione=interpretazione,
+        riferimento=riferimento,
+        chiave_gemini=_chiave_gemini_attiva(),
+        chiave_openai=st.session_state.get("chiave_ia", ""))
+    st.session_state["riflessione_ia"] = _esito
+    st.session_state.pop("riflessione_ia_testo", None)
+    return _esito
+
+
 def _studia_versetto() -> None:
     """
     FASE 1: interpretazione dottrinale pentecostale del versetto
@@ -830,6 +923,18 @@ def _studia_versetto() -> None:
         else:
             st.session_state["ia_note"] = _ris_ia.get("errore", "")
 
+    # --- FASE 1b: la RIFLESSIONE + il POST TIKTOK, scritti dall'IA ---
+    # Se l'utente ha lasciato attivo l'interruttore, l'app fa da sola il
+    # passo dopo l'interpretazione: la riflessione personale sul versetto e
+    # la sua riduzione in un post pronto per TikTok.
+    if st.session_state.get("auto_riflessione", True):
+        with st.spinner("\U0001F9E0 Scrivo la riflessione e la riduco per "
+                        "TikTok..."):
+            _rigenera_riflessione(
+                testo_versetto=(versetto.get("testo_pulito", "") or ""),
+                interpretazione=(interpretazione.get("testo", "") or ""),
+                riferimento=riferimento.get("riferimento", ""))
+
     # --- FASE 2: la ricerca delle canzoni, GUIDATA dall'interpretazione ---
     # Le parole chiave vengono dall'interpretazione (quindi dalla IA o dallo
     # studio): la canzone proposta parla davvero di quel versetto.
@@ -894,6 +999,8 @@ for chiave, valore in (
     ("canzone_audio", ""),
     ("canzone_video", ""),
     ("suno_protegto", False),
+    ("riflessione_ia", None),
+    ("auto_riflessione", True),
 ):
     if chiave not in st.session_state:
         st.session_state[chiave] = valore
@@ -1852,6 +1959,51 @@ with tab_riflessione:
                            "nella scheda \"Versetto -> canzone\" e l'app "
                            "cercherà la canzone per la tua Parola.")
 
+        # ---- LA TUA RIFLESSIONE RIDOTTA PER TIKTOK ----
+        if st.button("\U0001F50D Riduci la mia riflessione in un post TikTok",
+                     use_container_width=True, key="riduci_riflessione_utente"):
+            if not (_riflessione or "").strip():
+                st.warning("Scrivi prima la tua riflessione \U0001F4D8")
+            else:
+                with st.spinner("\U0001F50D Riduco la tua riflessione per "
+                                "TikTok..."):
+                    _post_mio = riduci_per_post(
+                        _riflessione.strip(),
+                        chiave_gemini=_chiave_gemini_attiva(),
+                        chiave_openai=st.session_state.get("chiave_ia", ""))
+                _salva_riflessione_ia(_riflessione.strip(), _post_mio,
+                                      fonte="la tua riflessione")
+                st.rerun()
+
+        # il post ricavato dalla TUA riflessione (se l'hai ridotta)
+        _post_mio_gia = (st.session_state.get("riflessione_ia") or {}).get(
+            "post") or {}
+        if _post_mio_gia.get("hook") or _post_mio_gia.get("caption"):
+            html('<hr><div class="step">IL TUO POST TIKTOK</div>')
+            _mostra_post_ia(_post_mio_gia, "rif")
+            if st.button("\U0001F4E4 Usa questo post per il mio TikTok",
+                         type="primary", use_container_width=True,
+                         key="usa_post_riflessione"):
+                _post_gia = st.session_state.get("post")
+                if not _post_gia:
+                    st.info("Prima scegli la canzone (pulsante "
+                            "'\u2B50 Scegli questa canzone per il post'): poi "
+                            "torna qui e usa la caption dell'IA.")
+                else:
+                    _post_gia = dict(_post_gia)
+                    _post_gia["caption"] = _post_mio_gia.get("caption", "")
+                    _post_gia["hook"] = _post_mio_gia.get("hook", "")
+                    _post_gia["corpo_ia"] = _post_mio_gia.get("corpo", [])
+                    _post_gia["momento_ia"] = _post_mio_gia.get("momento", {})
+                    _post_gia["riflessione"] = _riflessione.strip()
+                    st.session_state["post"] = _post_gia
+                    if _post_mio_gia.get("caption"):
+                        st.session_state["caption"] = _post_mio_gia["caption"]
+                    if _post_mio_gia.get("hook"):
+                        st.session_state["hook"] = _post_mio_gia["hook"]
+                    st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption "
+                               "e il testo a schermo.")
+
     # i versetti trovati dalla riflessione vengono mostrati sotto
     # (riutilizzo lo stesso blocco della scheda 1)
 
@@ -2136,6 +2288,15 @@ if riferimento_verso and not studio.get("errore"):
                      "versetto. Ci mette 10-40 secondi. Se la IA non "
                      "risponde, si usa comunque lo studio del versetto.",
             )
+            st.checkbox(
+                "Fai anche la riflessione e il post TikTok (in automatico)",
+                value=st.session_state.get("auto_riflessione", True),
+                key="auto_riflessione",
+                help="Attivo: dopo l'interpretazione l'IA scrive anche una "
+                     "riflessione personale sul versetto e la riduce in un "
+                     "post pronto per TikTok (testo a schermo, 3 righe, "
+                     "caption). Ci mette altri 15-40 secondi.",
+            )
         with col_b:
             st.button(
                 "\U0001F3B5 Canzone per questo versetto",
@@ -2348,6 +2509,14 @@ elif studio and studio.get("versetto"):
                 "fonte": _ris.get("fonte", "IA"),
                 "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
             }
+            if st.session_state.get("auto_riflessione", True):
+                with st.spinner("\U0001F9E0 Rifaccio la riflessione e la "
+                                "riduzione per TikTok..."):
+                    _rigenera_riflessione(
+                        testo_versetto=(v.get("testo_pulito", "") or ""),
+                        interpretazione=_ris["testo"],
+                        riferimento=studio.get("riferimento", {}).get(
+                            "riferimento", ""))
             st.rerun()
 
     if st.session_state.get("_ia_richiesta") == "api":
@@ -2366,6 +2535,14 @@ elif studio and studio.get("versetto"):
                 "fonte": _ris.get("fonte", "ChatGPT (API)"),
                 "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
             }
+            if st.session_state.get("auto_riflessione", True):
+                with st.spinner("\U0001F9E0 Rifaccio la riflessione e la "
+                                "riduzione per TikTok..."):
+                    _rigenera_riflessione(
+                        testo_versetto=(v.get("testo_pulito", "") or ""),
+                        interpretazione=_ris["testo"],
+                        riferimento=studio.get("riferimento", {}).get(
+                            "riferimento", ""))
             st.rerun()
 
     if st.session_state.get("_ia_richiesta") == "link":
@@ -2396,6 +2573,14 @@ elif studio and studio.get("versetto"):
                 "fonte": "la tua IA",
                 "riferimento": studio.get("riferimento", {}).get("riferimento", ""),
             }
+            if st.session_state.get("auto_riflessione", True):
+                with st.spinner("\U0001F9E0 Rifaccio la riflessione e la "
+                                "riduzione per TikTok..."):
+                    _rigenera_riflessione(
+                        testo_versetto=(v.get("testo_pulito", "") or ""),
+                        interpretazione=_incollata,
+                        riferimento=studio.get("riferimento", {}).get(
+                            "riferimento", ""))
             st.session_state["_ria_fase2"] = True
             st.rerun()
 
@@ -2415,6 +2600,132 @@ elif studio and studio.get("versetto"):
                 "https://chatgpt.com/",
                 use_container_width=True,
             )
+
+    # ======================================================================
+    # FASE 1b - LA RIFLESSIONE (scritta dall'IA) + IL POST TIKTOK
+    # ======================================================================
+    # L'interpretazione spiega il versetto. Qui l'IA fa un passo oltre:
+    # scrive una RIFLESSIONE personale su quella interpretazione e la
+    # RIDUCE in un post pronto per TikTok (hook, corpo, caption, CTA).
+    _rif_ia = st.session_state.get("riflessione_ia") or {}
+    _post_ia = _rif_ia.get("post") or {}
+
+    html(
+        '<hr><div class="step">FASE 1b</div>'
+        "<h3>\U0001F4DD La riflessione e il post pronti</h3>"
+        '<div class="note">L\'IA prende l\'interpretazione di sopra e ne fa '
+        'una <b>riflessione personale</b> (come se la scrivesse il creator), '
+        'poi la <b>riduce</b> in un post TikTok: la frase da mettere a '
+        'schermo, 3 righe da dire e la caption. Tocca il pulsante e in un '
+        'colpo sola hai tutto il materiale del post.</div>')
+
+    _c_rif1, _c_rif2 = st.columns(2)
+    with _c_rif1:
+        if st.button("\U0001F9E0 Fai la riflessione + il post",
+                     type="primary", use_container_width=True,
+                     key="fai_riflessione_ia",
+                     help="L'IA scrive la riflessione sul versetto e la "
+                          "riduce subito in un post pronto per TikTok. "
+                          "Ci mette 15-40 secondi."):
+            with st.spinner("\U0001F9E0 Sto scrivendo la riflessione e "
+                            "riducendola per TikTok..."):
+                _esito = genera_riflessione_e_post(
+                    testo_versetto=(v.get("testo_pulito", "") or ""),
+                    interpretazione=(interp.get("testo", "") or ""),
+                    riferimento=studio.get("riferimento", {}).get(
+                        "riferimento", ""),
+                    chiave_gemini=_chiave_gemini_attiva(),
+                    chiave_openai=st.session_state.get("chiave_ia", ""))
+            _salva_riflessione_ia(_esito.get("riflessione", ""),
+                                  _esito.get("post", {}),
+                                  _esito.get("parole_chiave", []),
+                                  _esito.get("fonte", "IA"))
+            st.session_state["_rif_ia_fatto"] = True
+            st.rerun()
+    with _c_rif2:
+        if st.button("\U0001F50D Riduci la mia riflessione in un post",
+                     use_container_width=True, key="riduci_riflessione_ia",
+                     help="Usa la riflessione che hai scritto tu (o quella "
+                          "dell'IA) e ricavane il post per TikTok."):
+            _mia = (st.session_state.get("riflessione_ia_testo") or
+                    _rif_ia.get("riflessione", "")).strip()
+            if not _mia:
+                st.warning("Prima scrivi o fai generare la riflessione "
+                           "\U0001F4D8")
+            else:
+                with st.spinner("\U0001F50D Riduco la riflessione per "
+                                "TikTok..."):
+                    _esito2 = riduci_per_post(
+                        _mia,
+                        testo_versetto=(v.get("testo_pulito", "") or ""),
+                        riferimento=studio.get("riferimento", {}).get(
+                            "riferimento", ""),
+                        chiave_gemini=_chiave_gemini_attiva(),
+                        chiave_openai=st.session_state.get("chiave_ia", ""))
+                _esito2 = dict(_esito2)
+                _salva_riflessione_ia(_mia, _esito2,
+                                      _rif_ia.get("parole_chiave", []),
+                                      _esito2.get("fonte", "IA"))
+                st.rerun()
+
+    if _rif_ia.get("errore") and not _rif_ia.get("riflessione"):
+        st.info("L'IA non ha risposto (" + str(_rif_ia["errore"])[:160] +
+                "). La riflessione viene presa direttamente dall'interpretazione.")
+
+    if _rif_ia.get("riflessione"):
+        # ---- LA RIFLESSIONE ----
+        html(
+            '<div class="step">LA RIFLESSIONE</div>'
+            f'<div class="note">Scritta da: <b>{esc(_rif_ia.get("fonte", "IA"))}'
+            '</b> &bull; <b>tu</b> puoi correggerla: il pulsante "Riduci la '
+            'mia riflessione" usa il testo che trovi qui sotto.</div>')
+        _rif_testo = st.text_area(
+            "La riflessione (modificabile)",
+            value=(st.session_state["riflessione_ia_testo"]
+                   if "riflessione_ia_testo" in st.session_state
+                   else _rif_ia.get("riflessione", "")),
+            height=190, key="riflessione_ia_testo",
+        )
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            blocco_copia(_rif_testo, "copia_riflessione",
+                         "\U0001F4CB Copia la riflessione")
+        with col_r2:
+            st.download_button(
+                "\U0001F4E4 Scarica (.txt)", data=_rif_testo,
+                file_name=f"riflessione_{v.get('riferimento', 'versetto')}"
+                          .replace(" ", "_").replace(",", "-")
+                          .replace(":", "-") + ".txt",
+                mime="text/plain", key="dl_riflessione")
+
+    if _post_ia.get("hook") or _post_ia.get("caption"):
+        # ---- IL POST TIKTOK ----
+        _mostra_post_ia(_post_ia, "ia")
+
+        # ---- USALO NEL POST ----
+        if st.button("\U0001F4E4 Usa questo post per il mio TikTok",
+                     type="primary", use_container_width=True,
+                     key="usa_post_ia"):
+            _post_gia = st.session_state.get("post")
+            if not _post_gia:
+                st.info("Prima scegli la canzone (pulsante "
+                        "'\u2B50 Scegli questa canzone per il post'): poi "
+                        "torna qui e usa la caption dell'IA.")
+            else:
+                _post_gia = dict(_post_gia)
+                _post_gia["caption"] = _post_ia.get("caption", "")
+                _post_gia["hook"] = _post_ia.get("hook", "")
+                _post_gia["riflessione"] = _rif_ia.get("riflessione", "")
+                _post_gia["corpo_ia"] = _post_ia.get("corpo", [])
+                _post_gia["momento_ia"] = _post_ia.get("momento", {})
+                st.session_state["post"] = _post_gia
+                # i campi del PASSAGGIO 3 prendono subito il testo dell'IA
+                if _post_ia.get("caption"):
+                    st.session_state["caption"] = _post_ia["caption"]
+                if _post_ia.get("hook"):
+                    st.session_state["hook"] = _post_ia["hook"]
+                st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
+                           "il testo a schermo scritti dall'IA.")
 
 
 # --------------------------------------------------------------------------
@@ -2666,6 +2977,23 @@ if risultati:
                     st.session_state["post"]["hook"] = " ".join(
                         _rifl.split()[:8])
                     st.session_state["post"]["riflessione"] = _rifl
+                # se l'IA ha gia' scritto la riflessione e la sua riduzione
+                # per TikTok, il post parte da quelle (il testo e' gia' pronto)
+                _post_ia = (st.session_state.get("riflessione_ia") or {}).get(
+                    "post") or {}
+                if _post_ia.get("caption"):
+                    st.session_state["post"]["caption"] = _post_ia["caption"]
+                    st.session_state["post"]["hook"] = _post_ia.get(
+                        "hook", st.session_state["post"]["hook"])
+                    st.session_state["post"]["corpo_ia"] = _post_ia.get(
+                        "corpo", [])
+                    st.session_state["post"]["momento_ia"] = _post_ia.get(
+                        "momento", {})
+                    st.session_state["post"]["riflessione"] = (
+                        (st.session_state.get("riflessione_ia") or {}).get(
+                            "riflessione", ""))
+                    st.session_state["caption"] = _post_ia["caption"]
+                    st.session_state["hook"] = _post_ia.get("hook", "")
                 st.rerun()
 
 
@@ -3008,27 +3336,109 @@ if post:
                             if post["formato"] in FORMATI_POST else 0,
                             key="formato_post")
     hashtag = genera_hashtag(testo, poste_chiave := estrai_parole_chiave(testo, 3))
-    caption = st.text_area("Caption (modificabile prima di copiare)",
-                            value=genera_caption(testo, formato, hashtag),
-                            height=170, key="caption")
-    hook = st.text_area("Testo da mettere a schermo (primi 3 secondi)",
-                        value=genera_hook(testo), height=70, key="hook")
+    # se l'IA ha gia' scritto la caption (riflessione ridotta), parte da quella
+    if "caption" in st.session_state:
+        caption = st.text_area("Caption (modificabile prima di copiare)",
+                                height=170, key="caption")
+    else:
+        caption = st.text_area(
+            "Caption (modificabile prima di copiare)",
+            value=(post.get("caption")
+                   or genera_caption(testo, formato, hashtag)),
+            height=170, key="caption")
+    if "hook" in st.session_state:
+        hook = st.text_area("Testo da mettere a schermo (primi 3 secondi)",
+                            height=70, key="hook")
+    else:
+        hook = st.text_area(
+            "Testo da mettere a schermo (primi 3 secondi)",
+            value=post.get("hook") or genera_hook(testo),
+            height=70, key="hook")
+
+    # ---- LE 3 RIGHE SCRITTE DALL'IA (dal bottone "Riduci la mia riflessione")
+    if post.get("corpo_ia"):
+        html('<div class="note" style="margin-top:10px;"><b>\U0001F3A4 Le 3 '
+             'righe da dire (scritte dall\'IA):</b></div>')
+        for _riga in post.get("corpo_ia", []):
+            html(f'<div class="note">&bull; {esc(_riga)}</div>')
+        blocco_copia("\n".join(post.get("corpo_ia", [])), "copia_corpo_post",
+                     "\U0001F4CB Copia le 3 righe")
 
     # ---- Data e orario di pubblicazione ----
     html('<div class="note" style="margin-top:10px;"><b>\U0001F4C5 '
                 'Quando lo pubblichi?</b></div>')
+
+    # ---- IL MOMENTO CONSIGLIATO DALL'IA (precompila data e ora) ----
+    _mom_post = (post.get("momento_ia") or {})
+    if _mom_post.get("giorno"):
+        html(
+            f'<div class="box box-ok"><b>\U0001F4C5 Momento consigliato per '
+            f'questo post:</b> {esc(_mom_post.get("giorno",""))} &mdash; '
+            f'{esc(_mom_post.get("fascia",""))} '
+            f'({esc(_mom_post.get("orario",""))})<br>'
+            f'<span class="note">{esc(_mom_post.get("motivo",""))}</span>')
+        if _mom_post.get("consiglio"):
+            html(f'<div class="note"><b>Consiglio:</b> '
+                 f'{esc(_mom_post.get("consiglio",""))}</div>')
+        if st.button("\U0001F4C5 Metti questo momento",
+                     use_container_width=True, key="usa_momento_ia"):
+            st.session_state["_data_momento"] = _mom_post
+            st.rerun()
+    else:
+        # nessun momento ancora: l'app lo calcola sul contenuto del post
+        if st.button("\U0001F9E0 Consigliami il momento giusto",
+                     use_container_width=True, key="chiedi_momento_ia",
+                     help="L'IA guarda il tono del tuo post e ti dice il "
+                          "giorno e l'ora migliori per pubblicarlo."):
+            with st.spinner("\U0001F9E0 Calcolo il momento giusto..."):
+                _mom = momento_migliore(
+                    hook=hook, contenuto=caption,
+                    tema=", ".join((st.session_state["analisi"] or {}).get(
+                        "temi", [])[:2]),
+                    riferimento=(st.session_state.get("riferimento") or {}).get(
+                        "riferimento", ""),
+                    chiave_gemini=_chiave_gemini_attiva(),
+                    chiave_openai=st.session_state.get("chiave_ia", ""))
+            if _mom.get("giorno"):
+                st.session_state["post"]["momento_ia"] = _mom
+                st.session_state["_data_momento"] = _mom
+                st.rerun()
+            else:
+                st.info("Non riesco a calcolare il momento: riprova dopo.")
+
+    # calcola la data del giorno consigliato (il prossimo di quel giorno)
+    _data_ia = None
+    _m = st.session_state.get("_data_momento") or {}
+    if _m.get("giorno"):
+        try:
+            _idx = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì",
+                    "sabato", "domenica"].index(_m["giorno"])
+            _oggi = date.today()
+            _delta = (_idx - _oggi.weekday()) % 7 or 7
+            _data_ia = _oggi + timedelta(days=_delta)
+        except Exception:
+            _data_ia = None
+
     suggerimenti = suggerisci_orari(date.today() + timedelta(days=1))
     col_data, col_ora = st.columns(2)
     with col_data:
-        data_pub = st.date_input("Data di pubblicazione",
-                                  value=date.today() + timedelta(days=1),
-                                  key="data_pub")
+        data_pub = st.date_input(
+            "Data di pubblicazione",
+            value=(_data_ia or date.today() + timedelta(days=1)),
+            key="data_pub")
     with col_ora:
         opzioni_orario = [s["orario"] for s in suggerisci_orari(data_pub)]
+        _ora_ia = _m.get("orario", "")
+        if _ora_ia and _ora_ia not in opzioni_orario:
+            opzioni_orario.append(_ora_ia)
         ora_pub = st.selectbox("Orario consigliato", opzioni_orario,
+                                index=(opzioni_orario.index(_ora_ia)
+                                       if _ora_ia in opzioni_orario else 0),
                                 key="ora_pub")
     motivo = next((s["motivo"] for s in suggerisci_orari(data_pub)
                    if s["orario"] == ora_pub), "")
+    if _m.get("motivo") and ora_pub == _m.get("orario"):
+        motivo = _m["motivo"]
     html(
         f'<div class="box box-ok">\U0001F4C5 <b>{giorno_settimana(data_pub)} '
         f'{data_pub.strftime("%d/%m/%Y")} alle {ora_pub}</b><br>'
