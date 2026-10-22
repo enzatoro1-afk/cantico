@@ -40,7 +40,8 @@ from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
                        interpreta_gemini, interpreta_gratis, link_chatgpt,
                        parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini,
                        scegli_versetto_ia)
-from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_tiktok,
+from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_silenzioso,
+                    crea_video_tiktok,
                     genera_canzone, genera_canzone_gratuita,
                     genera_canzone_senza_pagare)
 import attiva
@@ -3956,6 +3957,59 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                     "\U0001F3AC Scarica il video per TikTok (.mp4)",
                     data=_dati_v, file_name="cantico_tiktok.mp4",
                     mime="video/mp4", key="dl_video_mp4")
+            else:
+                # ---- VIDEO SOLO POSTER + VERSETTO (senza canzone) ----
+                with st.expander("\U0001F5BC️ Solo poster + versetto (senza "
+                                 "canzone)"):
+                    html(
+                        '<div class="note">Se vuoi solo il <b>poster con il '
+                        'versetto</b> (senza la canzone), l\'app genera un '
+                        'video breve e silenzioso. Poi su TikTok aggiungi tu '
+                        'il suono (dalla libreria audio) e pubblichi.</div>',
+                        unsafe_allow_html=True)
+                    if st.button("\U0001F5BC️ Genera il video (solo poster)",
+                                 use_container_width=True,
+                                 key="genera_video_silenzioso"):
+                        _img = st.session_state.get("immagine_ai") or ""
+                        if not _img:
+                            with st.spinner("Sto disegnando il poster..."):
+                                _ris_img = genera_immagine(
+                                    versetto=(v.get("testo_pulito", "") or
+                                              testo or "")[:300],
+                                    tema=", ".join(
+                                        (st.session_state["analisi"] or {})
+                                        .get("temi", [])[:2]),
+                                    stile="Caldo e speranza",
+                                    chiave_gemini=_chiave_gemini_attiva())
+                            if _ris_img.get("ok"):
+                                _img = _ris_img["file"]
+                                st.session_state["immagine_ai"] = _img
+                                st.session_state["immagine_ai_fonte"] = _ris_img.get(
+                                    "fonte", "")
+                            else:
+                                st.error("Non sono riuscito a generare il "
+                                         "poster: " + str(
+                                             _ris_img.get("errore", ""))[:120])
+                        if _img:
+                            with st.spinner("Sto montando il video..."):
+                                _res_vs = crea_video_silenzioso(
+                                    testo=(v.get("riferimento", "") or testo or "")[:160],
+                                    immagine=_img, durata=8)
+                            if _res_vs.get("ok"):
+                                st.session_state["canzone_video"] = _res_vs["file"]
+                                st.success("\u2705 Video pronto (silenzioso). "
+                                           "Ora scegli il suono su TikTok.")
+                                st.rerun()
+                            else:
+                                st.error("Video non creato: "
+                                         + str(_res_vs.get("errore", ""))[:150])
+                    if st.session_state.get("immagine_ai"):
+                        st.image(st.session_state["immagine_ai"], width=240)
+                        with open(st.session_state["immagine_ai"], "rb") as _f:
+                            st.download_button(
+                                "\U0001F5BC️ Scarica il poster (.png)",
+                                data=_f.read(), file_name="cantico_poster.png",
+                                mime="image/png", key="dl_poster_silenzioso")
 
                 # ---- PUBBLICA TUTTO CON UN TOCCO ----
                 # se il tuo TikTok e' collegato, l'app manda video + caption

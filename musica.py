@@ -621,3 +621,53 @@ def _durata_video(path: str) -> str:
         return ""
 
 
+def crea_video_silenzioso(testo: str = "", immagine: str = "",
+                          durata: int = 8) -> dict:
+    """
+    Un video VERTICALE 9:16 con solo il poster e il testo (senza audio).
+
+    Serve per chi vuole pubblicare il verso (con la sua grafica) e poi
+    aggiungere il suono direttamente su TikTok (dalla libreria audio).
+    Non richiede ffmpeg audio: solo l'immagine e il testo.
+
+    Restituisce {"ok": True, "file": "<percorso mp4>"}.
+    """
+    vuoto = {"ok": False, "errore": "", "file": ""}
+    exe = _ffmpeg()
+    if not exe:
+        return {**vuoto, "errore": (
+            "ffmpeg non disponibile. Su Streamlit Cloud c'e': "
+            "si aggiorni l'app e riprova. Sul PC: pip install imageio-ffmpeg")}
+    if immagine and os.path.exists(immagine):
+        img = immagine
+    else:
+        img = crea_sfondo_verticale(testo or "CANTICO",
+                                    "Dalla Parola alla Lode")
+    out = os.path.join(tempfile.gettempdir(),
+                       f"cantico_silenzioso_{uuid.uuid4().hex[:10]}.mp4")
+    vf = "scale=%d:%d,setsar=1" % (LARGHEZZA, ALTEZZA)
+    cmd = [
+        exe, "-y",
+        "-loop", "1", "-i", img,
+        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+        "-vf", vf,
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+        "-pix_fmt", "yuv420p", "-r", "30",
+        "-c:a", "aac", "-b:a", "128k",
+        "-t", str(durata),
+        "-movflags", "+faststart",
+        out,
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
+                              timeout=durata * 2 + 120)
+    except Exception as exc:
+        return {**vuoto, "errore": f"ffmpeg fallito: {exc}"}
+    if proc.returncode != 0 or not os.path.exists(out):
+        dettaglio = (proc.stderr or "")[-300:]
+        return {**vuoto, "errore": f"video non creato: {dettaglio}"}
+    return {"ok": True, "errore": "", "file": out,
+            "durata": f"{durata} s"}
+
+
