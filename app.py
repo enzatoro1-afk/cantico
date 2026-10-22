@@ -3929,9 +3929,12 @@ if post:
                 with open(_video_gia, "rb") as _f:
                     _dati = _f.read()
                 st.download_button(
-                    "\U0001F4BE Scarica il video (.mp4)", data=_dati,
+                    "\U0001F4BE 1) Scarica il video (.mp4)", data=_dati,
                     file_name="cantico_tiktok.mp4", mime="video/mp4",
                     use_container_width=True, key="dl_video_pubblica")
+            else:
+                st.info("Carica il video qui sopra (o fallo costruire "
+                        "dall'app nella sezione 'Crea una canzone ORIGINALE').")
         with _c_p2:
             # un pulsante che COPIA la caption e POI apre TikTok Studio:
             # in Studio basta incollare (Ctrl+V) e pubblicare
@@ -3944,7 +3947,7 @@ if post:
                 'color:#fff;cursor:pointer;'
                 'background:linear-gradient(135deg,#4f46e5,#7c3aed);'
                 'box-shadow:0 4px 14px rgba(79,70,229,.28)">'
-                '\U0001F4E4 Apri TikTok Studio (testo gia\' pronto)</button>'
+                '\U0001F4E4 2) Apri TikTok Studio (testo gia\' pronto)</button>'
                 '<script>(function(){'
                 'try{ var b=document.getElementById("cantico_studio");'
                 'if(!b || b.__pronto) return; b.__pronto = true;'
@@ -4043,7 +4046,16 @@ if post:
             html(
                 '<div class="box"><b>Pubblicazione automatica disponibile.</b> '
                 'Collega il tuo TikTok (una volta sola): si apre TikTok, '
-                'autorizzi l\'app e torni qui.</div>')
+                'autorizzi l\'app e torni qui.<br>'
+                '<span class="note">Se TikTok ti dice che lo scope '
+                '<b>video.publish</b> non e\' ancora approvato: vai su '
+                '<a href="https://developers.tiktok.com/portal/apps" '
+                'target="_blank">developers.tiktok.com</a> &rarr; la tua app '
+                '&rarr; <b>Submit for review</b> (o "Scopes" &rarr; '
+                'video.publish &rarr; Request) e aspetta l\'approvazione. '
+                'Fino ad allora i video automatici restano <b>privati</b>: '
+                'per pubblicare per davvero usa la strada qui sopra '
+                '(3 secondi).</span></div>')
             if st.link_button("\U0001F517 Collega il tuo TikTok",
                               _tkpub.url_authorize("cantico", _tk_utente),
                               use_container_width=True, type="primary"):
@@ -4073,7 +4085,22 @@ if post:
                     if _res.get("ok"):
                         st.success("\u2705 " + _res.get("messaggio", "Pubblicato!"))
                     else:
-                        st.error(_res.get("messaggio", "Pubblicazione fallita."))
+                        _msg = str(_res.get("messaggio", "Pubblicazione fallita."))
+                        st.error(_msg)
+                        if ("scope" in _msg.lower()
+                                or "unauthorized" in _msg.lower()
+                                or "unaudited" in _msg.lower()):
+                            html(
+                                '<div class="box box-warn"><b>Motivo:</b> '
+                                'TikTok non ha ancora approvato lo scope '
+                                '<b>video.publish</b> per la tua app (o non ha '
+                                'superato l\'audit).<br>Apri '
+                                '<a href="https://developers.tiktok.com/portal/apps" '
+                                'target="_blank">developers.tiktok.com</a> '
+                                '&rarr; la tua app &rarr; <b>Submit for '
+                                'review</b>.<br>Intanto pubblica con la strada '
+                                'da 3 secondi qui sopra.</div>',
+                                unsafe_allow_html=True)
             with st.expander("Scarica il video / apri TikTok Studio"):
                 _c_p1, _c_p2 = st.columns(2)
                 with _c_p1:
