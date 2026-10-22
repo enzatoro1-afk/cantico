@@ -72,7 +72,6 @@ from post_generator import (
     genera_hook,
     genera_caption,
     giorno_settimana,
-    link_tiktok_upload,
     suggerisci_orari,
 )
 try:
@@ -97,11 +96,14 @@ except Exception:  # il file potrebbe non essere ancora sul server
                 "errore": "Modulo non disponibile: aggiorna l'app."}
 
 try:
-    from setup_app import pannello_setup
+    from setup_app import chiavi_browser, pannello_setup
 except Exception:  # il file potrebbe non essere ancora sul server
     def pannello_setup(*_a, **_k):
         return {"email": "", "hash": "", "gemini": "", "treblo": "",
                 "hf": "", "salvato": False}
+
+    def chiavi_browser():
+        return {"gemini": "", "treblo": "", "hf": "", "email": ""}
 from tiktok_sounds import (
     MESSAGGIO_TIKTOK,
     cerca_suoni_tiktok,
@@ -324,6 +326,11 @@ CSS = """
   /* le parole chiave: una dopo l'altra, con lo spazio TRA una e l'altra */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .chips .chip { margin: 0; }
+  /* il campo "trucco" che serve solo a far ricalcolare la pagina:
+     non deve essere visibile */
+  div[data-testid="stTextInput"]:has(input[placeholder="_cantico_trigger"]) {
+      display: none !important;
+  }
   .box {
       background: #f8fafc; border-left: 4px solid #7c3aed; border-radius: 10px;
       padding: 11px 13px; font-size: .88rem; word-break: break-word; line-height: 1.55;
@@ -382,21 +389,25 @@ _SCRIPT_LEGGI_TREBLO = """
 (function () {
   try {
     if (window.__canticoTrebloMesso) return;
-    var k = localStorage.getItem("cantico_chiave_treblo");
-    if (!k) return;
-    var campi = document.querySelectorAll('input[type="password"]');
-    for (var i = 0; i < campi.length; i++) {
-      var lab = campi[i].closest('div[data-testid="stTextInput"]');
-      if (lab && /Chiave Treblo/i.test(lab.innerText || "")) {
-        if (campi[i].value) { window.__canticoTrebloMesso = true; return; }
-        var proto = Object.getPrototypeOf(campi[i]);
-        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-        setter.call(campi[i], k);
-        window.__canticoTrebloMesso = true;
-        campi[i].dispatchEvent(new Event('input', { bubbles: true }));
-        return;
+    window.__canticoTrebloMesso = true;
+    function prova() {
+      var k = localStorage.getItem("cantico_chiave_treblo");
+      if (!k) return;
+      var campi = document.querySelectorAll('input[type="password"]');
+      for (var i = 0; i < campi.length; i++) {
+        var lab = campi[i].closest('div[data-testid="stTextInput"]');
+        if (lab && /Chiave Treblo/i.test(lab.textContent || lab.innerText || "")) {
+          if (campi[i].value) return;
+          var proto = Object.getPrototypeOf(campi[i]);
+          var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+          setter.call(campi[i], k);
+          campi[i].dispatchEvent(new Event('input', { bubbles: true }));
+          return;
+        }
       }
+      setTimeout(prova, 300);
     }
+    setTimeout(prova, 100);
   } catch (e) {}
 })();
 </script>
@@ -422,21 +433,25 @@ _SCRIPT_LEGGI_CHIAVE = """
 (function () {
   try {
     if (window.__canticoGeminiMesso) return;
-    var k = localStorage.getItem("cantico_chiave_gemini");
-    if (!k) return;
-    var campi = document.querySelectorAll('input[type="password"]');
-    for (var i = 0; i < campi.length; i++) {
-      var lab = campi[i].closest('div[data-testid="stTextInput"]');
-      if (lab && /Chiave Google Gemini/i.test(lab.innerText || "")) {
-        if (campi[i].value) { window.__canticoGeminiMesso = true; return; }
-        var proto = Object.getPrototypeOf(campi[i]);
-        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-        setter.call(campi[i], k);
-        window.__canticoGeminiMesso = true;
-        campi[i].dispatchEvent(new Event('input', { bubbles: true }));
-        return;
+    window.__canticoGeminiMesso = true;
+    function prova() {
+      var k = localStorage.getItem("cantico_chiave_gemini");
+      if (!k) return;
+      var campi = document.querySelectorAll('input[type="password"]');
+      for (var i = 0; i < campi.length; i++) {
+        var lab = campi[i].closest('div[data-testid="stTextInput"]');
+        if (lab && /Chiave Google Gemini/i.test(lab.textContent || lab.innerText || "")) {
+          if (campi[i].value) return;
+          var proto = Object.getPrototypeOf(campi[i]);
+          var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+          setter.call(campi[i], k);
+          campi[i].dispatchEvent(new Event('input', { bubbles: true }));
+          return;
+        }
       }
+      setTimeout(prova, 300);
     }
+    setTimeout(prova, 100);
   } catch (e) {}
 })();
 </script>
@@ -727,8 +742,8 @@ def _direzione_musicale(interpretazione: str) -> str:
 def _chiave_gemini_attiva() -> str:
     """
     La chiave Gemini che vale davvero, in ordine di priorita':
-      1) quella incollata nel WIZARD (attiva subito, anche online)
-      2) quella nel campo della barra laterale
+      1) quella incollata nel WIZARD (quella dell'utente)
+      2) quella salvata nel SUO browser (cookie): la sua, non del server
       3) quella nei secrets di Streamlit / nel file locale
       4) quella ricordata sul server (per tutti gli utenti)
     """
@@ -736,6 +751,13 @@ def _chiave_gemini_attiva() -> str:
         _v = str(st.session_state.get(_k, "") or "").strip()
         if _v:
             return _v
+    # la chiave dell'utente, salvata nel suo browser
+    try:
+        _v = str((chiavi_browser() or {}).get("gemini", "") or "").strip()
+        if _v:
+            return _v
+    except Exception:
+        pass
     return (chiave_gemini_da_secrets() or "").strip()
 
 
@@ -1124,9 +1146,23 @@ def _segreto(nome: str, default: str = "") -> str:
         return default
 
 
+def _hash_salvato_nel_browser() -> str:
+    """
+    L'hash della password che l'utente ha scelto, salvato nel SUO browser
+    (il JS lo mette in un cookie, cosi' l'app puo' confrontarlo).
+
+    Serve per la COPIA PUBBLICA dell'app: chi riceve il codice imposta
+    himself la password della sua app, e da quel momento l'app e' sua.
+    """
+    try:
+        return str(st.context.cookies.get("cantico_hash", "") or "").strip().lower()
+    except Exception:
+        return ""
+
+
 def _password_attesa() -> str:
-    """Legge l'hash della password dalle secrets (Cloud), dall'ambiente o
-    dal file locale .streamlit/secrets.toml (mai committato)."""
+    """L'hash della password dalle secrets (Cloud), dall'ambiente, dal file
+    locale .streamlit/secrets.toml o dal modulo accesso.py del progetto."""
     try:
         v = st.secrets.get("APP_PASSWORD_SHA256", "")
         if v:
@@ -1154,7 +1190,48 @@ def _password_attesa() -> str:
                 return m.group(1).strip().lower()
     except Exception:
         pass
-    return ""
+    # 5) la password che l'utente ha scelto in QUESTO browser
+    return _hash_salvato_nel_browser()
+
+
+# lo script che porta l'hash della password dal localStorage al cookie
+# (cosi' l'app puo' leggerlo e chiedere la password al rientro).
+# Se il cookie non c'era ancora, tocca il campo "trucco": la pagina si
+# ricalcola e l'app mostra subito la richiesta della password.
+_SCRIPT_ACCESSO = """
+<script>
+(function () {
+  try {
+    if (window.__canticoAccessoMesso) return;
+    window.__canticoAccessoMesso = true;
+    if (document.cookie.indexOf("cantico_hash=") >= 0) return;
+    var h = localStorage.getItem("cantico_accesso_hash");
+    if (!h) return;
+    document.cookie = "cantico_hash=" + h + "; path=/; max-age=31536000; SameSite=Lax";
+    // faccio ricalcolare la pagina: cosi' l'app vede subito il cookie
+    var tr = document.querySelector('input[placeholder="_cantico_trigger"]');
+    if (tr) {
+      var proto = Object.getPrototypeOf(tr);
+      var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+      setter.call(tr, String(Date.now()));
+      tr.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  } catch (e) {}
+})();
+</script>
+"""
+
+# lo script che salva l'hash della password scelta dall'utente
+_SCRIPT_SALVA_ACCESSO = """
+<script>
+(function () {
+  try {
+    localStorage.setItem("cantico_accesso_hash", "__HASH__");
+    document.cookie = "cantico_hash=" + "__HASH__" + "; path=/; max-age=31536000; SameSite=Lax";
+  } catch (e) {}
+})();
+</script>
+"""
 
 
 def richiedi_accesso() -> None:
@@ -1165,8 +1242,56 @@ def richiedi_accesso() -> None:
 
     attesa = _password_attesa()
     if not attesa:
-        st.session_state["accesso_ok"] = True
-        return
+        # --- NESSUNA PASSWORD CONFIGURATA: chi apre imposta la sua ---
+        html(_SCRIPT_ACCESSO, js=True)
+        # il campo "trucco": serve solo a far ricalcolare la pagina quando
+        # il browser aveva gia' una password salvata
+        st.text_input("", placeholder="_cantico_trigger",
+                      label_visibility="collapsed", key="_acc_trigger")
+        st.markdown(
+            """
+            <div class="hero">
+              <h1>\U0001F3B5 CANTICO</h1>
+              <p><b>Dalla Parola alla Lode.</b> Questa copia dell'app non ha
+                 ancora una password: <b>impostala tu</b> e l'app diventa
+                 tua (solo tu, con la tua email e le tue chiavi).</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.form("crea_accesso"):
+            _pw1 = st.text_input("Scegli la password della tua app",
+                                 type="password",
+                                 label_visibility="collapsed",
+                                 placeholder="Scegli la password (6+ caratteri)")
+            _pw2 = st.text_input("Ripeti la password", type="password",
+                                 label_visibility="collapsed",
+                                 placeholder="Ripeti la password")
+            crea = st.form_submit_button("Crea la mia app", use_container_width=True)
+        if crea:
+            if len((_pw1 or "").strip()) < 6:
+                st.error("La password deve avere almeno 6 caratteri.")
+            elif _pw1 != _pw2:
+                st.error("Le due password non coincidono.")
+            else:
+                _h = _sha(_pw1.strip())
+                st.session_state["accesso_ok"] = True
+                st.session_state["accesso_creato"] = True
+                # NB: niente st.rerun() qui: altrimenti lo script che salva
+                # la password verrebbe rimosso prima di girare nel browser.
+                html(_SCRIPT_SALVA_ACCESSO.replace("__HASH__", _h), js=True)
+                st.success("\u2705 La tua app e\' pronta! La password e\' stata "
+                           "salvata in questo browser: da ora in poi te la "
+                           "chiede per entrare.")
+                return
+        st.markdown(
+            '<div class="note" style="text-align:center;margin-top:14px;">'
+            'CANTICO &bull; dalla Parola alla Lode<br>'
+            'La password resta <b>nel tuo browser</b>: nessun altro la vede.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.stop()
 
     st.markdown(
         """
@@ -1236,6 +1361,54 @@ def richiedi_accesso() -> None:
 # --------------------------------------------------------------------------
 # ACCESSO (prima di tutto il resto)
 richiedi_accesso()
+
+
+# --------------------------------------------------------------------------
+# TIKTOK: l'utente ha autorizzato l'app? Allora scambio il 'code' con il
+# token e lo lascio nel suo browser (non sul server).
+# --------------------------------------------------------------------------
+def _collega_tiktok() -> None:
+    """Rileva il codice di autorizzazione e ottiene il token."""
+    try:
+        _params = st.query_params
+    except Exception:
+        return
+    _code = str(_params.get("code", "") or "").strip()
+    if not _code:
+        return
+    try:
+        import tiktok_pubblica as _tk
+    except Exception:
+        return
+    if not _tk.collegato():
+        st.error("La developer app di TikTok non e' configurata su questo "
+                 "server: controlla i Secrets TIKTOK_CLIENT_KEY e "
+                 "TIKTOK_CLIENT_SECRET.")
+        return
+    with st.spinner("Collego il tuo TikTok..."):
+        _r = _tk.scambia_code(_code)
+    if _r.get("access_token"):
+        st.session_state["tiktok_token"] = _r["access_token"]
+        st.session_state["tiktok_token_scaduto"] = False
+        try:
+            html(_tk.SCRIPT_SALVA_TOKEN.replace(
+                "__TOKEN__", _r["access_token"]), js=True)
+        except Exception:
+            pass
+        st.success("\u2705 TikTok collegato! Ora puoi pubblicare con un "
+                   "tasto.")
+    else:
+        st.error("TikTok non ha accettato l'autorizzazione: " +
+                 str(_r.get("errore", ""))[:180])
+    # pulisco l'indirizzo: il codice non deve restare nella barra
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    st.rerun()
+
+
+_collega_tiktok()
 
 
 # --------------------------------------------------------------------------
@@ -1396,9 +1569,17 @@ with st.sidebar:
                     st.success("\u2705 Chiave salvata sul server: da ora in poi "
                                "Gemini e' attivo per tutti.")
                     st.rerun()
+    # le chiavi dell'utente salvate nel SUO browser (cookie): hanno la
+    # precedenza su quelle del server
+    _kb = chiavi_browser() or {}
+    if _kb.get("treblo"):
+        st.session_state.setdefault("chiave_treblo", _kb["treblo"])
+    if _kb.get("hf"):
+        st.session_state.setdefault("token_hf", _kb["hf"])
     _chiave_treblo = st.text_input(
         "Chiave Treblo (facoltativa, gratis)",
-        value=_segreto("TREBLO_API_KEY"),
+        value=st.session_state.get("chiave_treblo")
+        or _segreto("TREBLO_API_KEY"),
         type="password",
         help="Serve per il motore 'Treblo': e' quello che CANTa il testo "
              "e ti lascia scaricare l'audio (quindi il video e' tutto "
@@ -1411,7 +1592,7 @@ with st.sidebar:
         st.session_state["chiave_treblo"] = _chiave_treblo.strip()
     _token_hf = st.text_input(
         "Token Hugging Face (facoltativo, gratis)",
-        value=_segreto("HF_TOKEN"),
+        value=st.session_state.get("token_hf") or _segreto("HF_TOKEN"),
         type="password",
         help="Serve SOLO per ACE-Step e MusicGen (i modelli open source): "
              "senza token questi spazi pubblici hanno la quota GPU esaurita. "
@@ -1430,8 +1611,9 @@ with st.sidebar:
         key="chiave_ia",
     )
     html(
-        "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
-        "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
+        "<div class=\"note\">La chiave OpenAI (se la metti) resta nel tuo "
+        "browser, come le altre. Con la chiave l'app chiama l'IA solo "
+        "quando lo chiedi tu.</div>")
 
     # ---- IL PANNELLO "ATTIVA TUTTO" ----
     # Un posto solo dove si vede cosa manca, come si prende ogni chiave,
@@ -3662,12 +3844,145 @@ if post:
     with col_b:
         blocco_copia(" ".join(hashtag), "copy_hashtag", "\U0001F4CB Copia Hashtag")
 
-    st.link_button(
-        "\U0001F4E4 Apri TikTok per pubblicare",
-        link_tiktok_upload(caption),
-        use_container_width=True,
-        type="primary",
-    )
+    # ======================================================================
+    # PUBBLICA SU TIKTOK (automatico, o la strada semplice in 2 gesti)
+    # ======================================================================
+    try:
+        import tiktok_pubblica as _tkpub
+    except Exception:
+        _tkpub = None
+
+    html('<hr><div class="step">PUBBLICA</div>'
+         "<h3>\U0001F4E4 Pubblica su TikTok</h3>")
+
+    # ---- il video da pubblicare ----
+    _video_gia = st.session_state.get("canzone_video") or ""
+    _nome_video = ""
+    if _video_gia and os.path.exists(_video_gia):
+        _nome_video = os.path.basename(_video_gia)
+    _file_up = None
+    if not _nome_video:
+        html(
+            '<div class="note">L\'app ha gia\' la caption, il testo a schermo '
+            'e l\'ora giusta. Per il <b>video</b>: se l\'app te l\'ha costruito '
+            '(sezione "Crea una canzone ORIGINALE") lo usa da solo; altrimenti '
+            'caricalo qui dal telefono e l\'app lo pubblica per te.</div>')
+        _file_up = st.file_uploader("Il tuo video (mp4, verticale 9:16)",
+                                    type=["mp4", "mov", "webm"],
+                                    key="video_da_pubblicare")
+        if _file_up is not None:
+            _dest = os.path.join(tempfile.gettempdir(),
+                                 "video_da_pubblicare" +
+                                 os.path.splitext(_file_up.name)[1])
+            with open(_dest, "wb") as _f:
+                _f.write(_file_up.getvalue())
+            _video_gia = _dest
+            _nome_video = os.path.basename(_dest)
+            st.session_state["canzone_video"] = _dest
+
+    if _tkpub is None:
+        st.info("Modulo di pubblicazione non disponibile: aggiorna l'app.")
+    elif not _tkpub.collegato():
+        # ---------- STRADA 1: la piu' semplice (funziona subito) ----------
+        html(
+            '<div class="box box-ok"><b>\u2705 Post pronto.</b> Ti manca solo '
+            'un gesto: scarica il video e caricalo su TikTok Studio, dove la '
+            'caption e\' <b>gia\' scritta</b>.<br>'
+            '<b>1)</b> scarica il video &rarr; <b>2)</b> apri TikTok Studio '
+            '(il pulsante qui sotto) &rarr; <b>3)</b> scegli il file e '
+            'pubblica.</div>')
+        _c_p1, _c_p2 = st.columns(2)
+        with _c_p1:
+            if _video_gia and os.path.exists(_video_gia):
+                with open(_video_gia, "rb") as _f:
+                    _dati = _f.read()
+                st.download_button(
+                    "\U0001F4BE Scarica il video (.mp4)", data=_dati,
+                    file_name="cantico_tiktok.mp4", mime="video/mp4",
+                    use_container_width=True, key="dl_video_pubblica")
+        with _c_p2:
+            st.link_button("\U0001F4E4 Apri TikTok Studio (testo gia' pronto)",
+                           _tkpub.link_studio(caption),
+                           use_container_width=True, type="primary")
+        with st.expander("\u26A1 Volo pubblicare in automatico? (per chi puo')"):
+            html(
+                '<div class="note">TikTok permette di pubblicare in automatico '
+                'solo a chi ha una <b>developer app</b> approvata. Con quella: '
+                'ti colleghi una volta sola e l\'app <b>pubblica da sola</b> '
+                'video, caption e privacy.<br>'
+                'Serve una volta sola: crea l\'app su '
+                '<a href="https://developers.tiktok.com" target="_blank">'
+                'developers.tiktok.com</a>, attiva "Content Posting API" &rarr; '
+                '"Direct Post", chiedi l\'approvazione dello scope '
+                '<b>video.publish</b> e metti le chiavi nei Secrets di '
+                'Streamlit Cloud:<br>'
+                '<code>TIKTOK_CLIENT_KEY</code>, <code>TIKTOK_CLIENT_SECRET'
+                '</code>, <code>TIKTOK_REDIRECT_URI</code>.<br>'
+                'Finche\' non e\' pronto, la strada qui sopra funziona '
+                'per sempre e ti costa 3 secondi.</div>',
+                unsafe_allow_html=True)
+    else:
+        # ---------- STRADA 2: pubblicazione automatica ----------
+        # il token vive nel browser: lo script lo rimette nel campo
+        try:
+            html(_tkpub.SCRIPT_LEGGI_TOKEN, js=True)
+        except Exception:
+            pass
+        _campo_token = st.text_input(
+            "Il tuo token TikTok (si ricorda da solo)",
+            type="password", key="tiktok_token_campo")
+        if _campo_token:
+            st.session_state["tiktok_token"] = _campo_token.strip()
+        _token = (st.session_state.get("tiktok_token") or "").strip()
+        if not _token:
+            html(
+                '<div class="box"><b>Pubblicazione automatica disponibile.</b> '
+                'Collega il tuo TikTok (una volta sola): si apre TikTok, '
+                'autorizzi l\'app e torni qui.</div>')
+            if st.link_button("\U0001F517 Collega il tuo TikTok",
+                              _tkpub.url_authorize("cantico"),
+                              use_container_width=True, type="primary"):
+                st.info("Autorizza l'app su TikTok: poi torna qui.")
+        else:
+            _info = _tkpub.creator_info(_token)
+            if _info.get("errore"):
+                st.warning("TikTok: " + str(_info["errore"])[:150])
+            else:
+                html(f'<div class="note box-ok">\u2705 Collegato come '
+                     f'<b>{esc(_info.get("nickname") or _info.get("username"))}'
+                     f'</b></div>')
+            _opzioni = _info.get("privacy") or ["SELF_ONLY"]
+            _privacy = st.selectbox(
+                "Chi puo' vedere il video?",
+                list(_opzioni),
+                format_func=lambda x: _tkpub.PRIVACY.get(x, x),
+                key="tiktok_privacy")
+            if st.button("\U0001F4E4 Pubblica ora", type="primary",
+                         use_container_width=True, key="pubblica_ora"):
+                if not _video_gia or not os.path.exists(_video_gia):
+                    st.warning("Prima carica il video \U0001F4D8")
+                else:
+                    with st.spinner("Mando il video su TikTok..."):
+                        _res = _tkpub.pubblica(
+                            _video_gia, _token, caption, _privacy)
+                    if _res.get("ok"):
+                        st.success("\u2705 " + _res.get("messaggio", "Pubblicato!"))
+                    else:
+                        st.error(_res.get("messaggio", "Pubblicazione fallita."))
+            with st.expander("Scarica il video / apri TikTok Studio"):
+                _c_p1, _c_p2 = st.columns(2)
+                with _c_p1:
+                    if _video_gia and os.path.exists(_video_gia):
+                        with open(_video_gia, "rb") as _f:
+                            _dati = _f.read()
+                        st.download_button(
+                            "\U0001F4BE Scarica il video (.mp4)", data=_dati,
+                            file_name="cantico_tiktok.mp4", mime="video/mp4",
+                            use_container_width=True, key="dl_video_auto")
+                with _c_p2:
+                    st.link_button("\U0001F4E4 Apri TikTok Studio",
+                                   _tkpub.link_studio(caption),
+                                   use_container_width=True)
 
     with st.expander("\U0001F3A7 Anteprima della canzone"):
         embed_youtube(post["video_id"])

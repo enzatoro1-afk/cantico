@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 
 # --------------------------------------------------------------------------
 # I SERVIZI: per ognuno, la pagina dove si crea la chiave
@@ -83,18 +84,32 @@ STORAGE = {
 # Riempie i campi con quello che e' gia' salvato nel browser.
 # NB: si esegue UNA volta sola per pagina: se lo rifacessimo a ogni rerun,
 # l'evento 'input' rilancierebbe l'app all'infinito.
+# NB2: lo script puo' arrivare PRIMA che i campi esistano nel DOM (Streamlit
+# disegna a pezzi): quindi riprova piu' volte per qualche secondo.
 SCRIPT_LEGGI_SETUP = """
 <script>
 (function () {
   try {
     if (window.__canticoSetupMesso) return;
     window.__canticoSetupMesso = true;
+    // i COOKIE: il server li legge direttamente (st.context.cookies),
+    // quindi le chiavi arrivano al server anche se Streamlit non
+    // registra l'evento 'input' generato da javascript.
+    function cookie(nome, valore) {
+      if (!valore) return;
+      document.cookie = nome + "=" + encodeURIComponent(valore) +
+        "; path=/; max-age=31536000; SameSite=Lax";
+    }
+    cookie("cantico_k_gemini", localStorage.getItem("cantico_chiave_gemini"));
+    cookie("cantico_k_treblo", localStorage.getItem("cantico_chiave_treblo"));
+    cookie("cantico_k_hf", localStorage.getItem("cantico_token_hf"));
+    cookie("cantico_k_email", localStorage.getItem("cantico_setup_email"));
     function metti(marca, valore) {
       if (!valore) return false;
       var campi = document.querySelectorAll('input[type="password"], input[type="text"]');
       for (var i = 0; i < campi.length; i++) {
         var lab = campi[i].closest('div[data-testid="stTextInput"]');
-        var testo = (lab && lab.innerText) || "";
+        var testo = (lab && (lab.textContent || lab.innerText)) || "";
         if (testo.indexOf(marca) < 0) continue;
         if (campi[i].value) return true;
         var proto = Object.getPrototypeOf(campi[i]);
@@ -105,14 +120,53 @@ SCRIPT_LEGGI_SETUP = """
       }
       return false;
     }
-    metti("La tua email", localStorage.getItem("cantico_setup_email"));
-    metti("chiave Gemini", localStorage.getItem("cantico_chiave_gemini"));
-    metti("chiave Treblo", localStorage.getItem("cantico_chiave_treblo"));
-    metti("token Hugging Face", localStorage.getItem("cantico_token_hf"));
+    function prova() {
+      var fatto = false;
+      if (metti("La tua email", localStorage.getItem("cantico_setup_email"))) fatto = true;
+      if (metti("chiave Gemini", localStorage.getItem("cantico_chiave_gemini"))) fato = true;
+      if (metti("chiave Treblo", localStorage.getItem("cantico_chiave_treblo"))) fato = true;
+      if (metti("token Hugging Face", localStorage.getItem("cantico_token_hf"))) fato = true;
+      if (!fatto) setTimeout(prova, 300);
+    }
+    setTimeout(prova, 100);
   } catch (e) {}
 })();
 </script>
 """
+
+
+# --------------------------------------------------------------------------
+# Le chiavi lette dai COOKIE del browser
+# --------------------------------------------------------------------------
+
+def _cookie(nome: str) -> str:
+    """Legge un cookie del browser (st.context.cookies)."""
+    try:
+        import streamlit as st
+        _v = st.context.cookies.get(nome, "")
+        try:
+            from urllib.parse import unquote
+            return unquote(str(_v or ""))
+        except Exception:
+            return str(_v or "")
+    except Exception:
+        return ""
+
+
+def chiavi_browser() -> dict:
+    """
+    Le chiavi che l'utente ha salvato nel SUO browser.
+
+    Il server le legge dai cookie: cosi' funzionano anche se Streamlit non
+    registra gli eventi generati da javascript (e l'utente non deve
+    reinserirle ogni volta).
+    """
+    return {
+        "gemini": (_cookie("cantico_k_gemini") or "").strip(),
+        "treblo": (_cookie("cantico_k_treblo") or "").strip(),
+        "hf": (_cookie("cantico_k_hf") or "").strip(),
+        "email": (_cookie("cantico_k_email") or "").strip(),
+    }
 
 # Salva tutto nel browser e lascia un cookie (cosi' l'app sa che questo
 # browser e' gia' configurato).
@@ -124,7 +178,69 @@ SCRIPT_SALVA_SETUP = """
     localStorage.setItem("cantico_setup_hash", "__HASH__");
     localStorage.setItem("cantico_setup_fatto", "1");
     __CHIAVI__
+    // anche i cookie: il server li legge direttamente
+    document.cookie = "cantico_k_email=" + encodeURIComponent("__EMAIL__") +
+      "; path=/; max-age=31536000; SameSite=Lax";
+    __COOKIE_CHIAVI__
     document.cookie = "cantico_setup=1; path=/; max-age=31536000; SameSite=Lax";
+  } catch (e) {}
+})();
+</script>
+"""
+
+
+# Il bottone "Salva la mia app" scritto in HTML puro: legge i campi
+# DIRETTAMENTE dal browser e li salva (localStorage + cookie). Poi tocca il
+# campo "trucco" per far ricalcolare la pagina: l'app vede cosi' tutto e
+# conferma il salvataggio.
+SCRIPT_BOTTONE_SALVA = """
+<script>
+(function () {
+  try {
+    if (window.__canticoSalvaPronto) return;
+    window.__canticoSalvaPronto = true;
+    function campo(marca) {
+      var campi = document.querySelectorAll('input');
+      for (var i = 0; i < campi.length; i++) {
+        var lab = campi[i].closest('div[data-testid="stTextInput"]');
+        var t = (lab && (lab.textContent || lab.innerText)) || "";
+        if (t.indexOf(marca) < 0) continue;
+        return (campi[i].value || "").trim();
+      }
+      return "";
+    }
+    function salva() {
+      var email = campo("La tua email");
+      var gem = campo("chiave Gemini");
+      var tre = campo("chiave Treblo");
+      var hf = campo("token Hugging Face");
+      try { if (email) localStorage.setItem("cantico_setup_email", email); } catch (e) {}
+      try { if (gem) localStorage.setItem("cantico_chiave_gemini", gem); } catch (e) {}
+      try { if (tre) localStorage.setItem("cantico_chiave_treblo", tre); } catch (e) {}
+      try { if (hf) localStorage.setItem("cantico_token_hf", hf); } catch (e) {}
+      try { localStorage.setItem("cantico_setup_fatto", "1"); } catch (e) {}
+      function ck(nome, val) {
+        if (!val) return;
+        document.cookie = nome + "=" + encodeURIComponent(val) +
+          "; path=/; max-age=31536000; SameSite=Lax";
+      }
+      ck("cantico_k_email", email);
+      ck("cantico_k_gemini", gem);
+      ck("cantico_k_treblo", tre);
+      ck("cantico_k_hf", hf);
+      document.cookie = "cantico_setup=1; path=/; max-age=31536000; SameSite=Lax";
+      // faccio ricalcolare la pagina all'app
+      var tr = document.querySelector('input[placeholder="_cantico_trigger"]');
+      if (tr) {
+        var proto = Object.getPrototypeOf(tr);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(tr, String(Date.now()));
+        tr.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+    var b = document.getElementById("cantico_salva_app");
+    if (b) b.addEventListener("click", salva);
+    window.canticoSalvaApp = salva;
   } catch (e) {}
 })();
 </script>
@@ -145,7 +261,7 @@ SCRIPT_INCOLLA = """
       var campi = document.querySelectorAll('input[type="password"], input[type="text"]');
       for (var i = 0; i < campi.length; i++) {
         var lab = campi[i].closest('div[data-testid="stTextInput"]');
-        var testo = (lab && lab.innerText) || "";
+        var testo = (lab && (lab.textContent || lab.innerText)) || "";
         if (testo.indexOf("__MARCA__") < 0) continue;
         if (campi[i].value) return;
         var proto = Object.getPrototypeOf(campi[i]);
@@ -169,17 +285,25 @@ def _hash_password(password: str) -> str:
 def _script_salva(email: str, hash_pw: str, chiavi: dict) -> str:
     """Costruisce lo script che salva tutto nel browser."""
     _pezzi = []
-    for _id, _chiave in (("gemini", "cantico_chiave_gemini"),
-                         ("treblo", "cantico_chiave_treblo"),
-                         ("hf", "cantico_token_hf")):
+    _cookie = []
+    for _id, _chiave, _cookie in (("gemini", "cantico_chiave_gemini",
+                                   "cantico_k_gemini"),
+                                  ("treblo", "cantico_chiave_treblo",
+                                   "cantico_k_treblo"),
+                                  ("hf", "cantico_token_hf",
+                                   "cantico_k_hf")):
         _v = str(chiavi.get(_id, "") or "").replace("\\", "\\\\").replace('"', '\\"')
         if _v:
             _pezzi.append(f'localStorage.setItem("{_chiave}", "{_v}");')
+            _cookie.append(
+                f'document.cookie = "{_cookie}=" + encodeURIComponent("{_v}")'
+                f' + "; path=/; max-age=31536000; SameSite=Lax";')
     return (SCRIPT_SALVA_SETUP
             .replace("__EMAIL__", str(email or "").replace("\\", "\\\\")
                      .replace('"', '\\"'))
             .replace("__HASH__", str(hash_pw or ""))
-            .replace("__CHIAVI__", " ".join(_pezzi)))
+            .replace("__CHIAVI__", " ".join(_pezzi))
+            .replace("__COOKIE_CHIAVI__", " ".join(_cookie)))
 
 
 # --------------------------------------------------------------------------
@@ -206,6 +330,10 @@ def pannello_setup(st, html, esc, _direzione_musicale=None) -> dict:
     _risultato = {"email": "", "hash": "", "gemini": "", "treblo": "",
                    "hf": "", "salvato": False}
 
+    # le chiavi che l'utente ha gia' salvato nel SUO browser (cookie):
+    # se il campo non e' arrivato al server, si usa comunque queste
+    _kb = chiavi_browser() or {}
+
     html(SCRIPT_LEGGI_SETUP, js=True)
 
     # ---- PASSO 1: chi sei ----
@@ -219,17 +347,18 @@ def pannello_setup(st, html, esc, _direzione_musicale=None) -> dict:
             unsafe_allow_html=True)
         _email = st.text_input("La tua email (serve per i tuoi account)",
                                placeholder="nome@email.it", key="setup_email")
-        _pw = st.text_input("Scegli una password per la tua app",
-                             type="password", placeholder="almeno 6 caratteri",
+        _pw = st.text_input("Password per le tue impostazioni (facoltativa)",
+                             type="password", placeholder="facoltativa",
                              key="setup_password",
                              help="Serve per riaprire le tue impostazioni su "
                                   "questo dispositivo. Resta nel tuo "
                                   "browser (non in chiaro) e nessun altro "
-                                  "che usa il tuo telefono la vede.")
+                                  "che usa il tuo telefono la vede. Se la "
+                                  "lasci vuota, l'app funziona lo stesso.")
         if _email and _pw and len(_pw.strip()) >= 6:
             st.markdown('<div class="note box-ok">\u2705 Email e password '
                         'pronote.</div>', unsafe_allow_html=True)
-    _risultato["email"] = (_email or "").strip()
+    _risultato["email"] = (_email or "").strip() or _kb.get("email", "")
     _risultato["hash"] = _hash_password(_pw or "")
 
     # ---- PASSO 2: le tue API ----
@@ -245,8 +374,7 @@ def pannello_setup(st, html, esc, _direzione_musicale=None) -> dict:
             unsafe_allow_html=True)
         for _s in SERVIZI:
             _id = _s["id"]
-            with st.expander(f"{_s['nome']} — {_s['perche'][:46]}",
-                             expanded=(_id == "gemini")):
+            with st.expander(f"{_s['nome']}", expanded=(_id == "gemini")):
                 st.markdown(
                     f'<div class="note">{_s["perche"]}<br>'
                     f'<b>1)</b> <a href="{_s["url"]}" target="_blank">'
@@ -288,7 +416,7 @@ def pannello_setup(st, html, esc, _direzione_musicale=None) -> dict:
                 if st.session_state.get(f"setup_ok_{_id}"):
                     st.markdown('<div class="note box-ok">\u2705 Chiave '
                                 'verificata.</div>', unsafe_allow_html=True)
-                _risultato[_id] = (_campo or "").strip()
+                _risultato[_id] = (_campo or "").strip() or _kb.get(_id, "")
 
     # ---- PASSO 3: salva ----
     st.markdown("---")
@@ -299,21 +427,33 @@ def pannello_setup(st, html, esc, _direzione_musicale=None) -> dict:
             'la ritrovi la prossima volta, <b>non finisce sul server</b> e '
             '<b>non finisce su GitHub</b>. La tua app sara\' <b>solo tua</b>.'
             '</div>', unsafe_allow_html=True)
-        if st.button("\U0001F4BE Salva la mia app", type="primary",
-                     key="setup_salva", use_container_width=True):
-            if not _risultato["email"]:
-                st.warning("Prima l'email \U0001F4D8")
-            elif not _risultato["hash"] or len((_pw or "").strip()) < 6:
-                st.warning("Scegli una password per la tua app (almeno 6 "
-                           "caratteri) \U0001F512")
-            elif not _risultato["gemini"]:
-                st.warning("Prima la chiave Gemini: e' quella che serve per "
-                           "scrivere l'interpretazione \U0001F512")
+        # il campo "trucco": serve solo a far ricalcolare la pagina quando
+        # il bottone "Salva" e' stato premuto (il salvataggio avviene nel
+        # browser: cosi' funziona anche se Streamlit non registra gli eventi)
+        _trigger = st.text_input("", placeholder="_cantico_trigger",
+                                 label_visibility="collapsed",
+                                 key="_setup_trigger")
+        html(
+            '<button id="cantico_salva_app" style="width:100%;min-height:50px;'
+            'border:none;border-radius:14px;font-weight:700;font-size:1rem;'
+            'color:#fff;cursor:pointer;'
+            'background:linear-gradient(135deg,#4f46e5,#7c3aed);'
+            'box-shadow:0 4px 14px rgba(79,70,229,.28)">'
+            '\U0001F4BE Salva la mia app</button>',
+            js=True)
+        html(SCRIPT_BOTTONE_SALVA, js=True)
+        # il bottone ha cambiato il "trucco" -> il browser ha salvato
+        if _trigger and _trigger != st.session_state.get("_trigger_precedente"):
+            st.session_state["_trigger_precedente"] = _trigger
+            st.session_state["setup_fatto"] = True
+            _salvate = chiavi_browser() or {}
+            if _salvate.get("gemini"):
+                st.success("\u2705 La tua app e' pronta! Le chiavi sono state "
+                           "salvate in questo browser: la prossima volta le "
+                           "trovi gia' li. Ricarica la pagina e comincia a "
+                           "scrivere il tuo versetto.")
             else:
-                html(_script_salva(_risultato["email"], _risultato["hash"],
-                                    _risultato), js=True)
-                st.session_state["setup_fatto"] = True
-                st.rerun()
+                st.info("Le chiavi sono state salvate nel browser.")
 
     if st.session_state.get("setup_fatto"):
         st.success("\u2705 La tua app e' pronta! Ricarica la pagina e comincia "

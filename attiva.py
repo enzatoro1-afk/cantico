@@ -35,21 +35,26 @@ SCRIPT_CLIPBOARD = """
 (function () {
   if (!navigator.clipboard || !navigator.clipboard.readText) return;
   var etichetta = "__ETICHETTA__";
-  navigator.clipboard.readText().then(function (testo) {
-    if (!testo || texto.length < 8) return;
-    var campi = document.querySelectorAll('input[type="password"], input[type="text"]');
-    for (var i = 0; i < campi.length; i++) {
-      var lab = campi[i].closest('div[data-testid="stTextInput"]');
-      if (lab && lab.innerText && lab.innerText.indexOf(etichetta) >= 0) {
-        if (campi[i].value) return;
-        var proto = Object.getPrototypeOf(campi[i]);
-        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-        setter.call(campi[i], testo.trim());
-        campi[i].dispatchEvent(new Event('input', { bubbles: true }));
-        return;
+  function prova() {
+    navigator.clipboard.readText().then(function (testo) {
+      if (!testo || testo.length < 8) return;
+      var campi = document.querySelectorAll('input[type="password"], input[type="text"]');
+      for (var i = 0; i < campi.length; i++) {
+        var lab = campi[i].closest('div[data-testid="stTextInput"]');
+        var _t = (lab && (lab.textContent || lab.innerText)) || "";
+        if (lab && _t.indexOf(etichetta) >= 0) {
+          if (campi[i].value) return;
+          var proto = Object.getPrototypeOf(campi[i]);
+          var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+          setter.call(campi[i], testo.trim());
+          campi[i].dispatchEvent(new Event('input', { bubbles: true }));
+          return;
+        }
       }
-    }
-  }).catch(function () {});
+      setTimeout(prova, 400);
+    }).catch(function () {});
+  }
+  setTimeout(prova, 300);
 })();
 </script>
 """

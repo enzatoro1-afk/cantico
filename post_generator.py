@@ -205,10 +205,14 @@ def suggerisci_orari(data) -> list[dict]:
 
 
 def link_tiktok_upload(caption: str = "") -> str:
-    """Link che apre l'area di caricamento di TikTok (l'app, se installata)."""
-    base = "https://www.tiktok.com/upload"
+    """
+    Apre TikTok Studio (la pagina di caricamento) con la caption gia' scritta.
+    Serve a chi pubblica a mano: il testo e' gia' li', deve solo scegliere il
+    file e premere "Pubblica".
+    """
+    base = "https://www.tiktok.com/tiktokstudio/upload"
     if caption:
-        return f"{base}?caption={quote_plus(caption[:150])}"
+        return f"{base}?caption={quote_plus(caption[:1500])}"
     return base
 
 

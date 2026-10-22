@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv-test/
 venv/
 .env
 .streamlit/secrets.toml
@@ -19,6 +20,8 @@ cache_bibbia.json
 link.txt
 *.zip
 *.mp4
+DISTRIBUZIONE/
+CANTICO-app.zip
 *.m4a
 *.wav
 *.webm

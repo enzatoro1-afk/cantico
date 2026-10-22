@@ -635,6 +635,41 @@ solo.
 
 ---
 
+## 📤 Pubblicare su TikTok (direttamente dall'app)
+
+Il blocco **"📤 Pubblica su TikTok"** (in fondo, nel PASSAGGIO 3) fa due cose:
+
+**1) La strada SEMPLICE (funziona subito, per tutti)**
+- l'app ti fa **scaricare il video** (se l'ha costruito lei, lo prende
+  direttamente; se no, lo carichi tu dal telefono con un tocco)
+- ti apre **TikTok Studio** con la **caption già scritta** dentro
+- tu scegli il file e premi "Pubblica": 3 secondi, nessuna app da installare
+
+**2) La strada AUTOMATICA (un video pubblicato da sola)**
+TikTok permette la pubblicazione automatica **solo a chi ha una
+"developer app" approvata**. Se ce l'hai, l'app ti chiede **"Collega il tuo
+TikTok"** (una volta sola) e poi basta premere **"📤 Pubblica ora"**: manda il
+video con la caption e la privacy che scegli tu, e ti dice com'è finita.
+
+Per attivarla (una volta sola):
+1. <https://developers.tiktok.com> → crea un'app (gratis)
+2. attiva **Content Posting API → Direct Post**
+3. chiedi l'approvazione dello scope **`video.publish`**
+4. nei **Secrets di Streamlit Cloud**:
+   ```toml
+   TIKTOK_CLIENT_KEY = "..."
+   TIKTOK_CLIENT_SECRET = "..."
+   TIKTOK_REDIRECT_URI = "https://la-tua-app.streamlit.app/"
+   ```
+
+> **Nota TikTok**: le app non ancora approvate possono pubblicare **solo
+> video privati** (`unaudited_client_can_only_post_to_private_accounts`).
+> Il codice di `tiktok_pubblica.py` è comunque pronto: appena l'approvazione
+> arriva, l'auto-pubblicazione si attiva senza toccare il codice.
+> Il token dell'utente resta **nel suo browser**, non sul server.
+
+---
+
 ## ❤️ Fatto per i creator cristiani
 
 ---
