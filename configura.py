@@ -39,6 +39,22 @@ PASSI = [
     },
 ]
 
+ISTRUZIONE_TREBLO = """\
+Treblo: il motore che CANTA il tuo testo e ti lascia scaricare l'audio
+(quindi il video .mp4 si fa tutto da solo, senza passaggi manuali).
+
+Serve UNA cosa sola: la tua chiave API di Treblo (gratis).
+
+ 1) Crea l'account su https://treblo.com (puoi entrare con Google)
+ 2) Vai su https://treblo.com/developers/account e crea una chiave API
+ 3) Incollala nella barra laterale dell'app, campo "Chiave Treblo"
+    (campo "Chiave Treblo (facoltativa, gratis)")
+
+Con l'account nuovo hai 3.000 crediti gratis = 30 canzoni.
+Ogni canzone costa 100 crediti. La chiave resta nel tuo browser:
+non passa dalla chat e non finisce su GitHub.
+"""
+
 ISTRUZIONE_SUNO = """\
 Suno: per usare i crediti gratuiti giornalieri del TUO account.
 

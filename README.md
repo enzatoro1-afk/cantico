@@ -367,6 +367,7 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 
 | Motore | Cosa serve | Costo |
 |---|---|---|
+| **Treblo** (canta il testo, audio scaricabile) | una chiave API Treblo | **gratis** (3.000 crediti = 30 canzoni) |
 | **Suno (i tuoi crediti gratuiti)** | solo il tuo cookie di suno.com (niente da installare) | **gratis** (i crediti giornalieri del tuo account) |
 | **ACE-Step** (open source, canta il testo) | un token Hugging Face gratis per la quota GPU | gratis |
 | **MusicGen** (open source, strumentale) | un token Hugging Face gratis | gratis |
@@ -394,6 +395,38 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 
 **Struttura del brano**: il testo viene diviso automaticamente in
 `[Verse]` e `[Chorus]` (le tag restano se ci sono già).
+
+### Come si usa Treblo (il motore che canta e ti fa il video da solo)
+
+Treblo (ex Sonauto) ha un'API pubblica e 3.000 crediti gratis al primo
+accesso. E' il motore piu' comodo: **canta** le parole del brano e ti lascia
+**scaricare l'audio**, cosi' il video .mp4 si fa tutto da solo.
+
+1. Crea l'account su <https://treblo.com> (Google va bene).
+2. Crea la chiave API su <https://treblo.com/developers/account>.
+3. Incollala nell'app, nella barra laterale, campo **"Chiave Treblo"**.
+4. Nell'app: motore **"Treblo (crediti gratis, canta il testo)"** →
+   "Componi e canta la canzone" → "Fai il video per TikTok".
+
+Ogni canzone costa 100 crediti → con i 3.000 gratis fai **30 canzoni**.
+La chiave resta nel tuo browser (campo password): non finisce su GitHub.
+I crediti gratis si sbloccano verificando una carta (non viene addebitato
+nulla); dopo si puo' continuare a consumo o con un piano.
+
+> *Attribuzione: Treblo chiede che chi usa la sua API ne citi il nome.
+> L'app lo fa nella sezione "Crea una canzone ORIGINALE".*
+
+### E se non vuoi registrarti da nessuna parte?
+
+**Vidnoz AI Music Generator** (<https://www.vidnoz.com/ai-music.html>) è
+gratis, **senza registrazione e senza carta**: scegli la modalità
+*"Canzone con testo"*, incolli le parole del brano, scegli il genere e la
+voce (maschile/femminile) e scarichi il MP3 (royalty-free, uso commerciale
+consentito anche nella versione gratis).
+
+In quel caso: scarica il brano da Vidnoz e **caricalo qui** nella sezione
+"Crea una canzone ORIGINALE" → riquadro **"🎧 Carica il brano"**: l'app ci
+fa sopra il video .mp4 verticale.
 
 ### Come si usa Suno con i crediti gratuiti (una volta sola)
 

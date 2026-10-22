@@ -36,6 +36,7 @@ except ImportError:  # pragma: no cover
 
 # i motori gratuiti, in ordine di preferenza
 MOTORI_GRATUITI = (
+    "Treblo (crediti gratis, canta il testo)",
     "Suno (i tuoi crediti gratuiti)",
     "ACE-Step (open source)",
     "MusicGen (strumentale)",
@@ -71,7 +72,8 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
         return {**vuoto, "errore": "Le parole sono troppo corte per un brano."}
     stile = (stile or STILE_DEFAULT).strip()
 
-    scelte = [modello] if modello else ["suno", "ace-step", "musicgen"]
+    scelte = ([modello] if modello else
+              ["treblo", "suno", "ace-step", "musicgen"])
     problemi = []
     for scelta in scelte:
         if scelta == "suno":
@@ -81,6 +83,13 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
                                               timeout=min(timeout, 480))
             except Exception as exc:
                 r = {"ok": False, "errore": f"Suno: {str(exc)[:120]}"}
+        elif scelta == "treblo":
+            try:
+                import treblo as _treblo
+                r = _treblo.genera_canzone_treblo(lyrics, tags=stile,
+                                                  timeout=timeout)
+            except Exception as exc:
+                r = {"ok": False, "errore": f"Treblo: {str(exc)[:120]}"}
         else:
             r = genera_canzone_gratuita(lyrics, stile, modello=scelta,
                                         timeout=timeout)
