@@ -113,6 +113,13 @@ except Exception:  # il file potrebbe non essere ancora sul server
         return {"gemini": "", "treblo": "", "hf": "", "email": ""}
 
 try:
+    from audio_youtube import scarica_audio
+except Exception:  # il file potrebbe non essere ancora sul server
+    def scarica_audio(*_a, **_k):
+        return {"ok": False, "file": "",
+                "errore": "Modulo audio non disponibile: aggiorna l'app."}
+
+try:
     from immagini import genera_immagine
 except Exception:  # il file potrebbe non essere ancora sul server
     def genera_immagine(*_a, **_k):
@@ -3418,6 +3425,39 @@ if risultati:
                     st.link_button("\U0001F3A7 Ascolta", r.url,
                                    use_container_width=True)
 
+            # ---- L'MP3 DEL BRANO SCELTO ----
+            _titolo_breve = (r.titolo or "")[:40]
+            with st.expander("\U0001F3A7 Scarica l'mp3 di questo brano"):
+                html(
+                    '<div class="note">Scarichi l\'audio per <b>ascoltarlo</b> '
+                    'e per <b>montare il video</b> sul tuo computer.<br>'
+                    '<b>Attenzione (diritti d\'autore):</b> se ricarichi '
+                    'quest\'mp3 su TikTok, TikTok riconosce la musica e ti '
+                    '<b>muta il video</b> (o lo toglie) e rischi lo strike. '
+                    'Per pubblicare usa il <b>suono originale</b> della '
+                    'libreria audio di TikTok: la stessa canzone, ma senza '
+                    'problemi (e puo\' diventare trend).<br>'
+                    'Se invece vuoi zero pensieri, l\'app ti prepara una '
+                    '<b>canzone originale</b> tutta tua.</div>',
+                    unsafe_allow_html=True)
+                if st.button(f"\U0001F3A7 Scarica l'mp3 (di «{_titolo_breve}»)",
+                             key=f"mp3_{i}", use_container_width=True):
+                    with st.spinner("Sto scaricando l'audio..."):
+                        _res_audio = scarica_audio(r.url)
+                    if _res_audio.get("ok"):
+                        st.session_state["audio_youtube"] = _res_audio["file"]
+                        st.success("\u2705 Audio pronto!")
+                    else:
+                        st.error("Non sono riuscito a scaricare l'audio: "
+                                 + str(_res_audio.get("errore", ""))[:150])
+                if st.session_state.get("audio_youtube"):
+                    with open(st.session_state["audio_youtube"], "rb") as _f:
+                        st.audio(st.session_state["audio_youtube"])
+                        st.download_button(
+                            "\U0001F3A7 Scarica l'mp3 (.mp3)",
+                            data=_f.read(), file_name="brano.mp3",
+                            mime="audio/mpeg", key=f"dl_mp3_{i}")
+
             # ---- COME PRENDERE IL SUONO SU TIKTOK (passo per passo) ----
             with st.expander("\U0001F50A Come prendere il suono su TikTok "
                             "(passo per passo)"):
@@ -3886,6 +3926,66 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                     "\U0001F3AC Scarica il video per TikTok (.mp4)",
                     data=_dati_v, file_name="cantico_tiktok.mp4",
                     mime="video/mp4", key="dl_video_mp4")
+
+                # ---- PUBBLICA TUTTO CON UN TOCCO ----
+                # se il tuo TikTok e' collegato, l'app manda video + caption
+                # da sola: non devi aprire TikTok
+                try:
+                    import tiktok_pubblica as _tkpub2
+                    _token2 = _tkpub2.token_utente()
+                except Exception:
+                    _tkpub2 = None
+                    _token2 = ""
+                if _tkpub2 and _token2:
+                    with st.container(border=True):
+                        st.markdown("**\U0001F4E4 Pubblica tutto con un tocco**")
+                        st.markdown(
+                            '<div class="note">Il tuo TikTok è collegato: '
+                            'l\'app manda il video con la caption già scritta. '
+                            'Non devi aprire TikTok.</div>',
+                            unsafe_allow_html=True)
+                        _priv2 = st.selectbox(
+                            "Chi può vederlo?",
+                            ["PUBLIC_TO_EVERYONE", "SELF_ONLY",
+                             "MUTUAL_FOLLOW_FRIENDS"],
+                            format_func=lambda x: _tkpub2.PRIVACY.get(x, x),
+                            key="privacy_una_tocca")
+                        _cap2 = ""
+                        _post2 = st.session_state.get("post") or {}
+                        if _post2.get("caption"):
+                            _cap2 = _post2["caption"]
+                        else:
+                            _hashtag2 = genera_hashtag(testo, parole_chiave)
+                            _cap2 = genera_caption(
+                                testo, (st.session_state["analisi"] or {}).get(
+                                    "formato_post", "Versetto + domanda"),
+                                _hashtag2)
+                        if st.button("\U0001F4E4 Pubblica adesso", type="primary",
+                                     use_container_width=True,
+                                     key="pubblica_una_tocca"):
+                            with st.spinner("Mando il video su TikTok..."):
+                                _res2 = _tkpub2.pubblica(
+                                    st.session_state["canzone_video"],
+                                    _token2, _cap2, _priv2)
+                            if _res2.get("ok"):
+                                st.success("\u2705 " + _res2.get("messaggio",
+                                                                   "Pubblicato!"))
+                            else:
+                                _m2 = str(_res2.get("messaggio", ""))
+                                st.error(_m2)
+                                if "unaudited" in _m2.lower():
+                                    st.info("TikTok non ha ancora approvato "
+                                            "la tua app per i video pubblici: "
+                                            "per ora si pubblica come "
+                                            "privato. Appena approva, "
+                                            "ricarica la pagina e rifai.")
+                else:
+                    st.markdown(
+                        '<div class="note">\U0001F517 Per <b>pubblicare con un '
+                        'tocco</b> (senza aprire TikTok) collega il tuo '
+                        'account: in fondo, in "Pubblica su TikTok", trovi '
+                        '"Collega il tuo TikTok".</div>',
+                        unsafe_allow_html=True)
 
 # ==========================================================================
 # PASSAGGIO 4 - PUBBLICA

@@ -336,10 +336,33 @@ def _stato(publish_id: str, access_token: str) -> dict:
 SCRIPT_SALVA_TOKEN = """
 <script>
 (function () {
-  try { localStorage.setItem("cantico_tiktok_token", "__TOKEN__"); } catch (e) {}
+  try {
+    localStorage.setItem("cantico_tiktok_token", "__TOKEN__");
+    // anche il cookie: cosi' il server lo legge senza dipendere da
+    // quale sezione della pagina e' aperta
+    document.cookie = "cantico_tiktok_token=" + "__TOKEN__" +
+      "; path=/; max-age=31536000; SameSite=Lax";
+  } catch (e) {}
 })();
 </script>
 """
+
+
+def token_utente() -> str:
+    """
+    Il token dell'utente collegato (lo ha autorizzato lui su TikTok).
+
+    Lo leggo dai cookie del browser: cosi' funziona in qualunque sezione
+    della pagina, anche senza ricaricare.
+    """
+    _t = _cookie("cantico_tiktok_token")
+    if _t:
+        return _t
+    try:
+        import streamlit as st
+        return str(st.session_state.get("tiktok_token", "") or "").strip()
+    except Exception:
+        return ""
 
 SCRIPT_LEGGI_TOKEN = """
 <script>
