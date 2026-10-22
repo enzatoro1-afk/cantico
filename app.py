@@ -22,6 +22,7 @@ import json
 import os
 import re
 import tempfile
+from urllib.parse import quote as _quote_url
 from datetime import date, datetime, timedelta
 
 import streamlit as st
@@ -3208,7 +3209,7 @@ blocco_copia(_query_tiktok, "copia_titolo_tiktok",
              "\U0001F4CB Copia il titolo per TikTok")
 st.link_button(
     "\U0001F50A Cerca questo titolo su TikTok",
-    f"https://www.tiktok.com/search?q={urllib.parse.quote(_query_tiktok)}",
+    f"https://www.tiktok.com/search?q={_quote_url(_query_tiktok)}",
     use_container_width=True,
     type="primary")
 st.caption("Si apre la ricerca di TikTok: da li' scegli il suono originale "
