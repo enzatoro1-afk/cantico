@@ -55,6 +55,11 @@ def scarica_audio(url: str, durata_max: int = 600) -> dict:
     _comando = [
         _exe, "-x", "--audio-format", "mp3", "--audio-quality", "0",
         "--no-playlist", "--no-warnings", "--quiet",
+        "--extractor-args", "youtube:player_client=web",
+        "--user-agent", (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 "
+            "Safari/537.36"),
         "-o", _out, url,
     ]
     try:
@@ -65,6 +70,13 @@ def scarica_audio(url: str, durata_max: int = 600) -> dict:
         return {"ok": False, "file": "", "errore": str(_e)[:120]}
     if _r.returncode != 0:
         _err = (_r.stderr or b"").decode("utf-8", "replace").strip()
+        if "403" in _err or "Forbidden" in _err:
+            return {"ok": False, "file": "",
+                    "errore": ("YouTube blocca i download dai server cloud. "
+                               "L'mp3 funziona solo sul PC (pip install "
+                               "imageio-ffmpeg). Per l'app online usa "
+                               "'FAI TUTTO' (canzone originale) o il suono "
+                               "originale di TikTok.")}
         return {"ok": False, "file": "",
                 "errore": (_err[-160:] if _err else
                            "Non sono riuscito a scaricare l'audio.")}
