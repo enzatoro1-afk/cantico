@@ -3262,11 +3262,20 @@ if risultati:
         '<div class="step">PASSAGGIO 2</div>'
         f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>')
     html(
-        '<div class="note">Copia il titolo e cercalo nella libreria audio di TikTok, '
-        'oppure ascolta l\'anteprima qui sotto. La ricerca guarda anche in '
-        '<b>inglese e spagnolo</b> e nelle <b>collezioni di lode</b> '
-        '(Elevation Worship, Hillsong, Chris Adan, MUSICA CRISTIANA ITALIANA...): '
-        'i brani moderni dei cantanti, che su TikTok funzionano di piu\'.</div>')
+        '<div class="note">Queste sono le <b>canzoni vere</b> che girano: '
+        'ti dicono lo stile giusto per il tuo versetto e il suono da usare.<br>'
+        '<b>Come si usa:</b> premi <b>"🔊 Prendi il suono su TikTok"</b> (ti '
+        'apre la libreria audio di TikTok col titolo esatto: scegli il suono '
+        'originale e usalo nel TUO video) e poi fai il video tuo.<br>'
+        'La ricerca guarda anche in <b>inglese e spagnolo</b> e nelle '
+        '<b>collezioni di lode</b> (Elevation Worship, Hillsong, Chris Adan, '
+        'MUSICA CRISTIANA ITALIANA...): i brani moderni dei cantanti, che su '
+        'TikTok funzionano di piu\'.<br>'
+        '<b>Attenzione:</b> la musica di un artista non la puoi ricaricare '
+        'copiandola: su TikTok si usa il <b>suono originale</b> della '
+        'libreria. Se preferisci zero pensieri, l\'app ti prepara anche una '
+        '<b>canzone originale</b> tua (sezione "Crea una canzone ORIGINALE").'
+        '</div>')
 
     # ---- CERCA MEGLIO / ALTRE CANZONI ----
     _visti = st.session_state.get("visti") or []
@@ -3362,11 +3371,12 @@ if risultati:
                 st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
 
             st.link_button(
-                "\U0001F50D Verifica l'audio su TikTok",
+                "\U0001F50A Prendi il suono su TikTok",
                 link_ricerca_audio(_testo_copia),
                 use_container_width=True,
-                help="Apre la ricerca dei suoni di TikTok con questo titolo: "
-                     "vedi subito se l'audio e' disponibile per i tuoi video.",
+                help="Apre la libreria audio di TikTok con questo titolo "
+                     "esatto: scegli il suono originale e usalo nel TUO "
+                     "video (e' il modo lecito di usare una canzone).",
             )
             # ---- VEDERE COME FANNO GLI ALTRI (per ispirarsi, non per copiare)
             with st.expander("\U0001F50E Come lo fanno gli altri su TikTok"):
@@ -3394,7 +3404,11 @@ if risultati:
                             link_ricerca_video(_q_video),
                             use_container_width=True)
             if st.button(f"\u2B50 Scegli questa canzone per il post", key=f"scelta{i}",
-                         use_container_width=True):
+                         use_container_width=True,
+                         help="Scegli la canzone di riferimento del post: da "
+                              "qui in poi l'app usa questo brano per il "
+                              "suono (lo prendi nella libreria audio di "
+                              "TikTok) e prepara caption, script e immagine."):
                 st.session_state["scelta"] = i - 1
                 hashtag = genera_hashtag(testo, parole_chiave)
                 formato = (st.session_state["analisi"] or {}).get(
