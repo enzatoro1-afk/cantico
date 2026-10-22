@@ -3459,6 +3459,25 @@ if risultati:
                             "\U0001F3A7 Scarica l'mp3 (.mp3)",
                             data=_f.read(), file_name="brano.mp3",
                             mime="audio/mpeg", key=f"dl_mp3_{i}")
+                    # usa questo brano per il video (al posto della canzone generata)
+                    if st.button("\U0001F3A7 Usa questo brano per il video",
+                                 use_container_width=True,
+                                 key=f"usa_mp3_{i}"):
+                        st.session_state["canzone_audio"] = \
+                            st.session_state["audio_youtube"]
+                        st.session_state["canzone_modello"] = "Il brano scelto"
+                        st.session_state["canzone_video"] = ""
+                        st.success("\u2705 Fatto: ora vai in "
+                                   "\"Crea una canzone ORIGINALE\" e premi "
+                                   "\"Fai il video per TikTok\": il video "
+                                   "userà questo brano. Poi su TikTok "
+                                   "aggiungi il suono originale "
+                                   "(il titolo è negli appunti).")
+                        st.rerun()
+                    if st.session_state.get("canzone_audio") == \
+                            st.session_state.get("audio_youtube"):
+                        st.caption("\u2705 Questo brano è quello che userà il "
+                                   "video (vedi sotto).")
 
             # ---- COME PRENDERE IL SUONO SU TIKTOK (passo per passo) ----
             with st.expander("\U0001F50A Come prendere il suono su TikTok "
