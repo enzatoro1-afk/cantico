@@ -111,6 +111,13 @@ except Exception:  # il file potrebbe non essere ancora sul server
 
     def chiavi_browser():
         return {"gemini": "", "treblo": "", "hf": "", "email": ""}
+
+try:
+    from immagini import genera_immagine
+except Exception:  # il file potrebbe non essere ancora sul server
+    def genera_immagine(*_a, **_k):
+        return {"ok": False, "file": "", "fonte": "",
+                "errore": "Modulo immagini non disponibile: aggiorna l'app."}
 from tiktok_sounds import (
     MESSAGGIO_TIKTOK,
     cerca_suoni_tiktok,
@@ -3675,14 +3682,64 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
 
             # --- 3) il video per TikTok ---
             st.markdown("**3. Il video pronto per TikTok** (9:16 verticale)")
+
+            # ---- 3a) L'IMMAGINE DEL POST, GENERATA DALL'AI ----
+            with st.expander("\U0001F5BC️ Genera l'immagine del post (AI)",
+                             expanded=False):
+                st.markdown(
+                    '<div class="note">L\'AI disegna <b>l\'immagine</b> che '
+                    'sta dietro al tuo versetto: cosi\' il post e\' completo '
+                    'senza programmi esterni (canzone + immagine + testo).<br>'
+                    'Con la chiave Gemini la fa lei; senza, usa il motore '
+                    'gratis.</div>', unsafe_allow_html=True)
+                _stile_img = st.selectbox(
+                    "Che feeling vuoi?",
+                    ["Caldo e speranza", "Sereno e contemplativo",
+                     "Drammatico e profondo", "Luminoso e gioioso",
+                     "Notte e silenzio"],
+                    key="stile_immagine")
+                if st.button("\U0001F3A8 Genera l'immagine",
+                             use_container_width=True, key="genera_immagine"):
+                    with st.spinner("\U0001F3A8 Sto disegnando l'immagine "
+                                    "del post..."):
+                        _ris_img = genera_immagine(
+                            versetto=(v.get("testo_pulito", "") or testo or "")[:300],
+                            tema=", ".join((st.session_state["analisi"] or {})
+                                           .get("temi", [])[:2]),
+                            stile=_stile_img,
+                            chiave_gemini=_chiave_gemini_attiva())
+                    if _ris_img.get("ok"):
+                        st.session_state["immagine_ai"] = _ris_img["file"]
+                        st.session_state["immagine_ai_fonte"] = _ris_img.get(
+                            "fonte", "")
+                        st.success("\u2705 Immagine pronta!")
+                    else:
+                        st.error("Non sono riuscito a generarla: "
+                                 + str(_ris_img.get("errore", ""))[:150])
+            if st.session_state.get("immagine_ai"):
+                _img_ai = st.session_state["immagine_ai"]
+                st.image(_img_ai, width=260)
+                st.caption("Immagine generata dall'AI"
+                           + (f" ({st.session_state.get('immagine_ai_fonte','')})"
+                              if st.session_state.get("immagine_ai_fonte")
+                              else ""))
+                with open(_img_ai, "rb") as _f:
+                    st.download_button(
+                        "\U0001F5BC️ Scarica l'immagine", data=_f.read(),
+                        file_name="cantico_immagine.png",
+                        mime="image/png", key="dl_immagine_ai")
+
             _v1, _v2 = st.columns(2)
             with _v1:
+                _opzioni_sfondo = ["immagine", "nero", "foto"]
+                if st.session_state.get("immagine_ai"):
+                    _opzioni_sfondo.insert(0, "AI")
                 _sfondo = st.radio(
-                    "Sfondo", ["immagine", "nero", "foto"],
+                    "Sfondo", _opzioni_sfondo,
                     key="sfondo_video", horizontal=True,
-                    help="immagine: sfondo a gradiente con il testo del "
-                         "verso. nero: tela nera con la scritta. foto: "
-                         "carica una tua immagine.")
+                    help="AI: l'immagine generata dall'AI. immagine: sfondo "
+                         "a gradiente con il testo del verso. nero: tela nera "
+                         "con la scritta. foto: carica una tua immagine.")
             with _v2:
                 _foto = ""
                 if _sfondo == "foto":
@@ -3697,7 +3754,9 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
             if st.button("\U0001F3AC Fai il video per TikTok",
                          use_container_width=True, key="fai_video"):
                 _img = ""
-                if _foto is not None:
+                if _sfondo == "AI" and st.session_state.get("immagine_ai"):
+                    _img = st.session_state["immagine_ai"]
+                elif _foto is not None:
                     _img = os.path.join(tempfile.gettempdir(),
                                         "foto_cantico.jpg")
                     with open(_img, "wb") as _f:
@@ -3706,7 +3765,8 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                     _res_v = crea_video_tiktok(
                         st.session_state["canzone_audio"],
                         testo=(v.get("riferimento", "") or testo or "")[:160],
-                        sfondo=_sfondo, immagine_propria=_img,
+                        sfondo=("foto" if _sfondo == "AI" else _sfondo),
+                        immagine_propria=_img,
                         muovo=_muovo)
                 if _res_v.get("ok"):
                     st.session_state["canzone_video"] = _res_v["file"]
@@ -3809,6 +3869,43 @@ if post:
                 "cta": post.get("cta_ia", ""),
                 "momento": post.get("momento_ia", {}),
             }), "copia_tutto_post", "\U0001F4CB Copia tutto il post")
+
+    # ---- L'IMMAGINE DEL POST (generata dall'AI) ----
+    with st.expander("\U0001F5BC️ Genera l'immagine del post (AI)"):
+        st.markdown(
+            '<div class="note">L\'AI disegna <b>l\'immagine</b> del post: '
+            'quella che sta dietro al tuo verso. Serve per il video (sfondo) '
+            'e per un post "foto" con la musica come audio.</div>',
+            unsafe_allow_html=True)
+        _stile_img2 = st.selectbox(
+            "Che feeling vuoi?",
+            ["Caldo e speranza", "Sereno e contemplativo",
+             "Drammatico e profondo", "Luminoso e gioioso",
+             "Notte e silenzio"],
+            key="stile_immagine_post")
+        if st.button("\U0001F3A8 Genera l'immagine",
+                     use_container_width=True, key="genera_immagine_post"):
+            with st.spinner("\U0001F3A8 Sto disegnando l'immagine..."):
+                _ris_img2 = genera_immagine(
+                    versetto=(testo or "")[:300],
+                    tema=", ".join((st.session_state["analisi"] or {}).get(
+                        "temi", [])[:2]),
+                    stile=_stile_img2,
+                    chiave_gemini=_chiave_gemini_attiva())
+            if _ris_img2.get("ok"):
+                st.session_state["immagine_ai"] = _ris_img2["file"]
+                st.session_state["immagine_ai_fonte"] = _ris_img2.get("fonte", "")
+                st.success("\u2705 Immagine pronta!")
+            else:
+                st.error("Non sono riuscito a generarla: "
+                         + str(_ris_img2.get("errore", ""))[:150])
+    if st.session_state.get("immagine_ai"):
+        with open(st.session_state["immagine_ai"], "rb") as _f:
+            st.image(st.session_state["immagine_ai"], width=240)
+            st.download_button(
+                "\U0001F5BC️ Scarica l'immagine", data=_f.read(),
+                file_name="cantico_immagine.png", mime="image/png",
+                key="dl_immagine_post")
 
     # ---- Data e orario di pubblicazione ----
     html('<div class="note" style="margin-top:10px;"><b>\U0001F4C5 '
