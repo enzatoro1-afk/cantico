@@ -311,6 +311,43 @@ def _js_string(testo: str) -> str:
     return json.dumps(testo, ensure_ascii=False).replace("</", "<\\/")
 
 
+# Salva la chiave Treblo nel BROWSER (come quella Gemini): resta privata,
+# non finisce sul server e non consuma i crediti degli altri.
+_SCRIPT_SALVA_TREBLO = """
+<script>
+(function () {
+  try {
+    localStorage.setItem("cantico_chiave_treblo", "__CHIAVE__");
+  } catch (e) {}
+})();
+</script>
+"""
+
+_SCRIPT_LEGGI_TREBLO = """
+<script>
+(function () {
+  try {
+    if (window.__canticoTrebloMesso) return;
+    var k = localStorage.getItem("cantico_chiave_treblo");
+    if (!k) return;
+    var campi = document.querySelectorAll('input[type="password"]');
+    for (var i = 0; i < campi.length; i++) {
+      var lab = campi[i].closest('div[data-testid="stTextInput"]');
+      if (lab && /Chiave Treblo/i.test(lab.innerText || "")) {
+        if (campi[i].value) { window.__canticoTrebloMesso = true; return; }
+        var proto = Object.getPrototypeOf(campi[i]);
+        var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        setter.call(campi[i], k);
+        window.__canticoTrebloMesso = true;
+        campi[i].dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+"""
+
 # Salva la chiave Gemini nel BROWSER di chi la inserisce (localStorage):
 # resta privata, non finisce sul server e non consuma la quota degli altri.
 _SCRIPT_SALVA_CHIAVE = """
@@ -1262,6 +1299,19 @@ NOTA_TRADUZIONE = (
 # --------------------------------------------------------------------------
 # DUE MODALITA' a schede: per versetto, oppure ricerca in tutta la Bibbia
 # --------------------------------------------------------------------------
+def _genera_musica(motore: str, testi: str, tag: str, stile: str) -> dict:
+    """Genera la musica con il motore scelto. Restituisce un dizionario."""
+    if motore.startswith("Treblo"):
+        return genera_canzone_treblo(testi, tag)
+    if motore.startswith("Suno"):
+        return genera_canzone_suno(testi, tag)
+    _stile_completo = f"{stile}, {tag}" if stile else tag
+    if motore.startswith("ACE-Step"):
+        return genera_canzone_gratuita(testi, _stile_completo,
+                                       modello="ace-step")
+    return genera_canzone_gratuita(testi, _stile_completo, modello="musicgen")
+
+
 tab_verso, tab_biblia, tab_riflessione = st.tabs([
     "\U0001F3A5 Versetto -> canzone",
     "\U0001F4D6 Cerca in tutta la Bibbia",
@@ -2507,6 +2557,40 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
              "come 'prompt'). Es. 'inno pentecostale, voce maschile, "
              "piano e cori soft, 78 BPM'.")
 
+    # --- la chiave del motore, QUI dentro (basta metterla una volta) ---
+    with st.container(border=True):
+        html('<div class="note box-ok"><b>\U0001F3A7 Per far cantare il '
+             'brano</b> ti serve la chiave di <b>Treblo</b>: e gratis '
+             '(3.000 crediti = 30 canzoni) e resta nel TUO browser, non '
+             'finisce sul server e non la vede nessun altro.</div>')
+        _kc1, _kc2 = st.columns([3, 1])
+        with _kc1:
+            _chiave_qua = st.text_input(
+                "Chiave Treblo (incolla qui)",
+                type="password",
+                placeholder="sk_...",
+                help="La prendi su treblo.com -> account sviluppatore. "
+                     "Resta nel tuo browser: non passa dalla chat.",
+                key="chiave_treblo_sezione",
+            )
+        with _kc2:
+            st.link_button(
+                "Prendila gratis \u2197",
+                "https://treblo.com/developers/account",
+                use_container_width=True)
+            if st.button("\U0001F50E Verifica",
+                         use_container_width=True, key="verifica_treblo_sezione"):
+                if _chiave_qua:
+                    st.session_state["chiave_treblo"] = _chiave_qua.strip()
+                _ok, _nota = treblo_disponibile()
+                (st.success if _ok else st.error)(_nota)
+        if _chiave_qua:
+            st.session_state["chiave_treblo"] = _chiave_qua.strip()
+            html(_SCRIPT_SALVA_TREBLO.replace("__CHIAVE__", _chiave_qua),
+                 js=True)
+        else:
+            html(_SCRIPT_LEGGI_TREBLO, js=True)
+
     # --- 1) il testo della canzone ---
     _b1, _b2 = st.columns(2)
     with _b1:
@@ -2533,6 +2617,79 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                  "(serve il servizio open source attivo + il cookie). "
                  "ACE-Step e MusicGen sono open source e gratis, ma hanno "
                  "coda: possono mettersi in attesa.")
+    # --- 2) i tag di stile (sempre disponibili) ---
+    _tag_finali = st.text_input(
+        "Tag di stile (invio quelli che mi hai dato)",
+        value=TUTTI_I_TAG, key="tag_musica",
+        help="Stile: Modern Christian Worship, contemporary gospel, "
+             "inspiring, uplifting, powerful vocal harmony. "
+             "Strumenti: acoustic guitar, ambient piano, cinematic "
+             "synths, build-up drums, emotional strings.")
+
+    # --- IL PULSANTE UNICO: fa tutto, in un colpo ---
+    if st.button("\U0001F3AC FAI TUTTO: parole + canzone + video",
+                 type="primary", use_container_width=True, key="fai_tutto"):
+        _rif = (st.session_state.get("riferimento") or {})
+        _riferimento = _rif.get("riferimento", "")
+        _interp = (studio.get("interpretazione") or {}).get("testo", "")
+        _rif_gr = st.session_state.get("riflessione_giornaliera") or ""
+        # 1) le parole
+        if not st.session_state.get("canzone_testi"):
+            with st.spinner("1 di 3 - L'IA sta scrivendo le parole del "
+                            "brano..."):
+                if _rif_gr:
+                    try:
+                        from testi_canzone import scrivi_testi_da_riflessione
+                        _res_t = scrivi_testi_da_riflessione(
+                            _rif_gr, riferimento=_riferimento,
+                            testo_versetto=(studio.get("versetto") or {}).get(
+                                "testo", ""),
+                            temi=", ".join(estrai_parole_chiave(_rif_gr, 3)),
+                            chiave_gemini=_chiave_gemini_attiva(),
+                            chiave_openai=st.session_state.get("chiave_ia", ""))
+                    except Exception as _exc:
+                        _res_t = {"ok": False, "errore": str(_exc)[:120]}
+                else:
+                    _res_t = scrivi_testi_canzone(
+                        _riferimento or (testo or "")[:120], _interp,
+                        temi=", ".join((st.session_state["analisi"] or {})
+                                      .get("temi", [])[:3]),
+                        chiave_gemini=_chiave_gemini_attiva(),
+                        chiave_openai=st.session_state.get("chiave_ia", ""))
+            if not _res_t.get("ok"):
+                st.error(_res_t.get("errore", "Non sono riuscito a scrivere "
+                                                 "le parole del brano."))
+                st.stop()
+            st.session_state["canzone_testi"] = _res_t["testo"]
+        # 2) la musica
+        with st.spinner("2 di 3 - Il motore musicale sta componendo il "
+                        "brano (1-3 minuti)..."):
+            _res_m = _genera_musica(
+                _motore, struttura_canzone(st.session_state["canzone_testi"]),
+                _tag_finali, _stile)
+        if not _res_m.get("ok"):
+            st.error(_res_m.get("errore", "Composizione fallita."))
+            if _res_m.get("protegto"):
+                st.session_state["suno_protegto"] = True
+            st.stop()
+        st.session_state["canzone_audio"] = _res_m["file"]
+        st.session_state["canzone_audio_url"] = _res_m.get("url", "")
+        st.session_state["canzone_modello"] = _res_m.get("motore", "")
+        # 3) il video
+        with st.spinner("3 di 3 - Sto montando il video verticale..."):
+            _res_v = crea_video_tiktok(
+                _res_m["file"],
+                testo=(v.get("riferimento", "") or testo or "")[:160],
+                sfondo="immagine", muovo=True)
+        if _res_v.get("ok"):
+            st.session_state["canzone_video"] = _res_v["file"]
+            st.success("\u2705 \u2705 \u2705 Fatto tutto: parole, canzone e "
+                       "video! Il video e' gia' qui sotto.")
+        else:
+            st.warning("La canzone e' pronta ma il video non e' uscito: "
+                       + str(_res_v.get("errore", ""))[:120])
+        st.rerun()
+
     if st.session_state.get("canzone_testi"):
         _testi_canzone = st.text_area(
             "Il testo della canzone (modificalo come vuoi)",
@@ -2541,13 +2698,6 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         st.session_state["canzone_testi"] = _testi_canzone
 
         # --- 2) la musica ---
-        _tag_finali = st.text_input(
-            "Tag di stile (invio quelli che mi hai dato)",
-            value=TUTTI_I_TAG, key="tag_musica",
-            help="Stile: Modern Christian Worship, contemporary gospel, "
-                 "inspiring, uplifting, powerful vocal harmony. "
-                 "Strumenti: acoustic guitar, ambient piano, cinematic "
-                 "synths, build-up drums, emotional strings.")
         if _motore.startswith("Treblo"):
             _ok_tr, _nota_tr = treblo_disponibile()
             if not _ok_tr:
@@ -2568,19 +2718,8 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                              _tag_finali)
             with st.spinner("Sto componendo e cantando il brano "
                             "(1-3 minuti, puo' mettersi in coda)..."):
-                if _motore.startswith("Treblo"):
-                    _res_m = genera_canzone_treblo(_testi_finali, _tag_finali)
-                elif _motore.startswith("Suno"):
-                    _res_m = genera_canzone_suno(_testi_finali, _tag_finali)
-                elif _motore.startswith("ACE-Step"):
-                    _res_m = genera_canzone_gratuita(
-                        _testi_finali, _stile_finale, modello="ace-step")
-                elif _motore.startswith("MusicGen"):
-                    _res_m = genera_canzone_gratuita(
-                        _testi_finali, _stile_finale, modello="musicgen")
-                else:
-                    _res_m = genera_canzone_gratuita(
-                        _testi_finali, _stile_finale, modello="musicgen")
+                _res_m = _genera_musica(_motore, _testi_finali, _tag_finali,
+                                        _stile)
             if _res_m.get("ok"):
                 st.session_state["canzone_audio"] = _res_m["file"]
                 st.session_state["canzone_audio_url"] = _res_m.get("url", "")

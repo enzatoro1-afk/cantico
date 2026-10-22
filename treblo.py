@@ -118,8 +118,8 @@ def genera_canzone_treblo(lyrics: str, tags: str = "", timeout: int = 420) -> di
     if not _chiave():
         return {**vuoto, "errore": (
             "Manca la chiave Treblo: prendila gratis su treblo.com "
-            "(account sviluppatore) e incollala nella barra laterale, campo "
-            "'Chiave Treblo'.")}
+            "(account sviluppatore) e incollala nel campo 'Chiave Treblo' "
+            "qui sopra (o nella barra laterale).")}
 
     lyrics = (lyrics or "").strip()
     if len(lyrics) < 10:
