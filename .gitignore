@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 .streamlit/secrets.toml
+SEGRETS-CLOUD.txt
 .secrets/
 .chiave_gemini_server.json
 .chiave_treblo_server.json

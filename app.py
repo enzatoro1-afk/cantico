@@ -1237,6 +1237,22 @@ with st.sidebar:
              "l'app usa comunque l'IA gratuita senza chiave.",
         key="chiave_gemini",
     )
+    if not chiave_gemini_da_secrets():
+        # niente chiave: avviso chiaro, con il link per prenderla
+        html(
+            '<div class="box box-warn"><b>\u26A0\uFE0F Gemini non e\' ancora '
+            'attivo</b><br>Adesso l\'app usa la <b>IA gratuita</b>: fa il suo '
+            'lavoro, ma e\' piu\' lenta e la scrittura e\' meno profonda. '
+            'La chiave di Google Gemini e\' <b>gratis</b> e si prende in un '
+            'minuto: <a href="https://aistudio.google.com/api-keys" '
+            'target="_blank">aistudio.google.com/api-keys</a> &rarr; "Create '
+            'API key" &rarr; incolla qui sotto.<br>'
+            'Poi scegli dove tenerla:<br>'
+            '&bull; <b>"Ricorda su QUESTO dispositivo"</b> (sotto): solo per '
+            'te, nel tuo browser, la quota resta tua;<br>'
+            '&bull; <b>"Condividi con TUTTI"</b> (sotto): la mette sul server, '
+            'cosi\' vale per tutti e per l\'app online, ma la quota e\' '
+            'condivisa.</div>')
     if chiave_gemini_da_secrets():
         html(
             '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
@@ -1327,7 +1343,7 @@ with st.sidebar:
     # e un pulsante che la verifica davvero.
     st.markdown("---")
     with st.expander("\u2699\uFE0F Attiva tutto (2 minuti)",
-                     expanded=False):
+                     expanded=not bool(chiave_gemini_da_secrets())):
         attiva.pannello(st, html, esc)
 
     # ---- CONFIGURAZIONE (per chi scarica l'app) ----

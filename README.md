@@ -499,6 +499,43 @@ niente, compare **"🧩 Attiva tutto (2 minuti)"** con i passi esatti:
 
 ---
 
+## 🔑 Le chiavi su Streamlit Cloud (perché l'app online era lenta)
+
+Il file `.streamlit/secrets.toml` contiene le tue chiavi (Gemini, Treblo,
+Hugging Face) ma è **in `.gitignore`**: è il posto giusto, perché GitHub non
+deve mai vedere le chiavi. **Però questo vuol dire che l'app online non le
+vede** → senza chiave l'app cade sulla IA gratuita, che è lentissima.
+
+**Il fix (30 secondi, una volta sola):**
+
+1. Apri <https://share.streamlit.io>
+2. La tua app → **⋯ (i tre puntini)** → **Settings** → tab **Secrets**
+3. Apri il file **`SEGRETS-CLOUD.txt`** (nella cartella del progetto) e
+   **copia tutto il testo**
+4. **Incolla** nel campo Secrets → **Save**
+
+L'app si riavvia da sola. Nella barra laterale deve comparire
+**"✅ Gemini è già attivo"**.
+
+> **In alternativa, con un comando** (se preferisci non copiare a mano):
+> ```powershell
+> python imposta_chiavi_cloud.py
+> ```
+> Lo script legge le chiavi dal file locale e le carica nei Secrets del Cloud
+> via API officiale. Ti chiede solo un *token API* di Streamlit
+> (<https://share.streamlit.io/account/settings> → **API tokens** → Create).
+> **Non stampa mai le chiavi**, solo i loro nomi. Con `--controlla` verifica
+> solo, senza scrivere.
+
+> **La via veloce dal telefono** (senza toccare il Cloud): nella barra
+> laterale incolla la chiave Gemini e spunta **"Ricorda su QUESTO
+> dispositivo"**: resta nel tuo browser, la quota resta tua e funziona subito.
+> Spuntando anche **"Condividi con TUTTI"** la chiave va sul server e vale
+> per tutti, ma **si perde a ogni aggiornamento** dell'app (il container si
+> azzera): per durare, usa i Secrets del Cloud.
+
+---
+
 ## ❤️ Fatto per i creator cristiani
 
 ---
