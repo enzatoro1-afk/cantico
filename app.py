@@ -1636,6 +1636,23 @@ with st.sidebar:
                      expanded=not bool(chiave_gemini_da_secrets())):
         attiva.pannello(st, html, esc)
 
+    st.markdown("---")
+
+    # ---- stato di TikTok: subito in alto, senza dover fare il flusso ----
+    try:
+        import tiktok_pubblica as _tkstato
+        if _tkstato.collegato():
+            html('<div class="note box-ok">\u2705 <b>TikTok pronto</b> per '
+                 'l\'auto-pubblicazione: le chiavi ci sono. In fondo, in '
+                 '"Pubblica su TikTok", trovi "Collega il tuo TikTok".</div>')
+        else:
+            html('<div class="note">\U0001F517 <b>TikTok</b>: per '
+                 'l\'auto-pubblicazione servono le chiavi della tua '
+                 'developer app. Le metti in fondo, in "Pubblica su TikTok" '
+                 '&rarr; "Le chiavi della mia developer app".</div>')
+    except Exception:
+        pass
+
     # ---- CONFIGURAZIONE (per chi scarica l'app) ----
     # Ogni utente crea le PROPRIE chiavi con la PROPRIA email e l'app
     # gli funziona al 100%: niente altro da fare.
