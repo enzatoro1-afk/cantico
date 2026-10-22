@@ -1872,10 +1872,18 @@ riferimento_verso = (st.session_state.get("riferimento_forzato")
 studio = st.session_state.get("versetto_studio") or {}
 
 if riferimento_verso and not studio.get("errore"):
-    versetto_esatto = studio.get("versetto") or trova_versetto(
-        riferimento_verso["libro"], riferimento_verso["capitolo"],
-        riferimento_verso["versetto"] or 1,
-        versetto_fine=riferimento_verso.get("versetto_fine"))
+    # Se l'utente ha scritto un versetto esatto (es. "Salmo 23,1"), quello
+    # vince: l'app non deve mostrargli il versetto scelto dall'IA.
+    _v_scritto = riferimento_verso.get("versetto")
+    if _v_scritto:
+        versetto_esatto = trova_versetto(
+            riferimento_verso["libro"], riferimento_verso["capitolo"],
+            _v_scritto,
+            versetto_fine=riferimento_verso.get("versetto_fine"))
+    else:
+        versetto_esatto = studio.get("versetto") or trova_versetto(
+            riferimento_verso["libro"], riferimento_verso["capitolo"], 1,
+            versetto_fine=riferimento_verso.get("versetto_fine"))
 
     solo_capitolo = not riferimento_verso.get("versetto")
 
@@ -1968,6 +1976,13 @@ if riferimento_verso and not studio.get("errore"):
                 'Niente traduzione cattolica, niente libri deuterocanonici.'
                 '</div>')
             html(
+                '<div class="box box-ok"><b>\u2705 OK: questo e\' il '
+                'versetto che hai scelto</b><br>'
+                '<span class="note">Qui sotto puoi premere '
+                '<b>\U0001F50E Studia questo passaggio</b> (l\'interpret '
+                'azione), <b>\U0001F50E Trova Canzone Adatta</b> (le canzoni) '
+                'o preparare direttamente il post.</span></div>')
+            html(
                 f'<div class="box"><b>\U0001F4D6 {esc(versetto_esatto["riferimento"])}</b>'
                 f'<br><span style="font-size:1.02rem;">{esc(versetto_esatto["testo_pulito"])}</span></div>')
 
@@ -1993,13 +2008,22 @@ if riferimento_verso and not studio.get("errore"):
                 )
                 if st.button("\U0001F50D Applica l'intervallo",
                              key="applica_intervallo_pers", use_container_width=True):
-                    _rif = rileva_riferimento(
-                        f"{riferimento_verso['libro']} {_cap_n} {_txt}")
+                    _txt_ok = (_txt or "").strip()
+                    if "," in _txt_ok:
+                        # l'utente ha scritto il riferimento completo
+                        # (es. "8,7"): NON aggiungere il capitolo davanti
+                        _rif = rileva_riferimento(
+                            f"{riferimento_verso['libro']} {_txt_ok}")
+                    else:
+                        # solo il versetto o l'intervallo (es. "7", "6-10")
+                        _rif = rileva_riferimento(
+                            f"{riferimento_verso['libro']} {_cap_n} {_txt_ok}")
                     if _rif and _rif.get("versetto"):
                         st.session_state["riferimento_forzato"] = _rif
                         st.rerun()
                     else:
-                        st.warning("Scrivi l'intervallo, es. 6-10")
+                        st.warning("Scrivi l'intervallo, es. 6-10 (oppure "
+                                   "il versetto esatto, es. 8,7)")
             else:
                 _rif = dict(riferimento_verso)
                 if _ambito.startswith("Tutto il capitolo"):

@@ -368,7 +368,8 @@ Nella sezione **"Crea una canzone ORIGINALE"** (in fondo al PASSAGGIO 3):
 | Motore | Cosa serve | Costo |
 |---|---|---|
 | **Treblo** (canta il testo, audio scaricabile) | una chiave API Treblo | **gratis** (3.000 crediti = 30 canzoni) |
-| **ACE-Step** (open source, canta il testo) | un token Hugging Face gratis | **gratis e senza limiti** |
+| **Melodia** (Space su CPU, canta il testo) | niente | **gratis, senza quota e senza carta** |
+| **ACE-Step** (open source, canta il testo) | un token Hugging Face gratis | gratis (poche canzoni al giorno) |
 | **Suno (i tuoi crediti gratuiti)** | solo il tuo cookie di suno.com | gratis, ma Suno blocca la sessione dopo poche canzoni |
 | **MusicGen** (open source, strumentale) | un token Hugging Face gratis | gratis |
 | **Il tuo brano** | niente: carichi il file audio e l'app fa il video | gratis |
