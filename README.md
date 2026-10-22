@@ -526,6 +526,29 @@ L'app si riavvia da sola. Nella barra laterale deve comparire
 > (<https://share.streamlit.io/account/settings> → **API tokens** → Create).
 > **Non stampa mai le chiavi**, solo i loro nomi. Con `--controlla` verifica
 > solo, senza scrivere.
+>
+> **Se vuoi che ognuno metta la SUA chiave** (quota di ciascuno, niente
+> condiviso):
+> ```powershell
+> python imposta_chiavi_cloud.py --senza GEMINI_API_KEY
+> ```
+> Così il Cloud **non** ha Gemini: ogni utente lo attiva dal proprio
+> browser con un tocco (vedi sotto), e la quota gratuita resta sua.
+
+### ⚡ Come attiva Gemini chi riceve l'app (1 minuto, spiegato)
+
+Nella **barra laterale in alto** c'è la card **"⚡ Attiva Gemini (1 minuto,
+gratis)"**, con i 3 gesti scritti:
+
+1. tocca **"Apri Google AI Studio (crea la chiave)"** → si apre la pagina
+   ufficiale (dove si fa "Create API key")
+2. incolla la chiave nel campo
+3. premi **"Attiva subito (per me)"** → l'app **la verifica** e ti dice se
+   funziona
+
+La chiave viene salvata **nel browser** (localStorage): la ritrovi senza
+reinserirla, **nessun altro la vede**, **nessuno la consuma al posto tuo**,
+e non finisce mai su GitHub né nei Secrets del server.
 
 > **La via veloce dal telefono** (senza toccare il Cloud): nella barra
 > laterale incolla la chiave Gemini e spunta **"Ricorda su QUESTO
@@ -544,7 +567,7 @@ scelte**. Niente resta tuo.
 
 | Cosa | Come funziona per chi riceve l'app |
 |---|---|
-| **Le chiavi IA** | Ogni utente mette **la sua** chiave Gemini (gratis) nella barra laterale → **la sua quota resta sua**. Se non ne ha, l'app funziona lo stesso con la IA gratuita (più lenta). La chiave messa nei Secrets del Cloud è quella del **proprietario**: se la lasci li, la quota la consumano tutti. |
+| **Le chiavi IA** | Ogni utente mette **la sua** chiave Gemini (gratis) con la card **"⚡ Attiva Gemini"** in alto a sinistra: l'app gliela salva **nel suo browser** e gliela verifica subito. **La quota resta sua** e nessun altro la vede. Se non la mette, l'app funziona lo stesso con la IA gratuita (più lenta). |
 | **I post (archivio)** | Privati per utente: l'app riconosce ciascuno da un cookie nel browser. **Nessuno vede i post degli altri.** Ognuno ha il suo file `archivio_<hash>.json`. |
 | **Quello che scrive** | Il testo, le ricerche e le interpretazioni restano nel **browser** di ciascuno: non li vede nessun altro. |
 | **La password** | È una sola per l'app: chi riceve il link riceve anche la password (sta nella mail di `INVIA_EMAIL.ps1`). |

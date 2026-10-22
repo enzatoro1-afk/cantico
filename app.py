@@ -1234,112 +1234,191 @@ richiedi_accesso()
 # --------------------------------------------------------------------------
 # Sidebar: interpretazione con IA (facoltativa) + spiegazione
 with st.sidebar:
+    # ======================================================================
+    # LA CARD "ATTIVA GEMINI": il primo gesto di chi apre l'app.
+    # Ognuno mette la SUA chiave: resta nel suo browser, la quota e' sua,
+    # nessun altro la vede e nessuno la consuma al posto suo.
+    # ======================================================================
+    _chiave_gia = (st.session_state.get("chiave_gemini")
+                   or st.session_state.get("cfg_gemini") or "").strip()
+    _server_ha_chiave = bool(chiave_gemini_da_secrets())
+    # se non c'e' nessuna chiave, la CARD qui sopra e' l'unico posto dove
+    # metterla (niente campi duplicati)
+    _mostra_card = (not _chiave_gia) and (not _server_ha_chiave)
+    if _mostra_card:
+        st.markdown("### \u26A1 Attiva Gemini (1 minuto, gratis)")
+        html(
+            '<div class="box"><b>Perche\' ti chiedo la chiave?</b><br>'
+            'L\'interpretazione e la riflessione le scrive l\'IA. Con la tua '
+            'chiave <b>Google Gemini</b> (gratis) l\'app lavora <b>veloce</b> '
+            'e scrive <b>molto piu\' profondo</b>.<br>'
+            'La chiave resta <b>nel tuo browser</b>: nessun altro la vede, '
+            'nessuno la consuma al posto tuo, e non finisce mai su GitHub.'
+            '</div>')
+        st.markdown(
+            "<div class=\"note\" style=\"margin-bottom:4px;\">"
+            "<b>Come si fa (3 gesti):</b></div>"
+            "<ol style=\"margin:2px 0 0 18px;padding:0;font-size:.86rem\">"
+            "<li>tocca il pulsante qui sotto: si apre la pagina ufficiale</li>"
+            "<li>clicca <b>\"Create API key\"</b> e copiala</li>"
+            "<li>incollala nel campo qui sotto e premi "
+            "<b>\"Attiva subito (per me)\"</b></li>"
+            "</ol>")
+        if st.link_button("\U0001F310 Apri Google AI Studio (crea la chiave)",
+                          "https://aistudio.google.com/apikey",
+                          use_container_width=True):
+            st.info("Si e' aperta una nuova scheda: clicca 'Create API key', "
+                    "poi torna qui e incolla la chiave.")
+        _k_att = st.text_input(
+            "Incolla qui la tua chiave Gemini",
+            type="password", placeholder="AIza...",
+            key="cfg_gemini_attiva",
+            help="La chiave la prendi gratis su aistudio.google.com/apikey. "
+                 "Resta nel TUO browser: nessun altro la vede.")
+        if st.button("\u2705 Attiva subito (per me)", type="primary",
+                     use_container_width=True, key="attiva_gemini_su"):
+            if not (_k_att or "").strip():
+                st.warning("Incolla prima la chiave \U0001F4D8")
+            else:
+                st.session_state["cfg_gemini"] = _k_att.strip()
+                st.session_state["chiave_gemini"] = _k_att.strip()
+                # la salvo nel browser: cosi' la ritrovi senza reinserirla
+                html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
+                                                  _js_string(_k_att.strip())),
+                     js=True)
+                with st.spinner("Verifico che la chiave funzioni..."):
+                    _prova = _chiedi_ia(
+                        "Rispondi solo con la parola: pace.",
+                        chiave_gemini=_chiave_gemini_attiva())
+                if _prova.get("testo"):
+                    st.success("\u2705 Fatto! Gemini e' attivo nel TUO "
+                               "browser: l'app e' veloce e scrive profondo. "
+                               "Non devi piu' fare nient'altro.")
+                else:
+                    st.error("La chiave non ha risposto: " +
+                             str(_prova.get("errore", ""))[:150] +
+                             ". Ricontrolla di averla copiata per intero.")
+        st.markdown("---")
+
     st.markdown("### \U0001F9E0 Interpretazione con IA")
-    st.markdown(
-        "<div class=\"note\">L'interpretazione la scrive un'<b>IA che conosce la "
-        "Scrittura</b>. Ci sono due strade:<br>"
-        "<b>1)</b> <b>Google Gemini</b> (gratis, la piu' bella): metti la "
-        "tua chiave qui sotto &rarr; <a href='https://aistudio.google.com/apikey' "
-        "target='_blank'>aistudio.google.com/apikey</a> (ci metti un secondo, "
-        "e' gratis e illimitata per l'uso quotidiano)<br>"
-        "<b>2)</b> <b>IA gratuita senza chiave</b>: l'app usa subito un servizio "
-        "gratuito, ma e' piu' lento e a volte occupato<br><br>"
-        "C'è anche la <b>chiave API OpenAI</b>, se preferisci ChatGPT.<br><br>"
-        "<b>Le canzoni le cerca sempre l'app</b> (brani reali, filtro "
-        "pentecostale): l'IA non consiglia mai titoli di canzoni, ma le sue "
-        "parole chiavi guidano la ricerca.</div>",
-        unsafe_allow_html=True,
-    )
-    _chiave_gemini = st.text_input(
-        "Chiave Google Gemini (gratis)",
-        # ATTENZIONE: il campo resta VUOTO. Se ci mettessi la chiave del
-        # server (quella nei Secrets del Cloud), comparirebbe nel codice
-        # della pagina e ogni utente dell'app potrebbe vederla.
-        # La chiave del server la usa l'app da sola, senza mostrarla.
-        value="",
-        type="password",
-        help="La prendi gratis su aistudio.google.com/api-keys. Con questa "
-             "chiave l'interpretazione viene scritta da Gemini, con la "
-             "profondita' di un maestro della Scrittura. Se la lasci vuota, "
-             "l'app usa comunque l'IA gratuita senza chiave.",
-        key="chiave_gemini",
-    )
-    if not chiave_gemini_da_secrets():
-        # niente chiave: avviso chiaro, con il link per prenderla
-        html(
-            '<div class="box box-warn"><b>\u26A0\uFE0F Gemini non e\' ancora '
-            'attivo</b><br>Adesso l\'app usa la <b>IA gratuita</b>: fa il suo '
-            'lavoro, ma e\' piu\' lenta e la scrittura e\' meno profonda. '
-            'La chiave di Google Gemini e\' <b>gratis</b> e si prende in un '
-            'minuto: <a href="https://aistudio.google.com/api-keys" '
-            'target="_blank">aistudio.google.com/api-keys</a> &rarr; "Create '
-            'API key" &rarr; incolla qui sotto.<br>'
-            'Poi scegli dove tenerla:<br>'
-            '&bull; <b>"Ricorda su QUESTO dispositivo"</b> (sotto): solo per '
-            'te, nel tuo browser, la quota resta tua;<br>'
-            '&bull; <b>"Condividi con TUTTI"</b> (sotto): la mette sul server, '
-            'cosi\' vale per tutti e per l\'app online, ma la quota e\' '
-            'condivisa.</div>')
-    if chiave_gemini_da_secrets():
-        html(
-            '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
-            '(chiave gia\' configurata): le interpretazioni vengono scritte '
-            'da Gemini.</div>')
-        html(
-            '<div class="note">\U0001F517 Questa chiave e\' <b>del server</b>: '
-            'la usa chiunque apra l\'app, quindi la quota gratuita la '
-            'consumano tutti. Se vuoi la tua <b>solo per te</b> (e la quota '
-            'intatta), metti la tua chiave qui sotto e spunta "Ricorda su '
-            'QUESTO dispositivo": la tua ha la precedenza su questa.</div>')
-        if st.button("\U0001F5D1 Togli la chiave da questo server",
-                     use_container_width=True, key="dimentica_chiave"):
-            dimentica_chiave_gemini()
-            st.session_state["chiave_gemini"] = ""
-            st.rerun()
-        if fonte_chiave_gemini() == "secrets":
-            html(
-                '<div class="note">\U0001F510 Questa chiave sta nei '
-                '<b>Secrets di Streamlit Cloud</b>: per toglierla devi '
-                'cancellarla li\' (Share.streamlit.io &rarr; la tua app '
-                '&rarr; Settings &rarr; Secrets).</div>')
+    if _mostra_card:
+        st.markdown(
+            '<div class="note">L\'interpretazione la scrive un\'<b>IA che '
+            'conosce la Scrittura</b>. Attivando Gemini qui sopra diventa '
+            'veloce e profonda; senza chiave l\'app funziona lo stesso, ma '
+            'usa la IA gratuita (piu\' lenta).<br><br>'
+            '<b>Le canzoni le cerca sempre l\'app</b> (brani reali, filtro '
+            'pentecostale): l\'IA non consiglia mai titoli di canzoni, ma le '
+            'sue parole chiave guidano la ricerca.</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        # riprendi la chiave salvata nel TUO browser (solo per te)
-        html(_SCRIPT_LEGGI_CHIAVE, js=True)
-        html(
-            '<div class="note">\U0001F511 <b>Senza chiave l\'app funziona '
-            'lo stesso</b>: usa lo studio del versetto (costruito sul testo '
-            'e sulle sue immagini) e l\'IA gratuita senza chiave. Ma con una '
-            'chiave Gemini gratuita l\'interpretazione diventa molto piu\' '
-            'profonda, scritta come un maestro della Scrittura. '
-            '<a href="https://aistudio.google.com/api-keys" '
-            'target="_blank">Prendila qui</a> (ci metti un minuto).</div>')
-        # La chiave si ricorda NEL BROWSER (solo per te, la quota e' tua):
-        # nessun altro utente la vede e nessuno la consuma al posto tuo.
-        st.checkbox(
-            "Ricorda la chiave su QUESTO dispositivo (solo per me)",
-            key="ricorda_dispositivo",
-            help="Salva la chiave nel TUO browser (come una password salvata). "
-                 "Nessun altro utente dell'app la vede, e la quota gratuita "
-                 "resta tua. Non finisce MAI su GitHub ne' sul server.",
+        st.markdown(
+            "<div class=\"note\">L'interpretazione la scrive un'<b>IA che "
+            "conosce la Scrittura</b>. Ci sono due strade:<br>"
+            "<b>1)</b> <b>Google Gemini</b> (gratis, la piu' bella): metti la "
+            "tua chiave qui sotto &rarr; <a href='https://aistudio.google.com/apikey' "
+            "target='_blank'>aistudio.google.com/apikey</a> (ci metti un secondo, "
+            "e' gratis e illimitata per l'uso quotidiano)<br>"
+            "<b>2)</b> <b>IA gratuita senza chiave</b>: l'app usa subito un "
+            "servizio gratuito, ma e' piu' lento e a volte occupato<br><br>"
+            "C'è anche la <b>chiave API OpenAI</b>, se preferisci ChatGPT.<br><br>"
+            "<b>Le canzoni le cerca sempre l'app</b> (brani reali, filtro "
+            "pentecostale): l'IA non consiglia mai titoli di canzoni, ma le sue "
+            "parole chiave guidano la ricerca.</div>",
+            unsafe_allow_html=True,
         )
-        if st.session_state.get("ricorda_dispositivo") and _chiave_gemini:
-            html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
-                                               _js_string(_chiave_gemini)),
-                 js=True)
-            st.success("\u2705 Chiave ricordata su questo dispositivo: non la "
-                       "devi più reinserire. Resta solo tua.")
-        st.checkbox(
-            "Condividi la chiave con TUTTI gli utenti dell'app",
-            key="ricorda_chiave",
-            help="Salva la chiave sul server di Streamlit: tutti potranno "
-                 "usare Gemini, ma la quota gratuita e' condivisa. "
-                 "Consigliato solo se l'app resta per te e i tuoi cari.",
+    if not _mostra_card:
+        _chiave_gemini = st.text_input(
+            "Chiave Google Gemini (gratis)",
+            # ATTENZIONE: il campo resta VUOTO. Se ci mettessi la chiave del
+            # server (quella nei Secrets del Cloud), comparirebbe nel codice
+            # della pagina e ogni utente dell'app potrebbe vederla.
+            # La chiave del server la usa l'app da sola, senza mostrarla.
+            value="",
+            type="password",
+            help="La prendi gratis su aistudio.google.com/api-keys. Con questa "
+                 "chiave l'interpretazione viene scritta da Gemini, con la "
+                 "profondita' di un maestro della Scrittura. Se la lasci vuota, "
+                 "l'app usa comunque l'IA gratuita senza chiave.",
+            key="chiave_gemini",
         )
-        if st.session_state.get("ricorda_chiave") and _chiave_gemini:
-            if ricorda_chiave_gemini(_chiave_gemini):
-                st.success("\u2705 Chiave salvata sul server: da ora in poi "
-                           "Gemini e' attivo per tutti.")
+        if not chiave_gemini_da_secrets():
+            # niente chiave: avviso chiaro, con il link per prenderla
+            html(
+                '<div class="box box-warn"><b>\u26A0\uFE0F Gemini non e\' ancora '
+                'attivo</b><br>Adesso l\'app usa la <b>IA gratuita</b>: fa il suo '
+                'lavoro, ma e\' piu\' lenta e la scrittura e\' meno profonda. '
+                'La chiave di Google Gemini e\' <b>gratis</b> e si prende in un '
+                'minuto: <a href="https://aistudio.google.com/api-keys" '
+                'target="_blank">aistudio.google.com/api-keys</a> &rarr; "Create '
+                'API key" &rarr; incolla qui sotto.<br>'
+                'Poi scegli dove tenerla:<br>'
+                '&bull; <b>"Ricorda su QUESTO dispositivo"</b> (sotto): solo per '
+                'te, nel tuo browser, la quota resta tua;<br>'
+                '&bull; <b>"Condividi con TUTTI"</b> (sotto): la mette sul server, '
+                'cosi\' vale per tutti e per l\'app online, ma la quota e\' '
+                'condivisa.</div>')
+        if chiave_gemini_da_secrets():
+            html(
+                '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
+                '(chiave gia\' configurata): le interpretazioni vengono scritte '
+                'da Gemini.</div>')
+            html(
+                '<div class="note">\U0001F517 Questa chiave e\' <b>del server</b>: '
+                'la usa chiunque apra l\'app, quindi la quota gratuita la '
+                'consumano tutti. Se vuoi la tua <b>solo per te</b> (e la quota '
+                'intatta), metti la tua chiave qui sotto e spunta "Ricorda su '
+                'QUESTO dispositivo": la tua ha la precedenza su questa.</div>')
+            if st.button("\U0001F5D1 Togli la chiave da questo server",
+                         use_container_width=True, key="dimentica_chiave"):
+                dimentica_chiave_gemini()
+                st.session_state["chiave_gemini"] = ""
                 st.rerun()
+            if fonte_chiave_gemini() == "secrets":
+                html(
+                    '<div class="note">\U0001F510 Questa chiave sta nei '
+                    '<b>Secrets di Streamlit Cloud</b>: per toglierla devi '
+                    'cancellarla li\' (Share.streamlit.io &rarr; la tua app '
+                    '&rarr; Settings &rarr; Secrets).</div>')
+        else:
+            # riprendi la chiave salvata nel TUO browser (solo per te)
+            html(_SCRIPT_LEGGI_CHIAVE, js=True)
+            html(
+                '<div class="note">\U0001F511 <b>Senza chiave l\'app funziona '
+                'lo stesso</b>: usa lo studio del versetto (costruito sul testo '
+                'e sulle sue immagini) e l\'IA gratuita senza chiave. Ma con una '
+                'chiave Gemini gratuita l\'interpretazione diventa molto piu\' '
+                'profonda, scritta come un maestro della Scrittura. '
+                '<a href="https://aistudio.google.com/api-keys" '
+                'target="_blank">Prendila qui</a> (ci metti un minuto).</div>')
+            # La chiave si ricorda NEL BROWSER (solo per te, la quota e' tua):
+            # nessun altro utente la vede e nessuno la consuma al posto tuo.
+            st.checkbox(
+                "Ricorda la chiave su QUESTO dispositivo (solo per me)",
+                key="ricorda_dispositivo",
+                help="Salva la chiave nel TUO browser (come una password salvata). "
+                     "Nessun altro utente dell'app la vede, e la quota gratuita "
+                     "resta tua. Non finisce MAI su GitHub ne' sul server.",
+            )
+            if st.session_state.get("ricorda_dispositivo") and _chiave_gemini:
+                html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
+                                                   _js_string(_chiave_gemini)),
+                     js=True)
+                st.success("\u2705 Chiave ricordata su questo dispositivo: non la "
+                           "devi più reinserire. Resta solo tua.")
+            st.checkbox(
+                "Condividi la chiave con TUTTI gli utenti dell'app",
+                key="ricorda_chiave",
+                help="Salva la chiave sul server di Streamlit: tutti potranno "
+                     "usare Gemini, ma la quota gratuita e' condivisa. "
+                     "Consigliato solo se l'app resta per te e i tuoi cari.",
+            )
+            if st.session_state.get("ricorda_chiave") and _chiave_gemini:
+                if ricorda_chiave_gemini(_chiave_gemini):
+                    st.success("\u2705 Chiave salvata sul server: da ora in poi "
+                               "Gemini e' attivo per tutti.")
+                    st.rerun()
     _chiave_treblo = st.text_input(
         "Chiave Treblo (facoltativa, gratis)",
         value=_segreto("TREBLO_API_KEY"),

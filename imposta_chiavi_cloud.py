@@ -178,6 +178,13 @@ def main() -> int:
     _ap.add_argument("--app", default="", help="nome (o URL) dell'app")
     _ap.add_argument("--controlla", action="store_true",
                      help="solo verifica: non scrive niente")
+    _ap.add_argument("--senza", default="",
+                     help="chiavi da NON caricare (separate da virgola). "
+                          "Es. --senza GEMINI_API_KEY: l'app resta senza "
+                          "Gemini sul server e ognuno mette la sua nel "
+                          "browser (la quota resta a ciascuno).")
+    _ap.add_argument("--solo", default="",
+                     help="carica SOLO queste chiavi (separate da virgola)")
     _args = _ap.parse_args()
 
     print("=" * 66)
@@ -220,22 +227,43 @@ def main() -> int:
             print("\nTutto gia' al posto suo.")
         return 0
 
-    # unisco: le chiavi locali + quelle che gia' c'erano (non le tocco)
+    # le chiavi da caricare (solo quelle riconosciute)
     _da_scrivere = {}
     for _k, _v in _locali.items():
         if _k in CHIAVI.values() and _v:
             _da_scrivere[_k] = str(_v)
+
+    # --senza / --solo
+    _senza = {x.strip().upper() for x in _args.senza.split(",") if x.strip()}
+    _solo = {x.strip().upper() for x in _args.solo.split(",") if x.strip()}
+    if _senza:
+        for _k in list(_da_scrivere):
+            if _k.upper() in _senza:
+                del _da_scrivere[_k]
+        print(f"\nEscludo: {', '.join(sorted(_senza))}")
+    if _solo:
+        for _k in list(_da_scrivere):
+            if _k.upper() not in _solo:
+                del _da_scrivere[_k]
+        print(f"Carico solo: {', '.join(sorted(_solo))}")
+
     if not _da_scrivere:
-        _err("Nessuna chiave da caricare.")
-        return 1
+        print("\nNessuna chiave da caricare: i Secrets del Cloud restano "
+              "come sono.")
+        return 0
 
     print("\nCarico i secrets nel Cloud (l'app si riavvia da sola)...")
+    print("   (ATTENZIONE: la API sostituisce TUTTI i secrets: una chiave "
+          "che era sul Cloud e non e' in elenco viene rimossa)")
     if not scrivi_secrets(_token, _app_id, _toml_da_dati(_da_scrivere)):
         return 1
 
     print("\nFatto. Attendi 1-2 minuti che l'app si riavvii, poi apri:")
     print("   " + (_app.get("url") or ""))
-    print("\nNella barra laterale deve comparire: "
+    if "GEMINI_API_KEY" not in _da_scrivere:
+        print("\nGemini NON e' nei Secrets: e' quello che vuoi se ognuno "
+              "deve usare la SUA chiave (la quota resta a ciascuno).")
+    print("Nella barra laterale deve comparire: "
           "\u2705 Gemini e' gia' attivo")
     return 0
 
