@@ -95,6 +95,13 @@ except Exception:  # il file potrebbe non essere ancora sul server
         return {"giorno": "", "fascia": "", "orario": "", "motivo": "",
                 "consiglio": "", "fonte": "",
                 "errore": "Modulo non disponibile: aggiorna l'app."}
+
+try:
+    from setup_app import pannello_setup
+except Exception:  # il file potrebbe non essere ancora sul server
+    def pannello_setup(*_a, **_k):
+        return {"email": "", "hash": "", "gemini": "", "treblo": "",
+                "hf": "", "salvato": False}
 from tiktok_sounds import (
     MESSAGGIO_TIKTOK,
     cerca_suoni_tiktok,
@@ -1242,62 +1249,32 @@ with st.sidebar:
     _chiave_gia = (st.session_state.get("chiave_gemini")
                    or st.session_state.get("cfg_gemini") or "").strip()
     _server_ha_chiave = bool(chiave_gemini_da_secrets())
-    # se non c'e' nessuna chiave, la CARD qui sopra e' l'unico posto dove
+    # se non c'e' nessuna chiave, il WIZARD qui sopra e' l'unico posto dove
     # metterla (niente campi duplicati)
     _mostra_card = (not _chiave_gia) and (not _server_ha_chiave)
     if _mostra_card:
-        st.markdown("### \u26A1 Attiva Gemini (1 minuto, gratis)")
+        st.markdown("### \u2699\uFE0F Configura la tua app (2 minuti)")
         html(
-            '<div class="box"><b>Perche\' ti chiedo la chiave?</b><br>'
-            'L\'interpretazione e la riflessione le scrive l\'IA. Con la tua '
-            'chiave <b>Google Gemini</b> (gratis) l\'app lavora <b>veloce</b> '
-            'e scrive <b>molto piu\' profondo</b>.<br>'
-            'La chiave resta <b>nel tuo browser</b>: nessun altro la vede, '
-            'nessuno la consuma al posto tuo, e non finisce mai su GitHub.'
-            '</div>')
-        st.markdown(
-            "<div class=\"note\" style=\"margin-bottom:4px;\">"
-            "<b>Come si fa (3 gesti):</b></div>"
-            "<ol style=\"margin:2px 0 0 18px;padding:0;font-size:.86rem\">"
-            "<li>tocca il pulsante qui sotto: si apre la pagina ufficiale</li>"
-            "<li>clicca <b>\"Create API key\"</b> e copiala</li>"
-            "<li>incollala nel campo qui sotto e premi "
-            "<b>\"Attiva subito (per me)\"</b></li>"
-            "</ol>")
-        if st.link_button("\U0001F310 Apri Google AI Studio (crea la chiave)",
-                          "https://aistudio.google.com/apikey",
-                          use_container_width=True):
-            st.info("Si e' aperta una nuova scheda: clicca 'Create API key', "
-                    "poi torna qui e incolla la chiave.")
-        _k_att = st.text_input(
-            "Incolla qui la tua chiave Gemini",
-            type="password", placeholder="AIza...",
-            key="cfg_gemini_attiva",
-            help="La chiave la prendi gratis su aistudio.google.com/apikey. "
-                 "Resta nel TUO browser: nessun altro la vede.")
-        if st.button("\u2705 Attiva subito (per me)", type="primary",
-                     use_container_width=True, key="attiva_gemini_su"):
-            if not (_k_att or "").strip():
-                st.warning("Incolla prima la chiave \U0001F4D8")
-            else:
-                st.session_state["cfg_gemini"] = _k_att.strip()
-                st.session_state["chiave_gemini"] = _k_att.strip()
-                # la salvo nel browser: cosi' la ritrovi senza reinserirla
-                html(_SCRIPT_SALVA_CHIAVE.replace("__CHIAVE__",
-                                                  _js_string(_k_att.strip())),
-                     js=True)
-                with st.spinner("Verifico che la chiave funzioni..."):
-                    _prova = _chiedi_ia(
-                        "Rispondi solo con la parola: pace.",
-                        chiave_gemini=_chiave_gemini_attiva())
-                if _prova.get("testo"):
-                    st.success("\u2705 Fatto! Gemini e' attivo nel TUO "
-                               "browser: l'app e' veloce e scrive profondo. "
-                               "Non devi piu' fare nient'altro.")
-                else:
-                    st.error("La chiave non ha risposto: " +
-                             str(_prova.get("errore", ""))[:150] +
-                             ". Ricontrolla di averla copiata per intero.")
+            '<div class="box"><b>Questa app si configura da sola con le '
+            'TUE chiavi.</b><br>'
+            'Nessuno deve prestarti niente e nessuno paga al posto tuo: '
+            'basta mettere <b>la tua email</b>, scegliere <b>una password</b> '
+            'e creare <b>le tue chiavi API</b> (tutte gratis).<br>'
+            'L\'app te le salva <b>nel tuo browser</b>: la prossima volta le '
+            'trovi gia\' li, nessun altro le vede e <b>la quota e\' tutta '
+            'tua</b>.<br><br>'
+            '<b>Gemini</b> (gratis) serve per scrivere l\'interpretazione e '
+            'la riflessione: senza, l\'app funziona lo stesso ma piu\' '
+            'lentamente.</div>')
+        _setup = pannello_setup(st, html, esc)
+        # le chiavi raccolte entrano subito in funzione
+        if _setup.get("gemini"):
+            st.session_state["cfg_gemini"] = _setup["gemini"]
+            st.session_state["chiave_gemini"] = _setup["gemini"]
+        if _setup.get("treblo"):
+            st.session_state["chiave_treblo"] = _setup["treblo"]
+        if _setup.get("hf"):
+            st.session_state["token_hf"] = _setup["hf"]
         st.markdown("---")
 
     st.markdown("### \U0001F9E0 Interpretazione con IA")

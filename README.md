@@ -48,6 +48,9 @@ Assistente-Canzone-TikTok/
 ├── suno.py                # Suno (crediti gratuiti) + tag di stile + struttura
 ├── testi_canzone.py       # l'IA scrive le parole del brano
 ├── riflessione.py         # l'IA scrive la riflessione e la riduce per TikTok
+├── setup_app.py           # il pannello "Configura la tua app" (chiavi dell'utente)
+├── imposta_chiavi_cloud.py# porta le chiavi locali nei Secrets di Streamlit Cloud
+├── prepara_copia_pubblica.py # crea la copia pubblica dell'app (senza chiavi)
 ├── hotreload.py           # ricarica i moduli quando il codice cambia
 ├── AGGIORNA_COOKIE_SUNO.py # salva/aggiorna il cookie di suno.com in locale
 ├── AVVIA_SUNO.py          # (facoltativo) servizio open source di Suno
@@ -583,6 +586,52 @@ i tuoi file `archivio_*.json` e i video di prova.
 > veloce per tutti) e lascia che ciascuno metta la sua chiave nel browser se
 > vuole la quota privata. La chiave nel Cloud **non viene mai mostrata** nei
 > campi di testo della pagina.
+
+---
+
+## ⚙️ Configura la tua app (2 minuti, senza nessuna chiave prestata)
+
+L'app **si configura da sola** con le chiavi di ciascuno: nessuno deve
+prestare niente, nessuno paga al posto tuo.
+
+Quando apri l'app (senza chiavi), in alto a sinistra c'è il pannello
+**"⚙️ Configura la tua app"**:
+
+**Passo 1 — Chi sei**: la tua email + una password per la tua app (serve per
+riaprire le tue impostazioni su quel dispositivo; resta nel browser, non in
+chiaro).
+
+**Passo 2 — Le tue chiavi**: per ogni servizio (Gemini, Treblo, Hugging Face)
+un riquadro con:
+1. il link alla **pagina ufficiale** dove si crea la chiave
+2. il campo dove la incolli (o il pulsante **"📋 Incolla"** che la mette
+   sola dagli appunti)
+3. il pulsante **"🔎 Verifica"** che la prova davvero e ti dice se funziona
+
+**Passo 3 — Salva la mia app**: tutto viene salvato **nel browser**
+(localStorage) → la ritrovi la prossima volta, **non finisce sul server**,
+**non finisce su GitHub**, e **la quota è tutta tua**.
+
+> Chi riceve l'app fa esattamente questo: la sua copia è **solo sua**.
+
+### 👥 La tua app vs la copia pubblica
+
+| | **La tua** | **La copia pubblica** |
+|---|---|---|
+| Dove | `canzoni-pentecostali-enzo.streamlit.app` | una nuova app, stesso codice |
+| Le chiavi | le tue (nei Secrets) | **nessuna**: ognuno mette le sue |
+| Chi la usa | te e chi tu inviti | chiunque, e ognuno è "solo lui" |
+| Per farla | — | `python prepara_copia_pubblica.py` (serve il token API) |
+
+La copia pubblica si crea dal **solo comando**:
+
+```powershell
+python prepara_copia_pubblica.py --nome "canzoni-copia"
+```
+
+Nessuna chiave nel codice: le chiavi stanno nei **Secrets**, che sono
+**per app**, quindi la copia parte "in bianco" e ognuno la configura da
+solo.
 
 ---
 
