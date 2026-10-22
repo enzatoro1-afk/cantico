@@ -74,6 +74,18 @@ def link_ricerca_audio(titolo: str) -> str:
     return f"https://www.tiktok.com/music?q={quote_plus(titolo)}"
 
 
+def link_ricerca_video(query: str) -> str:
+    """
+    Apre la ricerca VIDEO di TikTok (per vedere come gli altri hanno fatto
+    il video su quella canzone o su quel testo: il formato che funziona).
+
+    Serve al creator per ispirarsi, NON per ricaricare i video degli altri:
+    per usare la musica, il modo giusto e' prendere il suono originale dalla
+    libreria audio di TikTok.
+    """
+    return f"https://www.tiktok.com/search?q={quote_plus(query)}"
+
+
 def link_upload(caption: str = "") -> str:
     """Apre l'area di creazione di un nuovo video su TikTok."""
     base = "https://www.tiktok.com/upload"

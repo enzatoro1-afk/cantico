@@ -115,6 +115,7 @@ from tiktok_sounds import (
     MESSAGGIO_TIKTOK,
     cerca_suoni_tiktok,
     link_ricerca_audio,
+    link_ricerca_video,
 )
 from studio_biblico import (
     PROMPT_INTERPRETAZIONE,
@@ -3360,6 +3361,31 @@ if risultati:
                 help="Apre la ricerca dei suoni di TikTok con questo titolo: "
                      "vedi subito se l'audio e' disponibile per i tuoi video.",
             )
+            # ---- VEDERE COME FANNO GLI ALTRI (per ispirarsi, non per copiare)
+            with st.expander("\U0001F50E Come lo fanno gli altri su TikTok"):
+                html(
+                    '<div class="note">Qui vedi <b>come gli altri hanno fatto</b> '
+                    'il video su questa canzone o su questo testo: il formato '
+                    'che funziona, le parole che girano, le visualizzazioni.<br>'
+                    '<b>Attenzione:</b> per usare la musica, prendi il <b>suono '
+                    'originale</b> dalla libreria audio di TikTok (il pulsante '
+                    'sopra): ricaricare il video di un altro non si puo\' '
+                    '(TikTok te lo toglie e rischi lo strike). I tuoi video '
+                    'sono tuoi: il testo, la voce, le immagini.</div>',
+                    unsafe_allow_html=True)
+                _c_t1, _c_t2 = st.columns(2)
+                with _c_t1:
+                    st.link_button(
+                        "\U0001F3A5 I video con questa canzone",
+                        link_ricerca_video(_testo_copia),
+                        use_container_width=True)
+                with _c_t2:
+                    _q_video = (testo or "").strip()[:60]
+                    if _q_video:
+                        st.link_button(
+                            "\U0001F4D6 I video con questo versetto",
+                            link_ricerca_video(_q_video),
+                            use_container_width=True)
             if st.button(f"\u2B50 Scegli questa canzone per il post", key=f"scelta{i}",
                          use_container_width=True):
                 st.session_state["scelta"] = i - 1
