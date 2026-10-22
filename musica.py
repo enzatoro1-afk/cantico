@@ -118,9 +118,12 @@ SPACE_MUSICGEN = "facebook/MusicGen"
 MELODIA_URL = "https://bilalsardar-lyrics-text-to-music.hf.space"
 
 
-def _genera_melodia(lyrics: str, note: int = 40, timeout: int = 300) -> dict:
+def _genera_melodia(lyrics: str, note: int = 40, timeout: int = 300,
+                    stile: str = "") -> dict:
     """
     Canzone cantata da uno Space su CPU: nessuna quota, nessuna carta.
+    "stile" viene messo in testa alle parole (il modello lo usa come
+    indicazione di genere).
     Restituisce {"ok": True, "file": "<wav>", "motore": ...}
     """
     vuoto = {"ok": False, "errore": "", "file": "", "motore": "Melodia"}
@@ -129,9 +132,12 @@ def _genera_melodia(lyrics: str, note: int = 40, timeout: int = 300) -> dict:
     lyrics = (lyrics or "").strip()
     if len(lyrics) < 10:
         return {**vuoto, "errore": "Le parole sono troppo corte per un brano."}
+    _prompt = lyrics[:2900]
+    if stile:
+        _prompt = f"[Style: {stile[:300]}]\n\n{_prompt}"
     try:
         r = requests.post(f"{MELODIA_URL}/api/predict/",
-                          json={"data": [lyrics[:2900], int(note), False]},
+                          json={"data": [_prompt, int(note), False]},
                           timeout=timeout)
     except Exception as exc:
         return {**vuoto, "errore": f"Melodia non ha risposto: {str(exc)[:140]}"}

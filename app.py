@@ -1390,10 +1390,19 @@ NOTA_TRADUZIONE = (
 # --------------------------------------------------------------------------
 def _genera_musica(motore: str, testi: str, tag: str, stile: str) -> dict:
     """Genera la musica con il motore scelto. Restituisce un dizionario."""
+    # lo stile scritto dall'utente + i tag fissi: arrivano a tutti i motori
+    _tag_completo = f"{stile}, {tag}" if stile else tag
     if motore.startswith("Treblo"):
-        return genera_canzone_treblo(testi, tag)
+        return genera_canzone_treblo(testi, _tag_completo)
     if motore.startswith("Suno"):
-        return genera_canzone_suno(testi, tag)
+        return genera_canzone_suno(testi, _tag_completo)
+    if motore.startswith("Melodia"):
+        try:
+            import musica as _mus
+            return _mus._genera_melodia(testi, timeout=300, stile=_tag_completo)
+        except Exception as _exc:
+            return {"ok": False, "errore": f"Melodia: {str(_exc)[:120]}",
+                    "file": "", "motore": "Melodia"}
     _stile_completo = f"{stile}, {tag}" if stile else tag
     if motore.startswith("ACE-Step"):
         return genera_canzone_gratuita(testi, _stile_completo,
