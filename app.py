@@ -1286,6 +1286,51 @@ html(
     """)
 
 # ==========================================================================
+# --------------------------------------------------------------------------
+# LA GUIDA: appena aperta, l'app ti dice cosa fare
+# --------------------------------------------------------------------------
+
+_ha_gemini = bool(_chiave_gemini_attiva())
+_ha_treblo = bool(st.session_state.get("chiave_treblo", "").strip())
+# per Suno non facciamo nessuna chiamata (sarebbe lenta): controlliamo
+# solo se il cookie c'e'
+try:
+    import suno as _suno_mod
+    _ha_suno = bool(_suno_mod._cookie_grezzo())
+except Exception:
+    _ha_suno = False
+
+html(
+    f"""
+    <div class="box" style="border-left:4px solid #3b6ef5;">
+      <h3 style="margin:.1rem 0 .5rem 0;">\U0001F9ED Come si usa (4 passaggi)</h3>
+      <ol style="margin:.2rem 0 .4rem 0;padding-left:1.2rem;">
+        <li>Scrivi il tuo pensiero o il versetto nella casella qui sotto
+            e premi <b>\U0001F50D Trova il testo adatto</b>.</li>
+        <li>Scegli il versetto che ti risuona e premi
+            <b>\U0001F9E0 Studia questo passaggio</b> (l'interpretazione).</li>
+        <li>Premi <b>\U0001F50E Trova Canzone Adatta</b>: 15 inni con la
+            spiegazione di perche' sono adatti. Poi <b>Copia Titolo</b> e
+            cercalo nella libreria audio di TikTok.</li>
+        <li>Premi <b>\U0001F4E4 Salva nell'archivio</b>: il post e' pronto
+            (caption, hashtag, data e ora). Poi pubblichi.</li>
+      </ol>
+      <div class="note" style="margin-top:.4rem;">
+        <b>Vuoi anche una canzone NUOVA cantata e il video .mp4?</b>
+        Nella sezione <b>\U0001F3B6 Crea una canzone ORIGINALE</b>:
+        metti la chiave <b>Treblo</b> (gratis, un minuto) e premi
+        <b>\U0001F3AC FAI TUTTO</b>: l'app scrive le parole, fa cantare il
+        brano e monta il video verticale, tutto da sola.
+      </div>
+      <div class="note" style="margin-top:.5rem;">
+        <b>Il tuo stato adesso:</b><br>
+        &bull; Interpretazione con Gemini: {'\u2705 attiva' if _ha_gemini else '\u274c metti la chiave (barra laterale)'}<br>
+        &bull; Canzone cantata + video: {'\u2705 attivo' if _ha_treblo else '\u274c manca la chiave Treblo (gratis)'}<br>
+        &bull; I tuoi crediti Suno: {'\u2705 collegati' if _ha_suno else '\u274c non collegati (facoltativo)'}
+      </div>
+    </div>
+    """)
+
 NOTA_TRADUZIONE = (
     '<div class="note">Testo biblico: <b>Sacra Bibbia - Versione Riveduta 2020</b> '
     "(traduzione <b>evangelica protestante</b>, la linea delle chiese "
