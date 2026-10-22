@@ -356,10 +356,12 @@ def _genera_via_api(lyrics: str, tags: str, timeout: int) -> dict:
                                    "aspetta domani o ricarica")}
     if r.status_code == 422:
         return {**vuoto, "errore": (
-            "Suno: hai generato troppe canzoni di fila e ti ha fermato per "
-            "qualche minuto. Aspetta 3-5 minuti e premi di nuovo "
-            "'Componi e canta' (le canzoni gia' fatte sono nella tua "
-            "libreria su suno.com).")}
+            "Suno ha bloccato questa sessione per qualche ora (lo fa dopo "
+            "poche canzoni di fila: e' il loro blocco anti-abuso). "
+            "Niente paura: scegli il motore 'ACE-Step (canta il brano - "
+            "automatico)', che e' gratis, senza limiti e scarica l'audio da "
+            "solo. Le canzoni gia' fatte restano nella tua libreria su "
+            "suno.com.")}
     if r.status_code != 200:
         # l'endpoint vecchio potrebbe non esistere piu': prova quello che
         # usa oggi la pagina web di Suno
