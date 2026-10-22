@@ -35,7 +35,8 @@ import hotreload  # noqa: E402  (deve stare PRIMA delle import locali)
 _RI_CARICATI = hotreload.ricarica()
 
 from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
-                       dimentica_chiave_gemini, interpreta_con_ia,
+                       dimentica_chiave_gemini, fonte_chiave_gemini,
+                       interpreta_con_ia,
                        interpreta_gemini, interpreta_gratis, link_chatgpt,
                        parole_chiave_dall_ia, qualita_ia, ricorda_chiave_gemini,
                        scegli_versetto_ia)
@@ -202,6 +203,28 @@ def html(contenuto: str, js: bool = False, **kwargs) -> None:
 # --------------------------------------------------------------------------
 
 AUTORE_APP = "Foster"   # <- nome da mettere in firma (cambialo qui)
+
+# La firma puo' essere cambiata SENZA toccare il codice: metti
+#   AUTORE_APP = "Il tuo nome"
+# nei Secrets di Streamlit Cloud (o nel file .streamlit/secrets.toml).
+try:
+    _autore = st.secrets.get("AUTORE_APP", "") or ""
+except Exception:
+    _autore = ""
+if not _autore:
+    try:
+        import os as _os
+        import tomllib as _tomllib
+        _p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                           ".streamlit", "secrets.toml")
+        if _os.path.exists(_p):
+            with open(_p, "rb") as _f:
+                _autore = str((_tomllib.load(_f) or {}).get("AUTORE_APP", "")
+                              or "").strip()
+    except Exception:
+        _autore = ""
+if _autore:
+    AUTORE_APP = _autore.strip()
 
 # "versione" = VERSION.txt (commit) + data del file piu' recente
 # (cosi' si vede subito se l'app online gira il codice giusto)
@@ -1229,7 +1252,11 @@ with st.sidebar:
     )
     _chiave_gemini = st.text_input(
         "Chiave Google Gemini (gratis)",
-        value=chiave_gemini_da_secrets(),
+        # ATTENZIONE: il campo resta VUOTO. Se ci mettessi la chiave del
+        # server (quella nei Secrets del Cloud), comparirebbe nel codice
+        # della pagina e ogni utente dell'app potrebbe vederla.
+        # La chiave del server la usa l'app da sola, senza mostrarla.
+        value="",
         type="password",
         help="La prendi gratis su aistudio.google.com/api-keys. Con questa "
              "chiave l'interpretazione viene scritta da Gemini, con la "
@@ -1258,11 +1285,23 @@ with st.sidebar:
             '<div class="note box-ok">\u2705 <b>Gemini e\' gia\' attivo</b> '
             '(chiave gia\' configurata): le interpretazioni vengono scritte '
             'da Gemini.</div>')
+        html(
+            '<div class="note">\U0001F517 Questa chiave e\' <b>del server</b>: '
+            'la usa chiunque apra l\'app, quindi la quota gratuita la '
+            'consumano tutti. Se vuoi la tua <b>solo per te</b> (e la quota '
+            'intatta), metti la tua chiave qui sotto e spunta "Ricorda su '
+            'QUESTO dispositivo": la tua ha la precedenza su questa.</div>')
         if st.button("\U0001F5D1 Togli la chiave da questo server",
                      use_container_width=True, key="dimentica_chiave"):
             dimentica_chiave_gemini()
             st.session_state["chiave_gemini"] = ""
             st.rerun()
+        if fonte_chiave_gemini() == "secrets":
+            html(
+                '<div class="note">\U0001F510 Questa chiave sta nei '
+                '<b>Secrets di Streamlit Cloud</b>: per toglierla devi '
+                'cancellarla li\' (Share.streamlit.io &rarr; la tua app '
+                '&rarr; Settings &rarr; Secrets).</div>')
     else:
         # riprendi la chiave salvata nel TUO browser (solo per te)
         html(_SCRIPT_LEGGI_CHIAVE, js=True)

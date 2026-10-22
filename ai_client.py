@@ -166,6 +166,42 @@ def dimentica_chiave_gemini() -> bool:
     return False
 
 
+def fonte_chiave_gemini() -> str:
+    """
+    Da dove viene la chiave Gemini attiva:
+      "secrets" = dai Secrets di Streamlit Cloud (o file locale / env)
+      "server"  = dal file ricordato sul server (.chiave_gemini_server.json)
+      ""        = non c'e' nessuna chiave
+    Serve per non mostrare pulsanti che non fanno nulla (per esempio
+    "togli la chiave dal server" quando la chiave e' nei Secrets).
+    """
+    for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        try:
+            import streamlit as st
+            v = (st.secrets.get(nome, "") or "").strip()
+            if v:
+                return "secrets"
+        except Exception:
+            pass
+        v = (__import__("os").environ.get(nome, "") or "").strip()
+        if v:
+            return "secrets"
+    try:
+        import os
+        import tomllib
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           ".streamlit", "secrets.toml")
+        if os.path.exists(_p):
+            with open(_p, "rb") as f:
+                _d = tomllib.load(f)
+            for nome in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+                if str(_d.get(nome, "") or "").strip():
+                    return "secrets"
+    except Exception:
+        pass
+    return "server" if _chiave_dal_server() else ""
+
+
 def chiave_gemini_da_secrets() -> str:
     """
     Cerca la chiave Gemini nei secrets di Streamlit, poi nel file locale

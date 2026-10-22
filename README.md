@@ -536,6 +536,33 @@ L'app si riavvia da sola. Nella barra laterale deve comparire
 
 ---
 
+## 👥 Dare l'app a un'altra persona (funziona per i suoi bisogni)
+
+L'app è **fatta per essere condivisa**: chi riceve il link + la password
+lavora con **le proprie chiavi**, con **i propri post** e con **le proprie
+scelte**. Niente resta tuo.
+
+| Cosa | Come funziona per chi riceve l'app |
+|---|---|
+| **Le chiavi IA** | Ogni utente mette **la sua** chiave Gemini (gratis) nella barra laterale → **la sua quota resta sua**. Se non ne ha, l'app funziona lo stesso con la IA gratuita (più lenta). La chiave messa nei Secrets del Cloud è quella del **proprietario**: se la lasci li, la quota la consumano tutti. |
+| **I post (archivio)** | Privati per utente: l'app riconosce ciascuno da un cookie nel browser. **Nessuno vede i post degli altri.** Ognuno ha il suo file `archivio_<hash>.json`. |
+| **Quello che scrive** | Il testo, le ricerche e le interpretazioni restano nel **browser** di ciascuno: non li vede nessun altro. |
+| **La password** | È una sola per l'app: chi riceve il link riceve anche la password (sta nella mail di `INVIA_EMAIL.ps1`). |
+| **La firma** | "creato da ..." si cambia senza toccare il codice: nei Secrets metti `AUTORE_APP = "Il tuo nome"`. |
+| **Cancellare tutto** | Ognuno trova "🔒 Cancella i miei dati" in fondo e spariscono i suoi post. |
+
+**Cosa NON viaggia con l'app** (controllato: lo ZIP è pulito):
+le chiavi (`secrets.toml`, `SEGRETS-CLOUD.txt`), i cookie (Suno),
+i tuoi file `archivio_*.json` e i video di prova.
+
+> **Se vuoi che l'app sia "certificata" anche per gli altri**, la via più
+> semplice è: carica le chiavi nei **Secrets del Cloud** (così l'app è subito
+> veloce per tutti) e lascia che ciascuno metta la sua chiave nel browser se
+> vuole la quota privata. La chiave nel Cloud **non viene mai mostrata** nei
+> campi di testo della pagina.
+
+---
+
 ## ❤️ Fatto per i creator cristiani
 
 ---

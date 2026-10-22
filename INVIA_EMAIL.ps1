@@ -66,21 +66,55 @@ $corpo = $corpo.Replace("__DATA__", (Get-Date -Format "dd/MM/yyyy HH:mm"))
 $oggetto = "La tua app Canzoni Pentecostali per TikTok (pronta per il telefono)"
 
 # ---------- 3. ZIP del codice ----------
+# ATTENZIONE: nello ZIP NON devono finire le chiavi del proprietario
+# (secrets.toml, SEGRETS-CLOUD.txt, i file .chiave_* e il cookie Suno).
+# Chi riceve l'app deve usare le PROPRIE chiavi.
 $zip = $null
 if (-not $SoloLink) {
     Write-Step "Preparo lo ZIP del codice..."
     $zip = Join-Path ([System.IO.Path]::GetTempPath()) "Assistente-Canzone-TikTok.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
-    $items = Get-ChildItem -Path $Cartella -Force |
-             Where-Object { $_.Name -notin @(".venv", "venv", "__pycache__", ".git") -and
-                            $_.Extension -ne ".zip" } |
-             ForEach-Object { $_.FullName }
+
+    # cartella di appoggio: ci copio il codice PULITO (senza chiavi)
+    $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("cantico_zip_" + [guid]::NewGuid().ToString("N").Substring(0,8))
+    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+
+    $esclusi = @(".venv", "venv", "__pycache__", ".git", "SEGRETS-CLOUD.txt",
+                 ".chiave_gemini_server.json", ".chiave_treblo_server.json",
+                 ".chiave_hf_server.json", ".suno_cookie.txt", "link.txt")
+    $da_escludere = @("secrets.toml")
+
+    Get-ChildItem -Path $Cartella -Force | Where-Object {
+        $_.Name -notin $esclusi -and $_.Extension -ne ".zip" -and
+        # i TUOI post salvati e i video di prova: dati personali del
+        # proprietario, non viaggiano con l'app
+        $_.Name -notlike "archivio_*.json" -and
+        $_.Name -notlike "PROVA_*"
+    } | ForEach-Object {
+        if ($_.PSIsContainer) {
+            # dentro .streamlit prendo SOLO config.toml (mai secrets.toml)
+            if ($_.Name -eq ".streamlit") {
+                $dest = Join-Path $stage ".streamlit"
+                New-Item -ItemType Directory -Path $dest -Force | Out-Null
+                Get-ChildItem -Path $_.FullName -Force -File | Where-Object {
+                    $_.Name -notin $da_escludere
+                } | ForEach-Object { Copy-Item $_.FullName $dest -Force }
+            } else {
+                Copy-Item $_.FullName $stage -Recurse -Force
+            }
+        } else {
+            Copy-Item $_.FullName $stage -Force
+        }
+    }
+
     try {
-        Compress-Archive -Path $items -DestinationPath $zip -Force
+        Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
         Write-Step "ZIP pronto: $zip"
     } catch {
         Write-Host "Non sono riuscito a creare lo ZIP (procedo senza)." -ForegroundColor Yellow
         $zip = $null
+    } finally {
+        Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
