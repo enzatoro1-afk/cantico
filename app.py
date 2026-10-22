@@ -2012,10 +2012,10 @@ with tab_verso:
                         + " Scegli quello che ti parla e premi "
                           "\u201cUsa questo testo\u201d o \u201cTrova la canzone\u201d.")
 
-    if st.button("\U0001F50E Trova Canzone Adatta", type="primary",
-                  use_container_width=True):
-        esegui_ricerca(testo)
-
+    # la ricerca delle canzoni vere su YouTube e' stata tolta: l'app dà
+    # solo il titolo da cercare su TikTok (la libreria audio di TikTok non
+    # e' leggibile dal server). Per il post, la strada principale e' "Crea
+    # una canzone ORIGINALE" -> "FAI TUTTO" (parole + canto + poster + video).
     # la mia riflessione: scrivi quello che pensi sulla Parola di Dio
     html(
         '<div class="note" style="margin-top:10px;">'
@@ -3298,7 +3298,7 @@ if risultati:
             unsafe_allow_html=True)
         _tk_song = st.text_input(
             "Titolo - artista (come su TikTok)",
-            placeholder="Tutto passa solo l'amore - Artista",
+            placeholder="Tutto passa solo l'amore - Artist",
             key="canzone_tiktok_manuale")
         if st.button("\U0001F3A4 Aggiungi alla lista del post",
                      use_container_width=True, key="aggiungi_canzone_tiktok"):
