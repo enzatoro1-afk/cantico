@@ -450,8 +450,35 @@ def ricerca_tiktok_cached(query: str, n: int) -> list:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def cerca_versetti_cached(testo: str, n: int) -> list:
-    """Cerca i versetti biblici piu' adatti a un pensiero."""
-    return cerca_versetti(testo, n)
+    """
+    Cerca i versetti biblici piu' adatti a un pensiero.
+
+    Se il testo contiene un RIFERIMENTO esatto (es. "Salmo 23,1", oppure
+    "Cantico dei Cantici 8,7"), quello va IN CIMA: e' il versetto che hai
+    chiesto tu, non uno trovato a caso per le parole.
+    """
+    _esatti = []
+    try:
+        _rif = rileva_riferimento(testo or "")
+    except Exception:
+        _rif = None
+    if _rif and _rif.get("versetto"):
+        try:
+            _v = trova_versetto(_rif["libro"], _rif["capitolo"],
+                                _rif["versetto"],
+                                versetto_fine=_rif.get("versetto_fine"))
+        except Exception:
+            _v = None
+        if _v:
+            _v = dict(_v)
+            _v["esatto"] = True
+            _v.setdefault("temi", [])
+            _esatti.append(_v)
+    _resto = cerca_versetti(testo, n)
+    if _esatti:
+        _gia = {v.get("riferimento") for v in _esatti}
+        _resto = [v for v in _resto if v.get("riferimento") not in _gia]
+    return (_esatti + _resto)[:max(n, len(_esatti))]
 
 
 def _imposta_testo(testo: str) -> None:
@@ -2403,11 +2430,15 @@ if versetti:
             _badge_ia = ('<span class="chip" style="background:#fde68a;color:#92400e;'
                          'font-weight:700">&#127775; scelto dall\'IA</span> ') \
                 if _scelto else ""
+            _badge_esatto = ('<span class="chip" style="background:#bbf7d0;'
+                             'color:#065f46;font-weight:700">&#9989; esatto: '
+                             'e\' quello che hai scritto</span> ') \
+                if v.get("esatto") else ""
             html(
                 f'<div class="badge">#{i}</div>'
                 f'<div class="card-title">{esc(v["riferimento"])}</div>'
                 f'<div class="card-meta" style="font-size:.92rem;opacity:.85;">'
-                f'«{esc(v["testo"])}»</div>{chip}{_badge_ia}')
+                f'«{esc(v["testo"])}»</div>{chip}{_badge_esatto}{_badge_ia}')
             if _scelto and _scelta_ia.get("motivo"):
                 html(
                     '<div class="note box-ok"><b>Perche\' questo:</b> '
