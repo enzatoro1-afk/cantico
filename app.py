@@ -1485,6 +1485,15 @@ with tab_verso:
                 if not st.session_state["versetti"]:
                     st.info("Nessun versetto trovato. Prova con parole piu' semplici "
                             "oppure scrivi il versetto per intero.")
+                else:
+                    _n_v = len(st.session_state["versetti"])
+                    _esatto = st.session_state["versetti"][0].get("esatto")
+                    st.success(
+                        f"\u2705 Ho cercato: {st.session_state['versetti'][0].get('riferimento','')}"
+                        + ("" if not _esatto else " (esatto: quello che hai scritto)")
+                        + f" \u2014 e altri {_n_v - 1} versetti simili qui sotto."
+                        + " Scegli quello che ti parla e premi "
+                          "\u201cUsa questo testo\u201d o \u201cTrova la canzone\u201d.")
 
     if st.button("\U0001F50E Trova Canzone Adatta", type="primary",
                   use_container_width=True):
