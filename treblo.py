@@ -49,6 +49,41 @@ TAG_GOSPEL = [
 ]
 
 
+def _percorso_chiave_server() -> str:
+    """Il file con la chiave condivisa (sul server, per tutti)."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        ".chiave_treblo_server.json")
+
+
+def ricorda_chiave(chiave: str) -> bool:
+    """
+    Salva la chiave sul server, cosi' non va reinserita a ogni sessione
+    (vale per TUTTI gli utenti dell'app). Il file NON e' su GitHub.
+    """
+    chiave = (chiave or "").strip()
+    if not chiave:
+        return False
+    try:
+        import json
+        with open(_percorso_chiave_server(), "w", encoding="utf-8") as f:
+            json.dump({"TREBLO_API_KEY": chiave}, f)
+        return True
+    except Exception:
+        return False
+
+
+def dimentica_chiave() -> bool:
+    """Cancella la chiave condivisa sul server."""
+    try:
+        p = _percorso_chiave_server()
+        if os.path.exists(p):
+            os.remove(p)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _chiave() -> str:
     """La chiave API: dalla barra laterale, dai secrets o dall'ambiente."""
     try:
@@ -59,6 +94,14 @@ def _chiave() -> str:
     except Exception:
         pass
     for nome in ("TREBLO_API_KEY", "SONAUTO_API_KEY"):
+        # i Secrets di Streamlit (la chiave dell'app, per tutti)
+        try:
+            import streamlit as st
+            v = str(st.secrets.get(nome, "") or "").strip()
+            if v:
+                return v
+        except Exception:
+            pass
         v = str(os.environ.get(nome, "") or "").strip()
         if v:
             return v
@@ -73,6 +116,18 @@ def _chiave() -> str:
                 v = str(d.get(nome, "") or "").strip()
                 if v:
                     return v
+    except Exception:
+        pass
+    # la chiave condivisa sul server (per tutti)
+    try:
+        import json
+        p = _percorso_chiave_server()
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            v = str(d.get("TREBLO_API_KEY", "") or "").strip()
+            if v:
+                return v
     except Exception:
         pass
     return ""

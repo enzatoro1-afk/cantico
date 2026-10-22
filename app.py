@@ -42,6 +42,7 @@ from ai_client import (chiave_da_secrets, chiave_gemini_da_secrets,
 from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_tiktok,
                     genera_canzone, genera_canzone_gratuita,
                     genera_canzone_senza_pagare)
+import attiva
 from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG, genera_canzone_suno,
                   salva_cookie_suno, struttura_canzone, suno_disponibile)
 try:
@@ -1125,6 +1126,14 @@ with st.sidebar:
         "<div class=\"note\">Le chiavi restano nel server di Streamlit. "
         "Con la chiave l'app chiama l'IA solo quando lo chiedi tu.</div>")
 
+    # ---- IL PANNELLO "ATTIVA TUTTO" ----
+    # Un posto solo dove si vede cosa manca, come si prende ogni chiave,
+    # e un pulsante che la verifica davvero.
+    st.markdown("---")
+    with st.expander("\u2699\uFE0F Attiva tutto (2 minuti)",
+                     expanded=False):
+        attiva.pannello(st, html, esc)
+
     # ---- CONFIGURAZIONE (per chi scarica l'app) ----
     # Ogni utente crea le PROPRIE chiavi con la PROPRIA email e l'app
     # gli funziona al 100%: niente altro da fare.
@@ -1300,7 +1309,9 @@ try:
 except Exception:
     _ha_suno = False
 
-html(
+with st.expander("\U0001F9ED Come si usa (4 passaggi) e il tuo stato",
+                 expanded=False):
+    html(
     f"""
     <div class="box" style="border-left:4px solid #3b6ef5;">
       <h3 style="margin:.1rem 0 .5rem 0;">\U0001F9ED Come si usa (4 passaggi)</h3>
@@ -1315,6 +1326,12 @@ html(
         <li>Premi <b>\U0001F4E4 Salva nell'archivio</b>: il post e' pronto
             (caption, hashtag, data e ora). Poi pubblichi.</li>
       </ol>
+      <div class="note" style="margin-top:.4rem;">
+        <b>Manca qualcosa?</b> Apri la barra laterale (☰ in alto a
+        sinistra) e guarda <b>⚙️ Attiva tutto</b>: l\'app ti dice cosa ti
+        serve, ti apre la pagina giusta e <b>verifica la chiave</b> cosi
+        sai subito se funziona.
+      </div>
       <div class="note" style="margin-top:.4rem;">
         <b>Vuoi anche una canzone NUOVA cantata e il video .mp4?</b>
         Nella sezione <b>\U0001F3B6 Crea una canzone ORIGINALE</b>:
