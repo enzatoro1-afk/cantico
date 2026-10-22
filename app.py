@@ -679,9 +679,10 @@ def _chiedi_ia(prompt: str, chiave_gemini: str = "",
                chiave_openai: str = "") -> dict:
     """
     Chiede l'interpretazione all'IA migliore disponibile, in ordine:
-      1) Google Gemini  (se hai la chiave: la qualita' migliore)
-      2) IA gratuita senza chiave (sempre disponibile)
-      3) ChatGPT API (se hai la chiave OpenAI)
+      1) Google Gemini  (se hai la chiave: la qualita' migliore E veloce)
+      2) ChatGPT API    (se hai la chiave OpenAI: veloce anche lui)
+      3) IA gratuita senza chiave (sempre disponibile, ma LENTA: e' l'ultima
+         risorsa, non la prima, cosi' con la chiave Gemini non si aspetta)
     Ogni risposta viene controllata: se e' "rotta" (italiano sbagliato)
     si passa al servizio successivo.
     Non solleva mai: se fallisce tutto, torna un errore e l'app usa il
@@ -698,17 +699,21 @@ def _chiedi_ia(prompt: str, chiave_gemini: str = "",
     else:
         _problemi.append("Gemini: nessuna chiave")
 
-    _r = interpreta_gratis(prompt)
-    if _r.get("testo") and qualita_ia(_r["testo"]):
-        return _r
-    _problemi.append("IA gratuita: " + (_r.get("errore") or
-                                        "risposta non utilizzabile"))
-
+    # OpenAI PRIMA della IA gratuita: e' una chiamata normalissima, mentre
+    # la gratuita deve aspettare ~30 secondi tra un tentativo e l'altro.
     if chiave_openai:
         _r = interpreta_con_ia(prompt, chiave=chiave_openai)
         if _r.get("testo") and qualita_ia(_r["testo"]):
             return _r
         _problemi.append("OpenAI: " + (_r.get("errore") or
+                                        "risposta non utilizzabile"))
+
+    # ultima risorsa: la IA gratuita (1 solo tentativo: se e' occupata l'app
+    # va avanti col motore di studio invece di aspettare un minuto)
+    _r = interpreta_gratis(prompt, tentativi=1)
+    if _r.get("testo") and qualita_ia(_r["testo"]):
+        return _r
+    _problemi.append("IA gratuita: " + (_r.get("errore") or
                                         "risposta non utilizzabile"))
 
     return {"testo": "", "parole_chiave": [], "modello": "", "fonte": "IA",
@@ -2280,13 +2285,17 @@ if riferimento_verso and not studio.get("errore"):
                 on_click=_studia_versetto,
             )
             st.checkbox(
-                "Studia con l'IA gratuita (scritta sul tuo versetto)",
+                "Studia con l'IA (Gemini: veloce e profondo)",
                 value=st.session_state.get("usa_ia_gratuita", True),
                 key="usa_ia_gratuita",
-                help="Attivo: l'app scrive l'interpretazione con un'IA "
-                     "gratuita (senza chiave), quindi e' diversa per ogni "
-                     "versetto. Ci mette 10-40 secondi. Se la IA non "
-                     "risponde, si usa comunque lo studio del versetto.",
+                help="Attivo: l'IA scrive l'interpretazione ed e' diversa per "
+                     "ogni versetto. Con la chiave Google Gemini (quella "
+                     "gratis di aistudio.google.com/apikey) ci mette pochi "
+                     "secondi. Senza chiave prova ChatGPT e, in ultima "
+                     "istanza, la IA gratuita: li' puo' capitare di "
+                     "aspettare qualche decina di secondi. Spuntalo solo se "
+                     "non vuoi che l'IA scriva e preferisci il solo studio "
+                     "del versetto (istantaneo).",
             )
             st.checkbox(
                 "Fai anche la riflessione e il post TikTok (in automatico)",
@@ -2295,7 +2304,8 @@ if riferimento_verso and not studio.get("errore"):
                 help="Attivo: dopo l'interpretazione l'IA scrive anche una "
                      "riflessione personale sul versetto e la riduce in un "
                      "post pronto per TikTok (testo a schermo, 3 righe, "
-                     "caption). Ci mette altri 15-40 secondi.",
+                     "caption, momento giusto). Con Gemini ci mette pochi "
+                     "secondi; senza chiave, qualche decina di secondi.",
             )
         with col_b:
             st.button(

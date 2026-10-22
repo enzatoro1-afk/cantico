@@ -567,8 +567,16 @@ Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due
    e le 3 righe), con la data e l'ora già impostate sul momento consigliato.
 
 > L'interruttore **"Fai anche la riflessione e il post TikTok"** (accanto a
-> "Studia con l'IA gratuita") accende o spegne questo passaggio: con la sola
-> IA gratuita raddoppia l'attesa, con la chiave Gemini è veloce.
+> "Studia con l'IA") accende o spegne questo passaggio. Entrambi sono **attivi
+> di default**: con la chiave **Google Gemini** (quella gratis di
+> aistudio.google.com/apikey) l'interpretazione e la riflessione arrivano in
+> **pochi secondi**.
+
+> **L'ordine con cui l'app cerca l'IA**: 1) **Google Gemini** (se hai la
+> chiave: veloce e la piu' profonda) → 2) **ChatGPT API** (se hai la chiave
+> OpenAI) → 3) **IA gratuita senza chiave** (sempre disponibile, ma lenta:
+> aspetta ~30 secondi, quindi va per ultima). Sotto ogni risposta l'app
+> scrive **quale IA ha risposto**, cosi' sai sempre cosa sta succedendo.
 
 > **Senza IA l'app non resta a mani vuote**: la riflessione viene presa dalla
 > sezione "DALLA VOCE DI DIO AL NOSTRO CUORE" dell'interpretazione, e il
@@ -617,11 +625,11 @@ Nella sezione **"Da dove vuoi l'interpretazione?"** c'è il pulsante
 **🧠 Scrivi l'interpretazione con l'IA**. Funziona **anche senza toccare
 nulla**: l'app sceglie da sola l'IA migliore disponibile, in quest'ordine:
 
-| Ordine | IA | Serve la chiave? | Qualità |
-|---|---|---|---|
-| 1° | **Google Gemini** (`gemini-2.0-flash`) | sì, **gratis** | ⭐⭐⭐⭐⭐ |
-| 2° | IA gratuita senza chiave (Pollinations) | no | ⭐⭐⭐ |
-| 3° | ChatGPT API | sì (OpenAI) | ⭐⭐⭐⭐⭐ |
+| Ordine | IA | Serve la chiave? | Velocità | Qualità |
+|---|---|---|---|---|
+| 1° | **Google Gemini** (`gemini-flash-latest` e successivi) | sì, **gratis** | ⚡ veloce | ⭐⭐⭐⭐⭐ |
+| 2° | ChatGPT API | sì (OpenAI) | ⚡ veloce | ⭐⭐⭐⭐⭐ |
+| 3° | IA gratuita senza chiave (Pollinations) | no | 🐌 ~30 s | ⭐⭐⭐ |
 
 **Come si prende la chiave Gemini (gratis, 1 minuto)**
 1. Apri <https://aistudio.google.com/api-keys> con il tuo account Google

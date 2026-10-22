@@ -250,7 +250,7 @@ def _parole_chiave_riflessione(testo: str, numero: int = 3) -> list[str]:
 
 
 # --------------------------------------------------------------------------
-# La chiamata all'IA (Gemini -> IA gratuita -> OpenAI)
+# La chiamata all'IA (Gemini -> OpenAI -> IA gratuita)
 # --------------------------------------------------------------------------
 
 def _chiedi(prompt: str, chiave_gemini: str = "", chiave_openai: str = "",
@@ -258,6 +258,9 @@ def _chiedi(prompt: str, chiave_gemini: str = "", chiave_openai: str = "",
     """
     Chiede un testo all'IA migliore disponibile. Non solleva mai: se tutti
     i servizi falliscono torna un dizionario con l'errore.
+
+    Ordine: Gemini (veloce, con la chiave) -> OpenAI -> IA gratuita
+    (l'ultima e' lenta: deve aspettare ~30 s, quindi va per ultima).
     """
     _problemi: list[str] = []
 
@@ -272,19 +275,21 @@ def _chiedi(prompt: str, chiave_gemini: str = "", chiave_openai: str = "",
     else:
         _problemi.append("Gemini: nessuna chiave")
 
-    _r = interpreta_gratis(prompt, tentativi=1)
-    if _r.get("testo") and len(_r["testo"]) >= min_chars:
-        return {"testo": _r["testo"], "fonte": _r.get("fonte", "IA gratuita"),
-                "errore": None}
-    _problemi.append("IA gratuita: " + str(_r.get("errore") or
-                                           "risposta non utilizzabile"))
-
     if (chiave_openai or "").strip():
         _r = interpreta_con_ia(prompt, chiave=chiave_openai)
         if _r.get("testo") and len(_r["testo"]) >= min_chars:
             return {"testo": _r["testo"], "fonte": _r.get("fonte", "ChatGPT"),
                     "errore": None}
         _problemi.append("OpenAI: " + str(_r.get("errore") or
+                                           "risposta non utilizzabile"))
+
+    # ultima risorsa: la IA gratuita (1 tentativo, cosi' non si aspetta
+    # un minuto quando e' occupata)
+    _r = interpreta_gratis(prompt, tentativi=1)
+    if _r.get("testo") and len(_r["testo"]) >= min_chars:
+        return {"testo": _r["testo"], "fonte": _r.get("fonte", "IA gratuita"),
+                "errore": None}
+    _problemi.append("IA gratuita: " + str(_r.get("errore") or
                                            "risposta non utilizzabile"))
 
     return {"testo": "", "fonte": "", "errore": " | ".join(_problemi)}
