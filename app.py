@@ -96,7 +96,14 @@ except Exception:  # il file potrebbe non essere ancora sul server
                 "errore": "Modulo non disponibile: aggiorna l'app."}
 
 try:
-    from setup_app import chiavi_browser, pannello_setup
+    # modulo "fresco": se il server tiene in memoria la versione vecchia,
+    # hotreload._modulo_fresco() la ricarica dal disco
+    _setup_fresco = hotreload._modulo_fresco("setup_app")
+    if _setup_fresco is not None:
+        chiavi_browser = _setup_fresco.chiavi_browser
+        pannello_setup = _setup_fresco.pannello_setup
+    else:
+        raise ImportError("setup_app non disponibile")
 except Exception:  # il file potrebbe non essere ancora sul server
     def pannello_setup(*_a, **_k):
         return {"email": "", "hash": "", "gemini": "", "treblo": "",
@@ -3854,12 +3861,13 @@ if post:
     # PUBBLICA SU TIKTOK (automatico, o la strada semplice in 2 gesti)
     # ======================================================================
     try:
-        import tiktok_pubblica as _tkpub
+        _tkpub = hotreload._modulo_fresco("tiktok_pubblica")
     except Exception:
         _tkpub = None
 
     html('<hr><div class="step">PUBBLICA</div>'
          "<h3>\U0001F4E4 Pubblica su TikTok</h3>")
+    _errore_tk = None
 
     # ---- il video da pubblicare ----
     _video_gia = st.session_state.get("canzone_video") or ""
@@ -3891,10 +3899,17 @@ if post:
     else:
         # le chiavi della developer app: dal server (Secrets) o dal browser
         # dell'utente (ognuno puo' usare la sua)
+        def _tk_cookie(nome: str) -> str:
+            """Legge un cookie (con ripiego: se il modulo e' vecchio, vuoto)."""
+            try:
+                return str(_tkpub._cookie(nome) or "").strip()
+            except Exception:
+                return ""
+
         _tk_utente = {
-            "client_key": _tkpub._cookie("cantico_tk_key"),
-            "client_secret": _tkpub._cookie("cantico_tk_secret"),
-            "redirect_uri": _tkpub._cookie("cantico_tk_redirect"),
+            "client_key": _tk_cookie("cantico_tk_key"),
+            "client_secret": _tk_cookie("cantico_tk_secret"),
+            "redirect_uri": _tk_cookie("cantico_tk_redirect"),
         }
         _tk_utente = {k: v for k, v in _tk_utente.items() if v}
     if _tkpub is None:

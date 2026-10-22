@@ -37,6 +37,11 @@ ORDINE = (
     "ai_client",
     "archivio",
     "accesso",
+    # moduli aggiunti dopo: senza questi, il server teneva in memoria la
+    # versione VECCHIA e l'app si rompeva con un AttributeError
+    "riflessione",
+    "setup_app",
+    "tiktok_pubblica",
 )
 
 # mtime noto per ciascun modulo (vive nel namespace di questo modulo)
@@ -75,6 +80,27 @@ def ricarica(extra: tuple[str, ...] = ()) -> list[str]:
             # se il reload fallisce lascio il modulo com'e' (non blocco l'app)
             STATI[nome] = mtime
     return ricaricati
+
+
+def _modulo_fresco(nome: str):
+    """
+    Importa (o ricarica) un modulo del progetto, garantendo che sia la
+    versione PIU' RECENTE del file.
+
+    Serve per i moduli aggiunti dopo: senza questo, il server teneva in
+    memoria la versione vecchia e l'app si rompeva (AttributeError).
+    """
+    import importlib
+    try:
+        _m = importlib.import_module(nome)
+    except Exception:
+        return None
+    try:
+        if os.path.exists(_percorso(nome)):
+            importlib.reload(_m)
+    except Exception:
+        pass
+    return _m
 
 
 def build_piu_recente() -> str:
