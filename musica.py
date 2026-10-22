@@ -261,10 +261,10 @@ def genera_canzone_gratuita(lyrics: str, stile: str = "",
         _msg = str(exc)
         if "quota" in _msg.lower() or "ZeroGPU" in _msg:
             return {**vuoto, "errore": (
-                "ACE-Step: la quota GPU gratuita e' esaurita. Si risolve con "
-                "un token Hugging Face gratis (lo metti nella barra laterale "
-                "dell'app, campo 'Token Hugging Face'): "
-                "https://huggingface.co/settings/tokens")}
+                "ACE-Step: la quota GPU gratuita di oggi e' finita (si azzera "
+                "domani: sono poche canzoni al giorno per account). "
+                "Intanto puoi usare Suno (i tuoi crediti) o MusicGen, "
+                "oppure riprova domani.")}
         return {**vuoto, "errore": f"ACE-Step non ha risposto: {_msg[:250]}"}
 
     path = _percorso_audio(risultato)
@@ -290,8 +290,8 @@ def _genera_musicgen(stile: str, durata: int, timeout: int) -> dict:
         _msg = str(exc)
         if "quota" in _msg.lower() or "ZeroGPU" in _msg:
             return {**vuoto, "errore": (
-                "MusicGen: la quota GPU gratuita e' esaurita. Serve un token "
-                "Hugging Face gratis (barra laterale dell'app).")}
+                "MusicGen: la quota GPU gratuita di oggi e' finita (si azzera "
+                "domani). Riprova domani, oppure usa ACE-Step o Suno.")}
         return {**vuoto, "errore": f"MusicGen non ha risposto: {_msg[:250]}"}
     path = _percorso_audio(risultato)
     if not path:
