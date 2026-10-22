@@ -75,7 +75,14 @@ def prompt_immagine(versetto: str, tema: str = "", stile: str = "",
 
 
 def _gemini(prompt: str, chiave: str) -> dict:
-    """Genera l'immagine con Gemini."""
+    """
+    Genera l'immagine con Gemini.
+
+    Nota: la generazione di immagini con Gemini richiede un account a
+    pagamento (il piano gratuito ha quota 0 per le immagini). Se la chiave
+    e' del piano gratuito, Gemini risponde con 429 "limit: 0" e qui si
+    passa subito a Pollinations (gratis, senza chiave).
+    """
     if requests is None or not chiave:
         return {"ok": False, "errore": "Gemini non disponibile"}
     for _modello in MODELLI_IMMAGINE:
@@ -94,6 +101,18 @@ def _gemini(prompt: str, chiave: str) -> dict:
             )
         except Exception as _e:
             return {"ok": False, "errore": f"Gemini: {str(_e)[:120]}"}
+        # 429 con limit 0 = il piano gratuito non ha immagini: inutile
+        # provare gli altri modelli, vanno tutti a zero
+        if _r.status_code == 429:
+            try:
+                _txt = _r.text or ""
+                if "limit: 0" in _txt or "free_tier" in _txt:
+                    return {"ok": False,
+                            "errore": "Gemini image generation requires a "
+                                      "paid tier (free quota = 0)."}
+            except Exception:
+                pass
+            continue
         if _r.status_code != 200:
             continue
         try:
@@ -128,6 +147,11 @@ def _pollinations(prompt: str) -> dict:
         _r = requests.get(_url, timeout=120, stream=True)
     except Exception as _e:
         return {"ok": False, "errore": f"Pollinations: {str(_e)[:120]}"}
+    if _r.status_code == 402:
+        return {"ok": False,
+                "errore": ("Pollinations e' temporaneamente occupato "
+                           "(troppi utenti). Riprova fra un minuto: "
+                           "di solito funziona subito.")}
     if _r.status_code != 200:
         return {"ok": False,
                 "errore": f"Pollinations ha risposto {_r.status_code}"}
@@ -150,6 +174,52 @@ def _pollinations(prompt: str) -> dict:
             "errore": None}
 
 
+def _immagine_locale(versetto: str = "", tema: str = "") -> dict:
+    """
+    Immagine di ripiego, generata in locale (nessuna rete): un gradiente
+    con il testo del versetto. Serve a non lasciare mai l'utente a mani
+    vuote quando i motori online non rispondono.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import textwrap
+    except Exception as _e:
+        return {"ok": False, "file": "", "fonte": "",
+                "errore": f"PIL non disponibile: {_e}"}
+    _img = Image.new("RGB", (LARGHEZZA, ALTEZZA), (40, 20, 80))
+    _d = ImageDraw.Draw(_img)
+    # gradiente verticale
+    for _y in range(ALTEZZA):
+        _t = _y / ALTEZZA
+        _r = int(40 + (88 - 40) * _t)
+        _g = int(20 + (28 - 20) * _t)
+        _b = int(80 + (135 - 80) * _t)
+        _d.line([(0, _y), (LARGHEZZA, _y)], fill=(_r, _g, _b))
+    # testo centrato
+    _fonte = None
+    for _nome in ("arial.ttf", "DejaVuSans.ttf"):
+        try:
+            _fonte = ImageFont.truetype(_nome, 52)
+            break
+        except Exception:
+            continue
+    if _fonte is None:
+        _fonte = ImageFont.load_default()
+    _testo = (versetto or "").strip()
+    if _testo:
+        _righe = textwrap.wrap(_testo, width=24)
+        _y = ALTEZZA // 2 - len(_righe) * 30
+        for _r in _righe:
+            _tw = _d.textlength(_r, font=_fonte)
+            _d.text(((LARGHEZZA - _tw) // 2, _y), _r,
+                    fill=(255, 255, 255), font=_fonte)
+            _y += 62
+    _path = _salva(".png")
+    _img.save(_path, "PNG")
+    return {"ok": True, "file": _path, "fonte": "generata in locale",
+            "errore": None}
+
+
 def genera_immagine(versetto: str = "", tema: str = "", stile: str = "",
                     chiave_gemini: str = "", extra: str = "") -> dict:
     """
@@ -162,11 +232,24 @@ def genera_immagine(versetto: str = "", tema: str = "", stile: str = "",
         _r = _gemini(_prompt, chiave_gemini.strip())
         if _r.get("ok"):
             return _r
-        # Gemini ha fallito: ripiego su Pollinations
+        # Gemini ha fallito (quota 0, o errore): ripiego su Pollinations
         _r2 = _pollinations(_prompt)
         if _r2.get("ok"):
             _r2["nota"] = _r.get("errore")
             return _r2
+        # Pollinations non ha risposto: immagine locale (senza rete)
+        _r3 = _immagine_locale(versetto, tema)
+        if _r3.get("ok"):
+            _r3["nota"] = _r.get("errore")
+            return _r3
         return {"ok": False, "file": "", "fonte": "",
                 "errore": (f"{_r.get('errore')} / {_r2.get('errore')}")}
-    return _pollinations(_prompt)
+    _r = _pollinations(_prompt)
+    if _r.get("ok"):
+        return _r
+    # Pollinations non ha risposto: immagine locale (senza rete)
+    _r2 = _immagine_locale(versetto, tema)
+    if _r2.get("ok"):
+        _r2["nota"] = _r.get("errore")
+        return _r2
+    return _r

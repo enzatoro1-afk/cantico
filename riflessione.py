@@ -603,6 +603,10 @@ def genera_riflessione_e_post(testo_versetto: str, interpretazione: str,
     _i = re.search(r"^\s*HOOK\s*:", _t, flags=re.IGNORECASE | re.M)
     _rif = (_t[:_i.start()] if _i else _t).strip()
     _rif = re.sub(r"Parole chiave:.*$", "", _rif, flags=re.IGNORECASE | re.S)
+    # togli eventuali titoli che l'IA aggiunge nonostante il divieto:
+    # qualsiasi riga iniziale avvolta in **...** (o con #) e' un titolo
+    _rif = re.sub(r"^\s*(?:\*{1,2}|#{1,6})\s*[^\n*#]+\*{0,2}\s*\n+",
+                  "", _rif, flags=re.MULTILINE)
     _rif = _rif.strip()
     _kw = _parole_chiave_riflessione(_t)
 
