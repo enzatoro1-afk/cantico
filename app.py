@@ -44,10 +44,20 @@ from musica import (MOTORI_GRATUITI, STILE_DEFAULT, crea_video_tiktok,
                     genera_canzone_senza_pagare)
 from suno import (STRUMENTI, STILE_CHIESA, TUTTI_I_TAG, genera_canzone_suno,
                   salva_cookie_suno, struttura_canzone, suno_disponibile)
-from treblo import genera_canzone_treblo, treblo_disponibile
+try:
+    from treblo import genera_canzone_treblo, treblo_disponibile
+except Exception:  # il file potrebbe non essere ancora sul server
+    def genera_canzone_treblo(lyrics, tags="", timeout=420):
+        return {"ok": False, "file": "", "url": "", "motore": "Treblo",
+                "errore": ("Il motore Treblo non e' ancora disponibile: "
+                           "aggiorna l'app (Ricarica la versione piu' "
+                           "recente) e riprova.")}
+
+    def treblo_disponibile():
+        return False, "Treblo non e' ancora disponibile su questo server."
 from configura import (ISTRUZIONE_SUNO, PASSI, TESTO_SUNO, leggi_secrets,
                       scrivi_secrets, stato_configurazione)
-from testi_canzone import scrivi_testi_canzone, scrivi_testi_da_riflessione
+from testi_canzone import scrivi_testi_canzone
 from archivio import (aggiungi_post, cancella_archivio, carica_archivio,
                       elimina_post)
 from bible_search2 import (capitoli_del, cerca_libri, cerca_passaggi,
@@ -1637,12 +1647,22 @@ with tab_riflessione:
                                 _rif_versetto = str(_sc["riferimento"])
                     except Exception:
                         pass
-                    _res = scrivi_testi_da_riflessione(
-                        _rif, riferimento=_rif_versetto,
-                        testo_versetto=_rif_testo,
-                        temi=", ".join(estrai_parole_chiave(_rif, 3)),
-                        chiave_gemini=_chiave_gemini_attiva(),
-                        chiave_openai=st.session_state.get("chiave_ia", ""))
+                    try:
+                        from testi_canzone import scrivi_testi_da_riflessione
+                    except Exception:
+                        scrivi_testi_da_riflessione = None
+                    if scrivi_testi_da_riflessione is None:
+                        _res = {"ok": False, "errore": (
+                            "Questa versione non ha ancora la scrittura "
+                            "dalla riflessione: aggiorna l'app (Ricarica la "
+                            "versione piu' recente) e riprova.")}
+                    else:
+                        _res = scrivi_testi_da_riflessione(
+                            _rif, riferimento=_rif_versetto,
+                            testo_versetto=_rif_testo,
+                            temi=", ".join(estrai_parole_chiave(_rif, 3)),
+                            chiave_gemini=_chiave_gemini_attiva(),
+                            chiave_openai=st.session_state.get("chiave_ia", ""))
                 if _res.get("ok"):
                     st.session_state["canzone_testi"] = _res["testo"]
                     st.session_state["riflessione_giornaliera"] = _rif
