@@ -38,22 +38,23 @@ I PASSI
    - Client Key
    - Client Secret
 
-6) Mettile nei Secrets di Streamlit Cloud:
-   - apri https://share.streamlit.io
-   - la tua app -> i tre puntini (...) -> Settings -> tab "Secrets"
-   - incolla queste tre righe (una per riga, formato TOML):
+6) Incollale DIRETTAMENTE NELL'APP (non serve toccare Streamlit Cloud):
+   - apri la tua app -> in fondo, blocco "Pubblica su TikTok"
+   - apri "Volo pubblicare in automatico?" -> "Le chiavi della mia
+     developer app"
+   - incolla Client Key, Client Secret e il Redirect URI
+   - premi "Salva le chiavi nel browser"
+   Le chiavi restano nel TUO browser: nessun altro le vede, non finiscono
+   su GitHub e la quota e' tua.
 
-     TIKTOK_CLIENT_KEY = "il tuo Client Key"
-     TIKTOK_CLIENT_SECRET = "il tuo Client Secret"
-     TIKTOK_REDIRECT_URI = "https://canzoni-pentecostali-enzo.streamlit.app/"
+   Il Redirect URI deve essere ESATTAMENTE l'indirizzo della tua app:
+     https://canzoni-pentecostali-enzo.streamlit.app/
 
-   ATTENZIONE al Redirect URI: deve essere ESATTAMENTE l'indirizzo della
-   tua app (con la barra finale "/"), altrimenti TikTok rifiuta.
-
-   Se ti interessa anche cambiare il nome in fondo alla pagina, puoi
-   aggiungere una quarta riga:
-
-     AUTORE_APP = "Il tuo nome"
+   (Se invece vuoi che valga per TUTTI gli utenti dell'app, metti le stesse
+   tre righe nei Secrets di Streamlit Cloud, una per riga, formato TOML:
+     TIKTOK_CLIENT_KEY = "..."
+     TIKTOK_CLIENT_SECRET = "..."
+     TIKTOK_REDIRECT_URI = "https://canzoni-pentecostali-enzo.streamlit.app/")
 
 7) Salva e aspetta il riavvio (1-2 minuti). Poi apri l'app: nel blocco
    "Pubblica su TikTok" compare il pulsante "Collega il tuo TikTok".

@@ -1386,7 +1386,13 @@ def _collega_tiktok() -> None:
                  "TIKTOK_CLIENT_SECRET.")
         return
     with st.spinner("Collego il tuo TikTok..."):
-        _r = _tk.scambia_code(_code)
+        _ut = {
+            "client_key": _tk._cookie("cantico_tk_key"),
+            "client_secret": _tk._cookie("cantico_tk_secret"),
+            "redirect_uri": _tk._cookie("cantico_tk_redirect"),
+        }
+        _ut = {k: v for k, v in _ut.items() if v}
+        _r = _tk.scambia_code(_code, _ut)
     if _r.get("access_token"):
         st.session_state["tiktok_token"] = _r["access_token"]
         st.session_state["tiktok_token_scaduto"] = False
@@ -3882,7 +3888,18 @@ if post:
 
     if _tkpub is None:
         st.info("Modulo di pubblicazione non disponibile: aggiorna l'app.")
-    elif not _tkpub.collegato():
+    else:
+        # le chiavi della developer app: dal server (Secrets) o dal browser
+        # dell'utente (ognuno puo' usare la sua)
+        _tk_utente = {
+            "client_key": _tkpub._cookie("cantico_tk_key"),
+            "client_secret": _tkpub._cookie("cantico_tk_secret"),
+            "redirect_uri": _tkpub._cookie("cantico_tk_redirect"),
+        }
+        _tk_utente = {k: v for k, v in _tk_utente.items() if v}
+    if _tkpub is None:
+        pass
+    elif not _tkpub.collegato(_tk_utente):
         # ---------- STRADA 1: la piu' semplice (funziona subito) ----------
         html(
             '<div class="box box-ok"><b>\u2705 Post pronto.</b> Ti manca solo '
@@ -3921,24 +3938,35 @@ if post:
                 'Finche\' non e\' pronto, la strada qui sopra funziona '
                 'per sempre e ti costa 3 secondi.</div>',
                 unsafe_allow_html=True)
+            html(_tkpub.SCRIPT_CHIAVI_TIKTOK, js=True)
+            with st.expander("Le chiavi della mia developer app"):
+                st.text_input("Client Key", type="password",
+                              key="tk_client_key", placeholder="aw...")
+                st.text_input("Client Secret", type="password",
+                              key="tk_client_secret", placeholder="...")
+                st.text_input("Redirect URI", type="password",
+                              key="tk_redirect_uri",
+                              placeholder="https://la-tua-app.streamlit.app/")
+                st.caption("Restano nel tuo browser: nessuno le vede. "
+                           "Premi il pulsante qui sotto per salvarle.")
+                if st.button("\U0001F4BE Salva le chiavi nel browser",
+                             key="salva_chiavi_tk"):
+                    st.rerun()
             if st.button("\U0001F50E Verifica la configurazione di TikTok",
                           use_container_width=True, key="verifica_tiktok_cfg"):
-                _k = _tkpub.chiavi()
-                _mancano = [n for n, v in (("TIKTOK_CLIENT_KEY",
-                                            _k.get("client_key")),
-                                           ("TIKTOK_CLIENT_SECRET",
-                                            _k.get("client_secret")),
-                                           ("TIKTOK_REDIRECT_URI",
-                                            _k.get("redirect_uri"))) if not v]
+                _k = _tkpub.chiavi(_tk_utente)
+                _mancano = [n for n, v in (("Client Key", _k.get("client_key")),
+                                            ("Client Secret",
+                                             _k.get("client_secret")),
+                                            ("Redirect URI",
+                                             _k.get("redirect_uri"))) if not v]
                 if not _mancano:
                     st.success("\u2705 Tutto pronto! Comparirà il pulsante "
                                "\"Collega il tuo TikTok\".")
                 else:
-                    st.warning("Mancano nei Secrets di Streamlit Cloud: "
-                               + ", ".join(_mancano))
-                    st.info("Apri la tua app su share.streamlit.io &rarr; "
-                            "Settings &rarr; Secrets e incolla le tre righe "
-                            "(una per riga, formato TOML).")
+                    st.warning("Mancano: " + ", ".join(_mancano))
+                    st.info("Apri l'expander qui sopra e incollale: restano "
+                            "nel tuo browser.")
             with st.expander("\U0001F4D6 La guida passo passo (da tenere)"):
                 html(
                     '<div class="note"><b>1)</b> Vai su '
@@ -3981,7 +4009,7 @@ if post:
                 'Collega il tuo TikTok (una volta sola): si apre TikTok, '
                 'autorizzi l\'app e torni qui.</div>')
             if st.link_button("\U0001F517 Collega il tuo TikTok",
-                              _tkpub.url_authorize("cantico"),
+                              _tkpub.url_authorize("cantico", _tk_utente),
                               use_container_width=True, type="primary"):
                 st.info("Autorizza l'app su TikTok: poi torna qui.")
         else:

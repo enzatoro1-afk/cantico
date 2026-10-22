@@ -72,18 +72,42 @@ def _segreto(nome: str) -> str:
         return ""
 
 
-def chiavi() -> dict:
-    """Le chiavi della developer app di TikTok (se ci sono)."""
+def _cookie(nome: str) -> str:
+    """Legge un cookie del browser (le chiavi dell'utente)."""
+    try:
+        import streamlit as st
+        from urllib.parse import unquote
+        return unquote(str(st.context.cookies.get(nome, "") or "")).strip()
+    except Exception:
+        return ""
+
+
+def chiavi(utente: dict | None = None) -> dict:
+    """
+    Le chiavi della developer app di TikTok.
+
+    Due strade:
+    - nel SERVER (Secrets di Streamlit): le ha messe il proprietario
+    - nel BROWSER dell'utente: ognuno puo' usare la SUA developer app
+      (le chiavi restano nel suo browser e la quota e' sua)
+    """
+    _u = utente or {}
     return {
-        "client_key": _segreto("TIKTOK_CLIENT_KEY"),
-        "client_secret": _segreto("TIKTOK_CLIENT_SECRET"),
-        "redirect_uri": _segreto("TIKTOK_REDIRECT_URI"),
+        "client_key": (str(_u.get("client_key", "") or "").strip()
+                       or _segreto("TIKTOK_CLIENT_KEY")
+                       or _cookie("cantico_tk_key")),
+        "client_secret": (str(_u.get("client_secret", "") or "").strip()
+                          or _segreto("TIKTOK_CLIENT_SECRET")
+                          or _cookie("cantico_tk_secret")),
+        "redirect_uri": (str(_u.get("redirect_uri", "") or "").strip()
+                         or _segreto("TIKTOK_REDIRECT_URI")
+                         or _cookie("cantico_tk_redirect")),
     }
 
 
-def collegato() -> bool:
+def collegato(utente: dict | None = None) -> bool:
     """True se la developer app e' configurata (si puo' pubblicare)."""
-    _k = chiavi()
+    _k = chiavi(utente)
     return bool(_k["client_key"] and _k["client_secret"] and _k["redirect_uri"])
 
 
@@ -103,9 +127,9 @@ def link_studio(caption: str = "") -> str:
 # OAuth: collegare il proprio TikTok
 # --------------------------------------------------------------------------
 
-def url_authorize(state: str = "") -> str:
+def url_authorize(state: str = "", utente: dict | None = None) -> str:
     """Il link che apre TikTok per l'autorizzazione."""
-    _k = chiavi()
+    _k = chiavi(utente)
     if not _k["client_key"]:
         return ""
     _p = {
@@ -118,7 +142,7 @@ def url_authorize(state: str = "") -> str:
     return f"{AUTORE}?{urlencode(_p)}"
 
 
-def scambia_code(code: str) -> dict:
+def scambia_code(code: str, utente: dict | None = None) -> dict:
     """
     Scambia il 'code' dell'autorizzazione con l'access token.
 
@@ -126,7 +150,7 @@ def scambia_code(code: str) -> dict:
     """
     if requests is None:
         return {"access_token": "", "errore": "requests non installato"}
-    _k = chiavi()
+    _k = chiavi(utente)
     if not (_k["client_key"] and _k["client_secret"]):
         return {"access_token": "", "errore": "developer app non configurata"}
     try:
@@ -340,6 +364,72 @@ SCRIPT_LEGGI_TOKEN = """
       setTimeout(prova, 300);
     }
     setTimeout(prova, 100);
+  } catch (e) {}
+})();
+</script>
+"""
+
+
+# Le chiavi della DEVELOPER APP di TikTok dell'utente: restano nel suo
+# browser (localStorage + cookie). Il server le legge dai cookie, quindi
+# l'app funziona senza toccare i Secrets del Cloud.
+SCRIPT_CHIAVI_TIKTOK = """
+<script>
+(function () {
+  try {
+    if (window.__canticoTkChiavi) return;
+    window.__canticoTkChiavi = true;
+    function trova(marca) {
+      var campi = document.querySelectorAll('input');
+      for (var i = 0; i < campi.length; i++) {
+        var lab = campi[i].closest('div[data-testid="stTextInput"]');
+        var t = (lab && (lab.textContent || lab.innerText)) || "";
+        if (t.indexOf(marca) < 0) continue;
+        return campi[i];
+      }
+      return null;
+    }
+    function leggi() {
+      return {
+        key: (trova("Client Key") || {}).value || "",
+        sec: (trova("Client Secret") || {}).value || "",
+        red: (trova("Redirect URI") || {}).value || ""
+      };
+    }
+    function salva() {
+      var v = leggi();
+      function ck(nome, val) {
+        if (!val) return;
+        document.cookie = nome + "=" + encodeURIComponent(val.trim()) +
+          "; path=/; max-age=31536000; SameSite=Lax";
+        try { localStorage.setItem(nome, val.trim()); } catch (e) {}
+      }
+      ck("cantico_tk_key", v.key);
+      ck("cantico_tk_secret", v.sec);
+      ck("cantico_tk_redirect", v.red);
+    }
+    function prova() {
+      var v = leggi();
+      var f1 = trova("Client Key"), f2 = trova("Client Secret");
+      if (f1 && !f1.value && localStorage.getItem("cantico_tk_key")) {
+        var p1 = Object.getPrototypeOf(f1);
+        Object.getOwnPropertyDescriptor(p1, 'value').set.call(f1, localStorage.getItem("cantico_tk_key"));
+        f1.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (f2 && !f2.value && localStorage.getItem("cantico_tk_secret")) {
+        var p2 = Object.getPrototypeOf(f2);
+        Object.getOwnPropertyDescriptor(p2, 'value').set.call(f2, localStorage.getItem("cantico_tk_secret"));
+        f2.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      salva();
+      if (!f1 || !f2) setTimeout(prova, 300);
+    }
+    // ogni volta che l'utente scrive, i cookie si aggiornano
+    document.addEventListener('input', function (ev) {
+      var t = (ev.target && ev.target.tagName || '').toLowerCase();
+      if (t === 'input') salva();
+    });
+    setTimeout(prova, 200);
   } catch (e) {}
 })();
 </script>
