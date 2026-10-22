@@ -55,7 +55,8 @@ Assistente-Canzone-TikTok/
 ├── AGGIORNA_COOKIE_SUNO.py # salva/aggiorna il cookie di suno.com in locale
 ├── AVVIA_SUNO.py          # (facoltativo) servizio open source di Suno
 ├── pubblica.py            # push con VERSION.txt (commit + deploy)
-├── requirements.txt       # dipendenze
+├── requirements.txt       # dipendenze Python
+├── packages.txt          # pacchetti di sistema (ffmpeg, per i video)
 ├── .streamlit/config.toml # tema e impostazioni
 ├── AVVIA.ps1              # avvia l'app in locale (PC + telefono)
 ├── INSTALLA.ps1          # pubblica online con 1 comando (GitHub + Streamlit)

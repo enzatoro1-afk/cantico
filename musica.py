@@ -417,18 +417,33 @@ def genera_canzone_senza_pagare(lyrics: str, stile: str = "",
 # --------------------------------------------------------------------------
 
 def _ffmpeg() -> str:
-    """Il binario ffmpeg (da imageio-ffmpeg, cosi' funziona ovunque)."""
+    """Il binario ffmpeg (da imageio-ffmpeg, oppure dal sistema)."""
+    # 1) imageio-ffmpeg: bundla il binario, funziona ovunque
     try:
         import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
+        _exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if _exe and os.path.exists(_exe):
+            return _exe
     except Exception:
         pass
-    for cand in ("ffmpeg", "/usr/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg"):
+    # 2) il binario di sistema (su Streamlit Cloud c'e', se in packages.txt)
+    for cand in ("ffmpeg", "/usr/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg",
+                 "/usr/local/bin/ffmpeg"):
         try:
-            subprocess.run([cand, "-version"], capture_output=True, timeout=20)
-            return cand
+            _r = subprocess.run([cand, "-version"], capture_output=True,
+                                timeout=20)
+            if _r.returncode == 0:
+                return cand
         except Exception:
             continue
+    # 3) cerca in PATH con shutil
+    try:
+        import shutil
+        _p = shutil.which("ffmpeg")
+        if _p:
+            return _p
+    except Exception:
+        pass
     return ""
 
 
