@@ -2740,9 +2740,11 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         st.session_state["canzone_modello"] = _res_m.get("motore", "")
         # 3) il video
         with st.spinner("3 di 3 - Sto montando il video verticale..."):
+            _rif_v = ((st.session_state.get("riferimento") or {}).get(
+                "riferimento", "") or testo or "")[:160]
             _res_v = crea_video_tiktok(
                 _res_m["file"],
-                testo=(v.get("riferimento", "") or testo or "")[:160],
+                testo=_rif_v,
                 sfondo="immagine", muovo=True)
         if _res_v.get("ok"):
             st.session_state["canzone_video"] = _res_v["file"]
