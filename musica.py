@@ -185,9 +185,13 @@ def ricorda_token_hf(token: str) -> bool:
 
 def _gradio_client(space: str):
     """Il client Gradio per uno Space pubblico (None se non c'e')."""
+    global _ULTIMO_ERRORE_GRADIO
+    _ULTIMO_ERRORE_GRADIO = ""
     try:
         from gradio_client import Client
     except ImportError:
+        _ULTIMO_ERRORE_GRADIO = ("gradio_client non e' installato "
+                                 "(pip install gradio_client)")
         return None
     # il token Hugging Face: alcune versioni di gradio_client lo leggono
     # solo dalla variabile d'ambiente
@@ -200,7 +204,9 @@ def _gradio_client(space: str):
             return Client(space, verbose=False, hf_token=_tok or None)
         except TypeError:
             return Client(space, verbose=False)
-    except Exception:
+    except Exception as exc:
+        _ULTIMO_ERRORE_GRADIO = (f"lo Space '{space}' non risponde "
+                                 f"({str(exc)[:120]})")
         return None
 
 
@@ -228,8 +234,10 @@ def genera_canzone_gratuita(lyrics: str, stile: str = "",
     client = _gradio_client(SPACE_ACE_STEP)
     if client is None:
         return {**vuoto, "errore": (
-            "gradio_client non e' installato (pip install gradio_client) "
-            "oppure lo Space non e' raggiungibile. Riprova fra poco.")}
+            "ACE-Step non si collega: "
+            + (_ULTIMO_ERRORE_GRADIO or "lo Space non e' raggiungibile")
+            + ". Riprova fra poco (se sei sull'app online, l'aggiornamento "
+              "potrebbe non essere ancora finito).")}
 
     try:
         risultato = client.predict(
@@ -279,7 +287,10 @@ def _genera_musicgen(stile: str, durata: int, timeout: int) -> dict:
     vuoto = {"ok": False, "errore": "", "file": "", "motore": "MusicGen"}
     client = _gradio_client(SPACE_MUSICGEN)
     if client is None:
-        return {**vuoto, "errore": "MusicGen non raggiungibile. Riprova fra poco."}
+        return {**vuoto, "errore": (
+            "MusicGen non si collega: "
+            + (_ULTIMO_ERRORE_GRADIO or "lo Space non e' raggiungibile")
+            + ". Riprova fra poco.")}
     try:
         risultato = client.predict(
             texts=stile,
