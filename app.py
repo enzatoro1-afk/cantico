@@ -1556,8 +1556,8 @@ with st.sidebar:
              "browser.",
         key="chiave_treblo",
     )
-    if _chiave_treblo:
-        st.session_state["chiave_treblo"] = _chiave_treblo.strip()
+    # (il valore e' gia' in session_state["chiave_treblo"] tramite il key del widget;
+    #  non lo riscrivo qui per evitare StreamlitWidgetAlreadyInstantiatedError)
     _token_hf = st.text_input(
         "Token Hugging Face (facoltativo, gratis)",
         value=st.session_state.get("token_hf") or _segreto("HF_TOKEN"),
@@ -1568,8 +1568,7 @@ with st.sidebar:
              "(New token -> Read). Resta nel tuo computer.",
         key="token_hf",
     )
-    if _token_hf:
-        st.session_state["token_hf"] = _token_hf.strip()
+    # (il valore e' gia' in session_state["token_hf"] tramite il key del widget)
     _chiave_ia = st.text_input(
         "Chiave API OpenAI (opzionale)",
         value=chiave_da_secrets(),
