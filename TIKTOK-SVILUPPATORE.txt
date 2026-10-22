@@ -1,0 +1,86 @@
+TIKTOK: COME FAR PUBBLICARE L'APP DA SOLA
+========================================
+
+(una volta sola, ~15 minuti + i tempi di approvazione di TikTok)
+
+
+PERCHE' SERVE
+-------------
+TikTok permette a un'app di pubblicare i video AUTOMATICAMENTE solo se
+l'app ha una "developer app" approvata. Senza, l'app puo' solo
+prepararti il materiale e aprire TikTok Studio (la strada semplice, che
+funziona gia' adesso).
+
+
+I PASSI
+-------
+1) Apri https://developers.tiktok.com  e accedi con il TUO TikTok
+   (quello dove pubblichi).
+
+2) Crea un'app:
+   - "Create an app"
+   - Product: scegli "Web" (oppure "Other")
+   - metti qualsiasi URL, es. https://example.com
+   - conferma
+
+3) Nel pannello della tua app attiva:
+   - "Content Posting API"  ->  "Direct Post"
+   Ti compare la lista degli scope: deve comparire "video.publish".
+
+4) Chiedi l'approvazione dello scope "video.publish":
+   - nella sezione "Manage scopes" (o "App details") trovi il pulsante
+     "Request" / "Apply for scope"
+   - spiega in una riga cosa fa la tua app (es: "an app that prepares
+     devotional videos for the creator and posts them with their consent")
+   - TikTok risponde in qualche giorno (a volte entro il giorno stesso)
+
+5) Copia le due chiavi dalla sezione "App details":
+   - Client Key
+   - Client Secret
+
+6) Mettile nei Secrets di Streamlit Cloud:
+   - apri https://share.streamlit.io
+   - la tua app -> i tre puntini (...) -> Settings -> tab "Secrets"
+   - incolla queste tre righe (una per riga, formato TOML):
+
+     TIKTOK_CLIENT_KEY = "il tuo Client Key"
+     TIKTOK_CLIENT_SECRET = "il tuo Client Secret"
+     TIKTOK_REDIRECT_URI = "https://canzoni-pentecostali-enzo.streamlit.app/"
+
+   ATTENZIONE al Redirect URI: deve essere ESATTAMENTE l'indirizzo della
+   tua app (con la barra finale "/"), altrimenti TikTok rifiuta.
+
+   Se ti interessa anche cambiare il nome in fondo alla pagina, puoi
+   aggiungere una quarta riga:
+
+     AUTORE_APP = "Il tuo nome"
+
+7) Salva e aspetta il riavvio (1-2 minuti). Poi apri l'app: nel blocco
+   "Pubblica su TikTok" compare il pulsante "Collega il tuo TikTok".
+
+8) Premilo: si apre TikTok, autorizzi l'app (una volta sola), torni
+   nell'app e trovi "Pubblica ora".
+
+
+SE NON VA
+---------
+- "Non ha risposto" sul pulsante Verifica: i Secrets non sono arrivati
+  (aspetta il riavvio e riprova).
+- Errore "scope_not_authorized": lo scope video.publish non e' ancora
+  approvato da TikTok.
+- Errore "unaudited_client_can_only_post_to_private_accounts": l'app
+  non e' ancora approvata dall'audit di TikTok: i video si pubblicano
+  ma SOLO in privato. Funziona, ma non si vedono. Quando l'audit passa,
+  si pubblicano normalmente, senza toccare il codice.
+- Errore "invalid_redirect_uri": il Redirect URI nei Secrets non
+  corrisponde esattamente a quello registrato su TikTok.
+
+
+DAL MENTRE
+-----------
+La strada semplice funziona gia' e non ti costa nulla:
+  1) "Scarica il video (.mp4)"
+  2) "Apri TikTok Studio (testo gia' pronto)"  -> la caption e' gia' dentro
+  3) scegli il file e premi Pubblica
+
+Il token di TikTok resta nel TUO browser: nessun altro lo vede.

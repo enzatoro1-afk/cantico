@@ -3921,6 +3921,47 @@ if post:
                 'Finche\' non e\' pronto, la strada qui sopra funziona '
                 'per sempre e ti costa 3 secondi.</div>',
                 unsafe_allow_html=True)
+            if st.button("\U0001F50E Verifica la configurazione di TikTok",
+                          use_container_width=True, key="verifica_tiktok_cfg"):
+                _k = _tkpub.chiavi()
+                _mancano = [n for n, v in (("TIKTOK_CLIENT_KEY",
+                                            _k.get("client_key")),
+                                           ("TIKTOK_CLIENT_SECRET",
+                                            _k.get("client_secret")),
+                                           ("TIKTOK_REDIRECT_URI",
+                                            _k.get("redirect_uri"))) if not v]
+                if not _mancano:
+                    st.success("\u2705 Tutto pronto! Comparirà il pulsante "
+                               "\"Collega il tuo TikTok\".")
+                else:
+                    st.warning("Mancano nei Secrets di Streamlit Cloud: "
+                               + ", ".join(_mancano))
+                    st.info("Apri la tua app su share.streamlit.io &rarr; "
+                            "Settings &rarr; Secrets e incolla le tre righe "
+                            "(una per riga, formato TOML).")
+            with st.expander("\U0001F4D6 La guida passo passo (da tenere)"):
+                html(
+                    '<div class="note"><b>1)</b> Vai su '
+                    '<a href="https://developers.tiktok.com" target="_blank">'
+                    'developers.tiktok.com</a> e accedi col tuo TikTok<br>'
+                    '<b>2)</b> "Create an app" &rarr; scegli <b>Web</b> (o '
+                    'Other) e metti qualsiasi URL (es. '
+                    'https://example.com)<br>'
+                    '<b>3)</b> Nel pannello dell\'app attiva '
+                    '<b>Content Posting API</b> &rarr; <b>Direct Post</b><br>'
+                    '<b>4)</b> Chiedi l\'approvazione dello scope '
+                    '<b>video.publish</b> (ci mette qualche giorno)<br>'
+                    '<b>5)</b> Copia <b>Client Key</b> e <b>Client Secret</b><br>'
+                    '<b>6)</b> Nei Secrets di Streamlit Cloud metti:<br>'
+                    '<code>TIKTOK_CLIENT_KEY = "..."</code><br>'
+                    '<code>TIKTOK_CLIENT_SECRET = "..."</code><br>'
+                    '<code>TIKTOK_REDIRECT_URI = '
+                    '"https://canzoni-pentecostali-enzo.streamlit.app/"</code>'
+                    '<br>(il Redirect URI deve essere <b>esattamente</b> '
+                    'l\'indirizzo della tua app)<br>'
+                    '<b>7)</b> Salva, torna qui e premi "Collega il tuo '
+                    'TikTok".</div>',
+                    unsafe_allow_html=True)
     else:
         # ---------- STRADA 2: pubblicazione automatica ----------
         # il token vive nel browser: lo script lo rimette nel campo
