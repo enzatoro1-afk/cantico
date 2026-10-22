@@ -4498,4 +4498,39 @@ if st.button("\U0001F504 Ricarica la versione piu' recente", use_container_width
     except Exception:
         pass
     st.query_params["v"] = BUILD.replace(" ", "-")
-    st.rerun()
+    st.rerun()    # ---- CERCA SU TIKTOK (il titolo da usare) ----
+    _query_tiktok = " ".join(estrai_parole_chiave(testo or "", 3)).strip()         or (testo or "").strip()[:60]
+    html('<hr>')
+    html(
+        '<div class="step">PASSAGGIO 2</div>'
+        '<h3>\U0001F50D Il titolo da cercare su TikTok</h3>')
+    html(
+        '<div class="note box-ok"><b>Perche\' questo titolo?</b> L\'app lo '
+        'ricava dall\'interpretazione del tuo versetto: sono le parole '
+        'spirituali che parlano del cuore del passaggio. Su TikTok cerca '
+        '<b>questo titolo</b> nella libreria audio e trovi il suono '
+        'originale.</div>')
+    html(
+        f'<div class="box"><b>Titolo da cercare:</b> {esc(_query_tiktok)}</div>')
+    blocco_copia(_query_tiktok, "copia_titolo_tiktok",
+                 "\U0001F4CB Copia il titolo per TikTok")
+    st.link_button(
+        "\U0001F50A Cerca questo titolo su TikTok",
+        f"https://www.tiktok.com/search?q={__import__('urllib.parse').parse.quote(_query_tiktok)}",
+        use_container_width=True,
+        type="primary")
+    st.caption("Si apre la ricerca di TikTok: da li\' scegli il suono "
+               "originale (non il video di un altro). Se TikTok ti manda "
+               "alla home, accedi col tuo account e riprova il link (la "
+               "ricerca resta impostata).")
+    html(
+        '<div class="note" style="margin-top:8px;">'
+        '<b>Il percorso completo (5 secondi):</b><br>'
+        '1) tocca "Copia il titolo per TikTok" (il titolo e\' negli appunti)<br>'
+        '2) apri TikTok sul telefono -> tocca "+" (nuovo video)<br>'
+        '3) "Aggiungi suono" -> incolla il titolo -> scegli il suono<br>'
+        '4) registra il video con quel suono e pubblica.<br><br>'
+        '<b>Se non vuoi cercare niente:</b> vai qui sotto in "Crea una '
+        'canzone ORIGINALE" -> "FAI TUTTO": l\'app ti prepara tutto '
+        '(parole, canzone cantata, poster, video 9:16) e tu pubblichi.</div>')
+
