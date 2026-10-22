@@ -3933,9 +3933,30 @@ if post:
                     file_name="cantico_tiktok.mp4", mime="video/mp4",
                     use_container_width=True, key="dl_video_pubblica")
         with _c_p2:
-            st.link_button("\U0001F4E4 Apri TikTok Studio (testo gia' pronto)",
-                           _tkpub.link_studio(caption),
-                           use_container_width=True, type="primary")
+            # un pulsante che COPIA la caption e POI apre TikTok Studio:
+            # in Studio basta incollare (Ctrl+V) e pubblicare
+            _url_studio = _tkpub.link_studio(caption)
+            _cap_js = _js_string(caption)
+            _url_js = _js_string(_url_studio)
+            html(
+                '<button id="cantico_studio" style="width:100%;min-height:50px;'
+                'border:none;border-radius:14px;font-weight:700;font-size:1rem;'
+                'color:#fff;cursor:pointer;'
+                'background:linear-gradient(135deg,#4f46e5,#7c3aed);'
+                'box-shadow:0 4px 14px rgba(79,70,229,.28)">'
+                '\U0001F4E4 Apri TikTok Studio (testo gia\' pronto)</button>'
+                '<script>(function(){'
+                'try{ var b=document.getElementById("cantico_studio");'
+                'if(!b || b.__pronto) return; b.__pronto = true;'
+                'b.addEventListener("click", function(){'
+                'var t = ' + _cap_js + ';'
+                'try{ if(navigator.clipboard && navigator.clipboard.writeText){'
+                'navigator.clipboard.writeText(t); } }catch(e){}'
+                'window.open(' + _url_js + ',"_blank");'
+                '}); }catch(e){}})();</script>',
+                js=True)
+            st.caption("Copia la caption e apre TikTok Studio: li' fai "
+                       "Ctrl+V e pubblichi.")
         with st.expander("\u26A1 Volo pubblicare in automatico? (per chi puo')"):
             html(
                 '<div class="note">TikTok permette di pubblicare in automatico '
