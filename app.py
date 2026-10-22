@@ -3277,6 +3277,37 @@ if risultati:
         '<b>canzone originale</b> tua (sezione "Crea una canzone ORIGINALE").'
         '</div>')
 
+    # ---- LE CANZONI DI TIKTOK: le aggiungi tu, l'app le tratta come tutte
+    # le altre (TikTok non permette a un'app di cercare nella sua libreria
+    # audio: quindi la scelta la fai tu, che la libreria la vedi)
+    with st.expander("\U0001F3B5 Aggiungi una canzone di TikTok"):
+        html(
+            '<div class="note">Hai visto su TikTok una canzone che ti piace? '
+            'Scrivi qua <b>titolo - artista</b> (come lo vedi su TikTok) e '
+            'l\'app la aggiunge alla lista del post, con la caption, lo '
+            'script, l\'immagine e il link per prendere il suono.</div>',
+            unsafe_allow_html=True)
+        _tk_song = st.text_input(
+            "Titolo - artista (come su TikTok)",
+            placeholder="Tutto passa solo l'amore - Artista",
+            key="canzone_tiktok_manuale")
+        if st.button("\U0001F3A4 Aggiungi alla lista del post",
+                     use_container_width=True, key="aggiungi_canzone_tiktok"):
+            _titolo = (_tk_song or "").strip()
+            if not _titolo:
+                st.warning("Scrivi prima il titolo della canzone \U0001F4D8")
+            else:
+                from youtube_search import Risultato as _Ris
+                _nuova = _Ris(titolo=_titolo, video_id="", canale="TikTok",
+                               durata="", secondi=None, punteggio=99.0)
+                _lista = list(st.session_state.get("risultati") or [])
+                _lista.insert(0, _nuova)
+                st.session_state["risultati"] = _lista
+                st.session_state["quante_mostrate"] = st.session_state.get(
+                    "quante_mostrate", len(_lista)) + 1
+                st.success("\u2705 Aggiunta! La trovi in cima alla lista.")
+                st.rerun()
+
     # ---- CERCA MEGLIO / ALTRE CANZONI ----
     _visti = st.session_state.get("visti") or []
     _quante = st.session_state.get("quante_mostrate", len(risultati))
@@ -3342,10 +3373,20 @@ if risultati:
                 _tag = (f'<span class="chip" style="background:#dbeafe;'
                         f'color:#1e40af;font-weight:700">'
                         f'&#127925; {esc(_artista)}</span> ')
+            # canzone aggiunta a mano da TikTok: niente video su YouTube
+            _manuale = not getattr(r, "video_id", "")
+            if _manuale:
+                _tag = ('<span class="chip" style="background:#fce7f3;'
+                        'color:#9d174d;font-weight:700">'
+                        '&#127916; da TikTok</span> ') + _tag
+                _mini = ""
+            else:
+                _mini = (f'<img class="thumb" src="{r.url_miniature}" alt="" '
+                         'loading="lazy">')
             html(
                 f"""
                 <div style="display:flex;gap:12px;align-items:flex-start;">
-                  <img class="thumb" src="{r.url_miniature}" alt="" loading="lazy">
+                  {_mini}
                   <div style="flex:1;min-width:0;">
                     <div class="badge">#{i}</div>
                     <div class="card-title">{esc(r.titolo)}</div>
@@ -3368,16 +3409,51 @@ if risultati:
                                 else r.titolo)
                 blocco_copia(_testo_copia, f"copia{i}")
             with col_b:
-                st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
+                if not getattr(r, "video_id", ""):
+                    # canzone di TikTok: porta alla ricerca del suono
+                    st.link_button("\U0001F50A Apri TikTok (il suono)",
+                                   link_ricerca_audio(_testo_copia),
+                                   use_container_width=True)
+                else:
+                    st.link_button("\U0001F3A7 Ascolta", r.url,
+                                   use_container_width=True)
 
-            st.link_button(
-                "\U0001F50A Prendi il suono su TikTok",
-                link_ricerca_audio(_testo_copia),
-                use_container_width=True,
-                help="Apre la libreria audio di TikTok con questo titolo "
-                     "esatto: scegli il suono originale e usalo nel TUO "
-                     "video (e' il modo lecito di usare una canzone).",
-            )
+            # ---- COME PRENDERE IL SUONO SU TIKTOK (passo per passo) ----
+            with st.expander("\U0001F50A Come prendere il suono su TikTok "
+                            "(passo per passo)"):
+                html(
+                    '<div class="note"><b>1)</b> Tocca il pulsante qui sotto: '
+                    'il titolo esatto della canzone (con l\'artista) ti finisce '
+                    'negli <b>appunti</b>.<br>'
+                    '<b>2)</b> Apri <b>TikTok</b> e incolla quel titolo dove ti '
+                    'chiede la ricerca. Se stai facendo un video, il modo '
+                    'più semplice è: <b>pubblica</b> &rarr; <b>"Aggiungi '
+                    'suono"</b> &rarr; incolla lì.<br>'
+                    '<b>3)</b> Scegli il suono: è quello con lo stesso nome '
+                    'e lo stesso artista.<br>'
+                    '<b>4)</b> Il suono è nella tua libreria: crei il video e '
+                    'lo scegli come audio.<br><br>'
+                    '<b>Perché non ricaricare il video di un altro:</b> TikTok '
+                    'ti toglie la musica (è protetta) e rischi lo strike sul '
+                    'tuo account. Con il <b>suono originale</b> non c\'è '
+                    'problema: è il modo previsto da TikTok.</div>',
+                    unsafe_allow_html=True)
+                blocco_copia(_testo_copia, f"copia_suono_{i}",
+                             "\U0001F4CB Copia il titolo per TikTok")
+                _c_s1, _c_s2 = st.columns(2)
+                with _c_s1:
+                    st.link_button(
+                        "\U0001F3A5 Vedi i video che usano la canzone",
+                        link_ricerca_video(_testo_copia),
+                        use_container_width=True)
+                with _c_s2:
+                    st.link_button(
+                        "\U0001F50A Libreria audio di TikTok",
+                        link_ricerca_audio(_testo_copia),
+                        use_container_width=True)
+                st.caption("Se TikTok ti manda alla home invece che alla "
+                           "ricerca: accedi col tuo account e riprova il "
+                           "link (la ricerca resta impostata).")
             # ---- VEDERE COME FANNO GLI ALTRI (per ispirarsi, non per copiare)
             with st.expander("\U0001F50E Come lo fanno gli altri su TikTok"):
                 html(
@@ -3547,7 +3623,7 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
              "synths, build-up drums, emotional strings.")
 
     # --- IL PULSANTE UNICO: fa tutto, in un colpo ---
-    if st.button("\U0001F3AC FAI TUTTO: parole + canzone + video",
+    if st.button("\U0001F3AC FAI TUTTO: parole + canzone + poster + video",
                  type="primary", use_container_width=True, key="fai_tutto"):
         _rif = (st.session_state.get("riferimento") or {})
         _riferimento = _rif.get("riferimento", "")
@@ -3555,7 +3631,7 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         _rif_gr = st.session_state.get("riflessione_giornaliera") or ""
         # 1) le parole
         if not st.session_state.get("canzone_testi"):
-            with st.spinner("1 di 3 - L'IA sta scrivendo le parole del "
+            with st.spinner("1 di 4 - L'IA sta scrivendo le parole del "
                             "brano..."):
                 if _rif_gr:
                     try:
@@ -3582,7 +3658,7 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                 st.stop()
             st.session_state["canzone_testi"] = _res_t["testo"]
         # 2) la musica
-        with st.spinner("2 di 3 - Il motore musicale sta componendo il "
+        with st.spinner("2 di 4 - Il motore musicale sta componendo il "
                         "brano (1-3 minuti)..."):
             _res_m = _genera_musica(
                 _motore, struttura_canzone(st.session_state["canzone_testi"]),
@@ -3595,18 +3671,34 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         st.session_state["canzone_audio"] = _res_m["file"]
         st.session_state["canzone_audio_url"] = _res_m.get("url", "")
         st.session_state["canzone_modello"] = _res_m.get("motore", "")
-        # 3) il video
-        with st.spinner("3 di 3 - Sto montando il video verticale..."):
+        # 3) il POSTER: l'immagine che l'AI disegna sul versetto
+        _poster = ""
+        with st.spinner("3 di 4 - Sto disegnando il poster del post..."):
+            _res_img = genera_immagine(
+                versetto=(studio.get("versetto") or {}).get("testo_pulito", "")
+                or (testo or "")[:300],
+                tema=", ".join((st.session_state["analisi"] or {}).get(
+                    "temi", [])[:2]),
+                stile="Caldo e speranza",
+                chiave_gemini=_chiave_gemini_attiva())
+        if _res_img.get("ok"):
+            _poster = _res_img["file"]
+            st.session_state["immagine_ai"] = _poster
+            st.session_state["immagine_ai_fonte"] = _res_img.get("fonte", "")
+        # 4) il video: poster + mp3 + testo
+        with st.spinner("4 di 4 - Sto montando il video verticale..."):
             _rif_v = ((st.session_state.get("riferimento") or {}).get(
                 "riferimento", "") or testo or "")[:160]
             _res_v = crea_video_tiktok(
                 _res_m["file"],
                 testo=_rif_v,
-                sfondo="immagine", muovo=True)
+                sfondo=("foto" if _poster else "immagine"),
+                immagine_propria=_poster,
+                muovo=True)
         if _res_v.get("ok"):
             st.session_state["canzone_video"] = _res_v["file"]
-            st.success("\u2705 \u2705 \u2705 Fatto tutto: parole, canzone e "
-                       "video! Il video e' gia' qui sotto.")
+            st.success("\u2705 \u2705 \u2705 Fatto tutto: parole, canzone, "
+                       "poster e video! Il video e' gia' qui sotto.")
         else:
             st.warning("La canzone e' pronta ma il video non e' uscito: "
                        + str(_res_v.get("errore", ""))[:120])
@@ -4038,7 +4130,7 @@ if post:
             'testo a schermo). Poi o lo <b>carichi qui sopra</b> (l\'app lo '
             'tiene per l\'auto-pubblicazione) o lo scegli da TikTok Studio.'
             '<br><b>2) Vuoi che l\'app prepari tutto</b>: vai in "Crea una '
-            'canzone ORIGINALE" -> "FAI TUTTO: parole + canzone + video": '
+            'canzone ORIGINALE" -> "FAI TUTTO: parole + canzone + poster + video": '
             'l\'app scrive il testo, lo fa cantare e ti prepara il video '
             'verticale 9:16. Poi qui sotto compare "1) Scarica il video".'
             '</div>')
