@@ -3617,12 +3617,9 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                 use_container_width=True)
             if st.button("\U0001F50E Verifica",
                          use_container_width=True, key="verifica_treblo_sezione"):
-                if _chiave_qua:
-                    st.session_state["chiave_treblo"] = _chiave_qua.strip()
-                _ok, _nota = treblo_disponibile()
+                _ok, _nota = treblo_disponibile(_chiave_qua)
                 (st.success if _ok else st.error)(_nota)
         if _chiave_qua:
-            st.session_state["chiave_treblo"] = _chiave_qua.strip()
             html(_SCRIPT_SALVA_TREBLO.replace("__CHIAVE__", _chiave_qua),
                  js=True)
         else:

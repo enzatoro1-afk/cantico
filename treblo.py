@@ -88,6 +88,11 @@ def _chiave() -> str:
     """La chiave API: dalla barra laterale, dai secrets o dall'ambiente."""
     try:
         import streamlit as st
+        # la chiave passata dalla sezione 'Crea una canzone ORIGINALE' ha
+        # la precedenza, ma non tocca il campo della barra laterale
+        v = str(st.session_state.get("_treblo_chiave_tmp", "") or "").strip()
+        if v:
+            return v
         v = str(st.session_state.get("chiave_treblo", "") or "").strip()
         if v:
             return v
@@ -138,10 +143,17 @@ def _headers() -> dict:
             "Content-Type": "application/json"}
 
 
-def treblo_disponibile() -> tuple:
+def treblo_disponibile(chiave: str = "") -> tuple:
     """Controlla la chiave e dice quanti crediti restano."""
     if requests is None:
         return False, "requests non installato"
+    # se riceve la chiave dall'utente, la usa (non tocca session_state)
+    if chiave:
+        try:
+            import streamlit as st
+            st.session_state["_treblo_chiave_tmp"] = chiave.strip()
+        except Exception:
+            pass
     if not _chiave():
         return False, ("manca la chiave Treblo (gratis): prendila su "
                        "treblo.com -> account sviluppatore")
