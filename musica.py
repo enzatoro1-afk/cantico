@@ -36,6 +36,7 @@ except ImportError:  # pragma: no cover
 
 # i motori gratuiti, in ordine di preferenza
 MOTORI_GRATUITI = (
+    "Melodia (canta il brano - sempre disponibile)",
     "ACE-Step (canta il brano - automatico)",
     "Suno (i tuoi crediti gratuiti)",
     "MusicGen (strumentale)",
@@ -73,10 +74,12 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
     stile = (stile or STILE_DEFAULT).strip()
 
     scelte = ([modello] if modello else
-              ["ace-step", "suno", "musicgen", "treblo"])
+              ["melodia", "ace-step", "suno", "musicgen", "treblo"])
     problemi = []
     for scelta in scelte:
-        if scelta == "suno":
+        if scelta == "melodia":
+            r = _genera_melodia(lyrics, timeout=min(timeout, 300))
+        elif scelta == "suno":
             try:
                 import suno as _suno
                 r = _suno.genera_canzone_suno(lyrics, tags=stile,
@@ -109,6 +112,52 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
 
 SPACE_ACE_STEP = "ACE-Step/ACE-Step"
 SPACE_MUSICGEN = "facebook/MusicGen"
+
+# Melodia: Space su CPU (nessuna quota GPU, nessuna carta, sempre attivo).
+# Si chiama direttamente via REST: non serve gradio_client.
+MELODIA_URL = "https://bilalsardar-lyrics-text-to-music.hf.space"
+
+
+def _genera_melodia(lyrics: str, note: int = 40, timeout: int = 300) -> dict:
+    """
+    Canzone cantata da uno Space su CPU: nessuna quota, nessuna carta.
+    Restituisce {"ok": True, "file": "<wav>", "motore": ...}
+    """
+    vuoto = {"ok": False, "errore": "", "file": "", "motore": "Melodia"}
+    if requests is None:
+        return {**vuoto, "errore": "requests non installato"}
+    lyrics = (lyrics or "").strip()
+    if len(lyrics) < 10:
+        return {**vuoto, "errore": "Le parole sono troppo corte per un brano."}
+    try:
+        r = requests.post(f"{MELODIA_URL}/api/predict/",
+                          json={"data": [lyrics[:2900], int(note), False]},
+                          timeout=timeout)
+    except Exception as exc:
+        return {**vuoto, "errore": f"Melodia non ha risposto: {str(exc)[:140]}"}
+    if r.status_code != 200:
+        return {**vuoto, "errore": f"Melodia errore {r.status_code}: "
+                                   f"{r.text[:140]}"}
+    try:
+        dati = r.json()
+        _file = (dati.get("data") or [{}])[0] or {}
+        nome = _file.get("name")
+    except Exception:
+        return {**vuoto, "errore": "risposta Melodia non leggibile"}
+    if not nome:
+        return {**vuoto, "errore": "Melodia non ha restituito il brano"}
+    try:
+        rr = requests.get(f"{MELODIA_URL}/file={nome}", timeout=timeout)
+        if rr.status_code != 200 or len(rr.content) < 20000:
+            return {**vuoto, "errore": "download del brano non riuscito"}
+        out = os.path.join(tempfile.gettempdir(),
+                           f"melodia_{uuid.uuid4().hex[:10]}.wav")
+        with open(out, "wb") as f:
+            f.write(rr.content)
+    except Exception as exc:
+        return {**vuoto, "errore": f"download fallito: {exc}"}
+    return {"ok": True, "errore": "", "file": out,
+            "motore": "Melodia (CPU - sempre disponibile)"}
 
 
 def token_huggingface() -> str:
