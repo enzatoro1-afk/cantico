@@ -171,7 +171,11 @@ def pannello(st, html_fn, esc_fn):
         '<div class="note">Qui sotto trovi tutto quello che serve per far '
         'andare l\'app al massimo. <b>Se una riga è già verde</b>, non devi '
         'fare niente: la chiave ce l\'ha già l\'app (la usa per tutti). '
-        'Se è arancora, ci metti 1-2 minuti.</div>')
+        'Se è arancora, ci metti 1-2 minuti.<br><br>'
+        '<b>Niente carta di credito, niente pagamenti:</b> le chiavi qui '
+        'sotto sono tutte gratis e si prendono con un account gratuito. '
+        '(L\'unica che chiede la carta è Treblo, e serve solo se vuoi usare '
+        'quello: anche lì non ti addebitano nulla, ma è una verifica.)</div>')
 
     _servizi = [
         {
@@ -187,14 +191,15 @@ def pannello(st, html_fn, esc_fn):
         },
         {
             "nome": "Treblo",
-            "per": "la canzone CANTATA (e il video .mp4) - 3.000 crediti gratis",
+            "per": "la canzone CANTATA (e il video .mp4) - 3.000 crediti, "
+                   "ma chiede di verificare la carta",
             "link": "https://treblo.com/developers/account",
             "come": "Accedi con Google → «Create API key» → copia la chiave",
             "chiave": "TREBLO_API_KEY",
             "sessione": "chiave_treblo",
             "campo": "Chiave Treblo (incolla qui)",
             "verifica": verifica_treblo,
-            "facoltativa": False,
+            "facoltativa": True,
         },
         {
             "nome": "Hugging Face",

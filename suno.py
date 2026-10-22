@@ -326,12 +326,48 @@ def _genera_via_api(lyrics: str, tags: str, timeout: int) -> dict:
         "task": None,
         "token": None,
     }
-    try:
-        r = requests.post(f"{API_SUNO}/api/generate/v2/", json=corpo,
-                          headers=h, cookies=cookie, timeout=60)
-    except Exception as exc:
-        return {**vuoto, "errore": f"Suno non ha risposto: {str(exc)[:150]}"}
+    # Suno limita quante canzoni si generano di fila: risponde 422
+    # ("Token validation failed"). In quel caso aspettiamo e riprovare.
+    r = None
+    for _tentativo in range(3):
+        try:
+            r = requests.post(f"{API_SUNO}/api/generate/v2/", json=corpo,
+                              headers=h, cookies=cookie, timeout=60)
+        except Exception as exc:
+            return {**vuoto,
+                    "errore": f"Suno non ha risposto: {str(exc)[:150]}"}
+        if r.status_code != 422:
+            break
+        if _tentativo < 2:
+            _attesa = 45 * (_tentativo + 1)
+            print(f"[suno] Suno chiede una pausa: attendo {_attesa}s e riprovo")
+            time.sleep(_attesa)
+            h = _headers()
 
+    if r is None:
+        return {**vuoto, "errore": "Suno non ha risposto"}
+
+    if r.status_code in (401, 403):
+        return {**vuoto, "errore": (
+            "Suno: la sessione e' scaduta (il cookie vale ~1ora). "
+            "Rinnovala dalla barra laterale e riprova.")}
+    if r.status_code == 402:
+        return {**vuoto, "errore": ("Suno: crediti giornalieri esauriti. "
+                                   "aspetta domani o ricarica")}
+    if r.status_code == 422:
+        return {**vuoto, "errore": (
+            "Suno: hai generato troppe canzoni di fila e ti ha fermato per "
+            "qualche minuto. Aspetta 3-5 minuti e premi di nuovo "
+            "'Componi e canta' (le canzoni gia' fatte sono nella tua "
+            "libreria su suno.com).")}
+    if r.status_code != 200:
+        # l'endpoint vecchio potrebbe non esistere piu': prova quello che
+        # usa oggi la pagina web di Suno
+        _altro = _genera_endpoint_web(lyrics, tags, h, cookie)
+        if _altro is None:
+            return {**vuoto, "errore": f"Suno errore {r.status_code}: "
+                                       f"{r.text[:150]}"}
+        r = _altro
     if r.status_code in (401, 403):
         return {**vuoto, "errore": (
             "Suno: la sessione e' scaduta (il cookie vale ~1ora). "

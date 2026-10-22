@@ -36,10 +36,10 @@ except ImportError:  # pragma: no cover
 
 # i motori gratuiti, in ordine di preferenza
 MOTORI_GRATUITI = (
-    "Treblo (crediti gratis, canta il testo)",
     "Suno (i tuoi crediti gratuiti)",
-    "ACE-Step (open source)",
+    "ACE-Step (open source, canta il testo)",
     "MusicGen (strumentale)",
+    "Treblo (canta il testo - serve la carta)",
 )
 
 
@@ -73,7 +73,7 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
     stile = (stile or STILE_DEFAULT).strip()
 
     scelte = ([modello] if modello else
-              ["treblo", "suno", "ace-step", "musicgen"])
+              ["suno", "ace-step", "musicgen", "treblo"])
     problemi = []
     for scelta in scelte:
         if scelta == "suno":
