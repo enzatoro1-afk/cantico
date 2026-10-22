@@ -2325,25 +2325,31 @@ with tab_riflessione:
                          type="primary", use_container_width=True,
                          key="usa_post_riflessione"):
                 _post_gia = st.session_state.get("post")
+                _post_gia = st.session_state.get("post")
                 if not _post_gia:
-                    st.info("Prima scegli la canzone (pulsante "
-                            "'\u2B50 Scegli questa canzone per il post'): poi "
-                            "torna qui e usa la caption dell'IA.")
-                else:
-                    _post_gia = dict(_post_gia)
-                    _post_gia["caption"] = _post_mio_gia.get("caption", "")
-                    _post_gia["hook"] = _post_mio_gia.get("hook", "")
-                    _post_gia["corpo_ia"] = _post_mio_gia.get("corpo", [])
-                    _post_gia["cta_ia"] = _post_mio_gia.get("cta", "")
-                    _post_gia["momento_ia"] = _post_mio_gia.get("momento", {})
-                    _post_gia["riflessione"] = _riflessione.strip()
-                    st.session_state["post"] = _post_gia
-                    if _post_mio_gia.get("caption"):
-                        st.session_state["caption"] = _post_mio_gia["caption"]
-                    if _post_mio_gia.get("hook"):
-                        st.session_state["hook"] = _post_mio_gia["hook"]
-                    st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption "
-                               "e il testo a schermo.")
+                    # niente canzone scelta: il post si fa da solo, con le
+                    # parole della riflessione (non serve scegliere una
+                    # canzone su YouTube)
+                    _hashtag = genera_hashtag(_riflessione,
+                                              estrai_parole_chiave(_riflessione, 3))
+                    _post_gia = {
+                        "titolo": "il tuo versetto", "video_id": "",
+                        "canale": "", "hashtag": _hashtag,
+                        "formato": "Versetto + domanda",
+                        "caption": "", "hook": "",
+                    }
+                _post_gia = dict(_post_gia)
+                _post_gia["caption"] = _post_mio_gia.get("caption", "")
+                _post_gia["hook"] = _post_mio_gia.get("hook", "")
+                _post_gia["corpo_ia"] = _post_mio_gia.get("corpo", [])
+                _post_gia["riflessione"] = _riflessione.strip()
+                st.session_state["post"] = _post_gia
+                if _post_mio_gia.get("caption"):
+                    st.session_state["caption"] = _post_mio_gia["caption"]
+                if _post_mio_gia.get("hook"):
+                    st.session_state["hook"] = _post_mio_gia["hook"]
+                st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
+                           "il testo a schermo.")
 
     # i versetti trovati dalla riflessione vengono mostrati sotto
     # (riutilizzo lo stesso blocco della scheda 1)
