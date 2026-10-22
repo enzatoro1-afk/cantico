@@ -610,48 +610,6 @@ def _imposta_testo(testo: str) -> None:
     st.session_state["_cerca_subito"] = True
 
 
-def esegui_ricerca(testo: str) -> None:
-    """Cerca la canzone adatta al testo e aggiorna lo stato dell'app."""
-    st.session_state.pop("riferimento_forzato", None)
-    testo_pulito = (testo or "").strip()
-    if not testo_pulito:
-        st.warning("Incolla prima un versetto o una riflessione \U0001F4D8")
-        return
-
-    parole_chiave = estrai_parole_chiave(testo_pulito, max_parole=3)
-    st.session_state["analisi"] = analizza_testo(testo_pulito, parole_chiave)
-    stile_scelto = st.session_state.get("stile_lode", "Lodi pentecostali / ADI")
-    query = costruisci_query(testo_pulito, stile_scelto)
-    st.session_state["query_usate"] = query
-    _rif = _riferimento_breve(_riferimento_corrente())
-
-    with st.spinner("\U0001F50D Sto cercando le canzoni piu' adatte..."):
-        try:
-            risultati = ricerca_cached(tuple(query), 15, tuple(parole_chiave),
-                                       riferimento=_rif)
-        except ErroreRicerca as exc:
-            st.error(f"\u26A0\uFE0F {exc}")
-            risultati = []
-        except Exception as exc:
-            st.error(f"\u26A0\uFE0F Errore durante la ricerca: {exc}")
-            risultati = []
-
-    st.session_state["risultati"] = risultati
-    st.session_state["scelta"] = None
-    st.session_state["suoni_tiktok"] = []
-    # video gia' mostrati: "cerca meglio" deve dare canzoni NUOVE
-    st.session_state["visti"] = [r.video_id for r in risultati]
-    st.session_state["quante_mostrate"] = len(risultati)
-    st.session_state["cronologia"].insert(
-        0,
-        {
-            "testo": testo_pulito[:120],
-            "parole": ", ".join(parole_chiave) if parole_chiave else "-",
-            "ora": datetime.now().strftime("%d/%m %H:%M"),
-        },
-    )
-    st.session_state["cronologia"] = st.session_state["cronologia"][:8]
-
 
 
 def hashtag_str(hashtag: list[str] | None) -> str:
@@ -988,38 +946,15 @@ def _studia_versetto() -> None:
         except Exception:
             pass
 
-    # --- FASE 1: le interpretazioni (esposizioni/studi evangelici) ---
-    interpretazioni = cerca_interpretazioni(
-        riferimento["libro"], riferimento["capitolo"], riferimento["versetto"],
-        riferimento["riferimento"], testo_intero, 8)
-
-    # la spiegazione scritta: trascrizione di una predicazione che parla
-    # DAVVERO del versetto (controllo di pertinenza sulle parole chiave)
-    trascrizione = None
-    parole_verso = [p.lower() for p in
-                    estrai_parole_chiave(testo_intero, 8)]
-    for r in interpretazioni[:8]:
-        t = estrai_spiegazione(r.video_id)
-        if not t or len(t["testo"]) < 250:
-            continue
-        basso = t["testo"].lower()
-        # 1) deve citare il NUMERO del nostro versetto
-        _num = str(riferimento.get("versetto") or "")
-        _cita_numero = True
-        if _num:
-            _cita_numero = bool(re.search(
-                r"(?:v(?:ersetto|\.|°)?\s*|,\s*|^)\b" + re.escape(_num) + r"\b",
-                basso))
-        # 2) deve contenere le parole DISTINTE del nostro versetto
-        _confronti = [p for p in parole_verso if len(p) > 3]
-        _presenti = [p for p in _confronti if p in basso]
-        _rapporto = (len(_presenti) / len(_confronti)) if _confronti else 0
-        if _cita_numero and _rapporto >= 0.34:
-            trascrizione = t["testo"]
-            st.session_state["interp_pertinente"] = r.titolo
-            break
-
-    versetto["trascrizione"] = trascrizione
+        # --- FASE 1: solo lo studio del versetto (niente ricerca YouTube) ---
+    interpretazioni = []
+    versetto["trascrizione"] = None
+    analisi = st.session_state.get("analisi") or {}
+    temi = analisi.get("temi") or ["Salvezza"]
+    # se l'utente ha scelto di studiare SOLO un versetto, l'interpretazione
+    # non deve citare i versetti vicini (scope = solo il versetto richiesto)
+    _solo_versetto = bool(riferimento.get("versetto")) and not \
+        riferimento.get("versetto_fine")
     analisi = st.session_state.get("analisi") or {}
     temi = analisi.get("temi") or ["Salvezza"]
     # se l'utente ha scelto di studiare SOLO un versetto, l'interpretazione
@@ -1072,6 +1007,9 @@ def _studia_versetto() -> None:
                 interpretazione=(interpretazione.get("testo", "") or ""),
                 riferimento=riferimento.get("riferimento", ""))
 
+    # --- FASE 1b: la RIFLESSIONE + il POST TIKTOK, scritti dall'IA ---
+    # (la ricerca delle canzoni YouTube e' stata tolta: l'app genera la
+    # sua canzone originale, e il post si prepara qui)
     # --- FASE 2: la ricerca delle canzoni, GUIDATA dall'interpretazione ---
     # Le parole chiave vengono dall'interpretazione (quindi dalla IA o dallo
     # studio): la canzone proposta parla davvero di quel versetto.
@@ -2442,25 +2380,8 @@ if analisi:
         f'<b>Durata video consigliata:</b> {esc(analisi["durata_video"])}'
         f'{riga_mood}{riga_salmo}</div>')
 
-    if salmo:
-        if st.button("\U0001F4D6 Aggiungi anche gli inni sul Salmo", use_container_width=True):
-            query = costruisci_query(testo, stile_scelto)
-            query += query_per_salmo(salmo)
-            query += query_per_salmo(salmo)
-            st.session_state["query_usate"] = query
-            with st.spinner("\U0001F50D Cerco gli inni dedicati a questo Salmo..."):
-                try:
-                    risultati = ricerca_cached(
-                        tuple(query), 5, tuple(estrai_parole_chiave(testo, 3)),
-                        riferimento=_riferimento_breve(_riferimento_corrente()))
-                except Exception as exc:
-                    st.error(f"\u26A0\uFE0F {exc}")
-                    risultati = []
-            st.session_state["risultati"] = risultati
-            st.session_state["scelta"] = None
-            st.session_state["visti"] = [r.video_id for r in risultati]
-            st.session_state["quante_mostrate"] = len(risultati)
-            st.rerun()
+    # (gli inni sul Salmo non vengono piu' cercati su YouTube: l'app
+    #  prepara la canzone originale da sola)
 
 # --------------------------------------------------------------------------
 # IL VERSETTO ESATTO indicato dall'utente (Fase 1 -> Fase 2)
@@ -3258,338 +3179,53 @@ if riferimento:
                 with c2:
                     st.link_button("\U0001F3A7 Ascolta", r.url, use_container_width=True)
 
-# PASSAGGIO 2/3 - CERCA e SCEGLI
+# PASSAGGIO 2 - CERCA SU TIKTOK (il titolo da usare)
 # ==========================================================================
 
-risultati = st.session_state["risultati"]
-query_usate = st.session_state["query_usate"]
+# il titolo da cercare su TikTok: le parole chiave spirituali del versetto
+_parole_tiktok = []
+try:
+    _interp2 = (st.session_state.get("versetto_studio") or {}).get("interpretazione") or {}
+    _parole_tiktok = _interp2.get("parole_chiave") or []
+except Exception:
+    _parole_tiktok = []
+if not _parole_tiktok:
+    _parole_tiktok = estrai_parole_chiave(testo or "", 3)
+_query_tiktok = " ".join(_parole_tiktok[:3]).strip() or (testo or "").strip()[:60]
 
-if risultati:
-    html('<hr>')
-    html(
-        '<div class="step">PASSAGGIO 2</div>'
-        f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>')
-    html(
-        '<div class="note box-ok"><b>Le due strade (scegli tu):</b><br>'
-        '<b>Strada 1 (zero pensieri):</b> vai in "Crea una canzone '
-        'ORIGINALE" -> "FAI TUTTO: parole + canzone + poster + video": '
-        'l\'app ti fa tutto (parole, voce cantata, poster, video 9:16) e tu '
-        'pubblichi. Zero ricerche, zero problemi di diritti.<br>'
-        '<b>Strada 2 (canzone vera di un artista):</b> le canzoni qui sotto '
-        'ti dicono lo stile giusto. Per usarne una, premi "Prendi il suono '
-        'su TikTok" (ti copia il titolo esatto): su TikTok cerchi quel '
-        'titolo nella libreria audio e scegli il suono originale. La musica '
-        'di un artista non si ricarica (TikTok te la toglie).<br><br>'
-        'Le canzoni qui sotto vengono da YouTube e ti servono per capire lo '
-        'stile e per sapere il titolo da cercare su TikTok. L\'app non puo\' '
-        'scaricarle e caricarle per te: sarebbero mute da TikTok. Se '
-        'preferisci zero pensieri, usa la Strada 1: l\'app ti prepara tutto.'
-        '</div>')
+html('<hr>')
+html(
+    '<div class="step">PASSAGGIO 2</div>'
+    '<h3>\U0001F50D Il titolo da cercare su TikTok</h3>')
+html(
+    '<div class="note box-ok"><b>Perche\' questo titolo?</b> L\'app lo ricava '
+    'dall\'interpretazione del tuo versetto: sono le parole spirituali che '
+    'parlano del cuore del passaggio. Su TikTok cerca <b>questo titolo</b> '
+    'nella libreria audio e trovi il suono originale.</div>')
+html(
+    f'<div class="box"><b>Titolo da cercare:</b> {esc(_query_tiktok)}</div>')
+blocco_copia(_query_tiktok, "copia_titolo_tiktok",
+             "\U0001F4CB Copia il titolo per TikTok")
+st.link_button(
+    "\U0001F50A Cerca questo titolo su TikTok",
+    f"https://www.tiktok.com/search?q={urllib.parse.quote(_query_tiktok)}",
+    use_container_width=True,
+    type="primary")
+st.caption("Si apre la ricerca di TikTok: da li' scegli il suono originale "
+           "(non il video di un altro). Se TikTok ti manda alla home, "
+           "accedi col tuo account e riprova il link.")
+html(
+    '<div class="note" style="margin-top:8px;">'
+    '<b>Il percorso completo (5 secondi):</b><br>'
+    '1) tocca "Copia il titolo per TikTok" (il titolo e\' negli appunti)<br>'
+    '2) apri TikTok sul telefono &rarr; tocca "+" (nuovo video)<br>'
+    '3) "Aggiungi suono" &rarr; incolla il titolo &rarr; scegli il suono<br>'
+    '4) registra il video con quel suono e pubblica.<br><br>'
+    '<b>Se non vuoi cercare niente:</b> vai qui sotto in "Crea una canzone '
+    'ORIGINALE" &rarr; "FAI TUTTO": l\'app ti prepara tutto (parole, '
+    'canzone cantata, poster, video 9:16) e tu pubblichi.</div>')
 
-    # ---- LE CANZONI DI TIKTOK: le aggiungi tu, l'app le tratta come tutte
-    # le altre (TikTok non permette a un'app di cercare nella sua libreria
-    # audio: quindi la scelta la fai tu, che la libreria la vedi)
-    with st.expander("\U0001F3B5 Aggiungi una canzone di TikTok"):
-        html(
-            '<div class="note">Hai visto su TikTok una canzone che ti piace? '
-            'Scrivi qua <b>titolo - artista</b> (come lo vedi su TikTok) e '
-            'l\'app la aggiunge alla lista del post, con la caption, lo '
-            'script, l\'immagine e il link per prendere il suono.</div>',
-            unsafe_allow_html=True)
-        _tk_song = st.text_input(
-            "Titolo - artista (come su TikTok)",
-            placeholder="Tutto passa solo l'amore - Artist",
-            key="canzone_tiktok_manuale")
-        if st.button("\U0001F3A4 Aggiungi alla lista del post",
-                     use_container_width=True, key="aggiungi_canzone_tiktok"):
-            _titolo = (_tk_song or "").strip()
-            if not _titolo:
-                st.warning("Scrivi prima il titolo della canzone \U0001F4D8")
-            else:
-                from youtube_search import Risultato as _Ris
-                _nuova = _Ris(titolo=_titolo, video_id="", canale="TikTok",
-                               durata="", secondi=None, punteggio=99.0)
-                _lista = list(st.session_state.get("risultati") or [])
-                _lista.insert(0, _nuova)
-                st.session_state["risultati"] = _lista
-                st.session_state["quante_mostrate"] = st.session_state.get(
-                    "quante_mostrate", len(_lista)) + 1
-                st.success("\u2705 Aggiunta! La trovi in cima alla lista.")
-                st.rerun()
-
-    # ---- CERCA MEGLIO / ALTRE CANZONI ----
-    _visti = st.session_state.get("visti") or []
-    _quante = st.session_state.get("quante_mostrate", len(risultati))
-    _direz = st.session_state.get("studio_direzione", "")
-    html(
-        '<div class="note" style="margin-top:8px;">'
-        '<b>Nessuna di queste ti convince?</b> Tocca "Cerca meglio": '
-        'l\'app ti porta <b>altre 8 canzoni diverse</b>, ordinate sempre per '
-        'adattamento al tuo versetto.</div>')
-    if _direz:
-        html(
-            '<div class="note">Direzione musicale scelta dall\'interpretazione: '
-            f'<b>{esc(_direz)}</b></div>')
-    _c1, _c2 = st.columns(2)
-    with _c1:
-        if st.button("\U0001F504 Cerca meglio (altre 8)",
-                     use_container_width=True, key="cerca_meglio"):
-            _query = st.session_state.get("query_usate") or []
-            _kw = st.session_state.get("studio_parole") or \
-                estrai_parole_chiave(testo or "", 3)
-            _rif = _riferimento_breve(_riferimento_corrente())
-            with st.spinner("\U0001F50D Cerco canzoni diverse e piu' adatte..."):
-                try:
-                    _nuovi = ricerca_cached(
-                        tuple(_query), 8, tuple(_kw), DURATA_MAX_SEC,
-                        escludi=tuple(_visti), riferimento=_rif)
-                except Exception:
-                    _nuovi = []
-            if _nuovi:
-                st.session_state["risultati"] = _nuovi
-                st.session_state["visti"] = list(_visti) + \
-                    [r.video_id for r in _nuovi]
-                st.session_state["quante_mostrate"] = _quante + len(_nuovi)
-                st.rerun()
-            else:
-                st.info("Non trovo altre canzoni diverse per questo versetto. "
-                        "Prova a scrivere il testo in un altro modo.")
-    with _c2:
-        if st.button("\U0001F3A8 Cambia stile / parole chiave",
-                     use_container_width=True, key="cambia_stile"):
-            st.session_state["_apri_stile"] = True
-            st.info("Sposta il campo 'Stile della lode cercata' in alto e "
-                    "tocca di nuovo 'Trova Canzone Adatta': la ricerca "
-                    "partira' con parole diverse.")
-    html(
-        '<div class="note">Finora mostrate: <b>'
-        f'{st.session_state.get("quante_mostrate", len(risultati))}</b> canzoni '
-        '(tutte diverse fra loro).</div>')
-
-    parole_chiave = estrai_parole_chiave(testo or "", max_parole=3)
-    temi = (st.session_state["analisi"] or {}).get("temi", [])
-
-    for i, r in enumerate(risultati, start=1):
-        with st.container(border=True):
-            _fidato = artista_fidato(r.titolo, r.canale)
-            _artista = nome_artista(r.titolo, r.canale)
-            _tag = ""
-            if _fidato:
-                _tag = (f'<span class="chip" style="background:#dcfce7;'
-                        f'color:#166534;font-weight:700">'
-                        f'&#10003; {esc(_fidato)}</span> ')
-            elif _artista:
-                _tag = (f'<span class="chip" style="background:#dbeafe;'
-                        f'color:#1e40af;font-weight:700">'
-                        f'&#127925; {esc(_artista)}</span> ')
-            # canzone aggiunta a mano da TikTok: niente video su YouTube
-            _manuale = not getattr(r, "video_id", "")
-            if _manuale:
-                _tag = ('<span class="chip" style="background:#fce7f3;'
-                        'color:#9d174d;font-weight:700">'
-                        '&#127916; da TikTok</span> ') + _tag
-                _mini = ""
-            else:
-                _mini = (f'<img class="thumb" src="{r.url_miniature}" alt="" '
-                         'loading="lazy">')
-            html(
-                f"""
-                <div style="display:flex;gap:12px;align-items:flex-start;">
-                  {_mini}
-                  <div style="flex:1;min-width:0;">
-                    <div class="badge">#{i}</div>
-                    <div class="card-title">{esc(r.titolo)}</div>
-                    <div class="card-meta">{esc(r.canale)}"""
-                + (f" &bull; {esc(r.durata)}" if r.durata else "")
-                + "</div>" + _tag + "</div></div>")
-
-            motivi = spiega_canzone(r.titolo, r.canale, r.durata, r.secondi,
-                                    parole_chiave, temi)
-            with st.expander("Perch\u00e9 questa canzone"):
-                for motivo in motivi:
-                    html(f'<div class="note">&bull; {esc(motivo)}</div>')
-
-            col_a, col_b = st.columns([1, 1])
-            with col_a:
-                # copio "TITOLO - ARTISTA": e' il formato con cui il
-                # brano si trova davvero nella libreria audio di TikTok
-                _artista = nome_artista(r.titolo, r.canale)
-                _testo_copia = (f"{r.titolo} - {_artista}" if _artista
-                                else r.titolo)
-                blocco_copia(_testo_copia, f"copia{i}")
-            with col_b:
-                if not getattr(r, "video_id", ""):
-                    # canzone di TikTok: porta alla ricerca del suono
-                    st.link_button("\U0001F50A Apri TikTok (il suono)",
-                                   link_ricerca_audio(_testo_copia),
-                                   use_container_width=True)
-                else:
-                    st.link_button("\U0001F3A7 Ascolta", r.url,
-                                   use_container_width=True)
-
-            # ---- L'MP3 DEL BRANO SCELTO ----
-            _titolo_breve = (r.titolo or "")[:40]
-            with st.expander("\U0001F3A7 Scarica l'mp3 di questo brano"):
-                html(
-                    '<div class="note">Scarichi l\'audio per <b>ascoltarlo</b> '
-                    'e per <b>montare il video</b> sul tuo computer.<br>'
-                    '<b>Attenzione (diritti d\'autore):</b> se ricarichi '
-                    'quest\'mp3 su TikTok, TikTok riconosce la musica e ti '
-                    '<b>muta il video</b> (o lo toglie) e rischi lo strike. '
-                    'Per pubblicare usa il <b>suono originale</b> della '
-                    'libreria audio di TikTok: la stessa canzone, ma senza '
-                    'problemi (e puo\' diventare trend).<br>'
-                    'Se invece vuoi zero pensieri, l\'app ti prepara una '
-                    '<b>canzone originale</b> tutta tua.</div>',
-                    unsafe_allow_html=True)
-                if st.button(f"\U0001F3A7 Scarica l'mp3 (di «{_titolo_breve}»)",
-                             key=f"mp3_{i}", use_container_width=True):
-                    with st.spinner("Sto scaricando l'audio..."):
-                        _res_audio = scarica_audio(r.url)
-                    if _res_audio.get("ok"):
-                        st.session_state["audio_youtube"] = _res_audio["file"]
-                        st.success("\u2705 Audio pronto!")
-                    else:
-                        st.error("Non sono riuscito a scaricare l'audio: "
-                                 + str(_res_audio.get("errore", ""))[:150])
-                if st.session_state.get("audio_youtube"):
-                    with open(st.session_state["audio_youtube"], "rb") as _f:
-                        st.audio(st.session_state["audio_youtube"])
-                        st.download_button(
-                            "\U0001F3A7 Scarica l'mp3 (.mp3)",
-                            data=_f.read(), file_name="brano.mp3",
-                            mime="audio/mpeg", key=f"dl_mp3_{i}")
-                    # usa questo brano per il video (al posto della canzone generata)
-                    if st.button("\U0001F3A7 Usa questo brano per il video",
-                                 use_container_width=True,
-                                 key=f"usa_mp3_{i}"):
-                        st.session_state["canzone_audio"] = \
-                            st.session_state["audio_youtube"]
-                        st.session_state["canzone_modello"] = "Il brano scelto"
-                        st.session_state["canzone_video"] = ""
-                        st.success("\u2705 Fatto: ora vai in "
-                                   "\"Crea una canzone ORIGINALE\" e premi "
-                                   "\"Fai il video per TikTok\": il video "
-                                   "userà questo brano. Poi su TikTok "
-                                   "aggiungi il suono originale "
-                                   "(il titolo è negli appunti).")
-                        st.rerun()
-                    if st.session_state.get("canzone_audio") == \
-                            st.session_state.get("audio_youtube"):
-                        st.caption("\u2705 Questo brano è quello che userà il "
-                                   "video (vedi sotto).")
-
-            # ---- COME PRENDERE IL SUONO SU TIKTOK (passo per passo) ----
-            with st.expander("\U0001F50A Come prendere il suono su TikTok "
-                            "(passo per passo)"):
-                html(
-                    '<div class="note"><b>1)</b> Tocca il pulsante qui sotto: '
-                    'il titolo esatto della canzone (con l\'artista) ti finisce '
-                    'negli <b>appunti</b>.<br>'
-                    '<b>2)</b> Apri <b>TikTok</b> e incolla quel titolo dove ti '
-                    'chiede la ricerca. Se stai facendo un video, il modo '
-                    'più semplice è: <b>pubblica</b> &rarr; <b>"Aggiungi '
-                    'suono"</b> &rarr; incolla lì.<br>'
-                    '<b>3)</b> Scegli il suono: è quello con lo stesso nome '
-                    'e lo stesso artista.<br>'
-                    '<b>4)</b> Il suono è nella tua libreria: crei il video e '
-                    'lo scegli come audio.<br><br>'
-                    '<b>Perché non ricaricare il video di un altro:</b> TikTok '
-                    'ti toglie la musica (è protetta) e rischi lo strike sul '
-                    'tuo account. Con il <b>suono originale</b> non c\'è '
-                    'problema: è il modo previsto da TikTok.</div>',
-                    unsafe_allow_html=True)
-                blocco_copia(_testo_copia, f"copia_suono_{i}",
-                             "\U0001F4CB Copia il titolo per TikTok")
-                _c_s1, _c_s2 = st.columns(2)
-                with _c_s1:
-                    st.link_button(
-                        "\U0001F3A5 Vedi i video che usano la canzone",
-                        link_ricerca_video(_testo_copia),
-                        use_container_width=True)
-                with _c_s2:
-                    st.link_button(
-                        "\U0001F50A Libreria audio di TikTok",
-                        link_ricerca_audio(_testo_copia),
-                        use_container_width=True)
-                st.caption("Se TikTok ti manda alla home invece che alla "
-                           "ricerca: accedi col tuo account e riprova il "
-                           "link (la ricerca resta impostata).")
-            # ---- VEDERE COME FANNO GLI ALTRI (per ispirarsi, non per copiare)
-            with st.expander("\U0001F50E Come lo fanno gli altri su TikTok"):
-                html(
-                    '<div class="note">Qui vedi <b>come gli altri hanno fatto</b> '
-                    'il video su questa canzone o su questo testo: il formato '
-                    'che funziona, le parole che girano, le visualizzazioni.<br>'
-                    '<b>Attenzione:</b> per usare la musica, prendi il <b>suono '
-                    'originale</b> dalla libreria audio di TikTok (il pulsante '
-                    'sopra): ricaricare il video di un altro non si puo\' '
-                    '(TikTok te lo toglie e rischi lo strike). I tuoi video '
-                    'sono tuoi: il testo, la voce, le immagini.</div>',
-                    unsafe_allow_html=True)
-                _c_t1, _c_t2 = st.columns(2)
-                with _c_t1:
-                    st.link_button(
-                        "\U0001F3A5 I video con questa canzone",
-                        link_ricerca_video(_testo_copia),
-                        use_container_width=True)
-                with _c_t2:
-                    _q_video = (testo or "").strip()[:60]
-                    if _q_video:
-                        st.link_button(
-                            "\U0001F4D6 I video con questo versetto",
-                            link_ricerca_video(_q_video),
-                            use_container_width=True)
-            if st.button(f"\u2B50 Scegli questa canzone per il post", key=f"scelta{i}",
-                         use_container_width=True,
-                         help="Scegli la canzone di riferimento del post: da "
-                              "qui in poi l'app usa questo brano per il "
-                              "suono (lo prendi nella libreria audio di "
-                              "TikTok) e prepara caption, script e immagine."):
-                st.session_state["scelta"] = i - 1
-                hashtag = genera_hashtag(testo, parole_chiave)
-                formato = (st.session_state["analisi"] or {}).get(
-                    "formato_post", "Versetto + domanda")
-                st.session_state["post"] = {
-                    "titolo": r.titolo,
-                    "video_id": r.video_id,
-                    "canale": r.canale,
-                    "hashtag": hashtag,
-                    "formato": formato,
-                    "caption": genera_caption(testo, formato, hashtag),
-                    "hook": genera_hook(testo),
-                }
-                # se l'utente ha scritto una riflessione, il post parte
-                # dalle SUE parole (il versetto e' il riferimento)
-                _rifl = st.session_state.get("riflessione_giornaliera")
-                if _rifl:
-                    st.session_state["post"]["caption"] = (
-                        f"«{_rifl}»\n\n{hashtag_str(hashtag)}")
-                    st.session_state["post"]["hook"] = " ".join(
-                        _rifl.split()[:8])
-                    st.session_state["post"]["riflessione"] = _rifl
-                # se l'IA ha gia' scritto la riflessione e la sua riduzione
-                # per TikTok, il post parte da quelle (il testo e' gia' pronto)
-                _post_ia = (st.session_state.get("riflessione_ia") or {}).get(
-                    "post") or {}
-                if _post_ia.get("caption"):
-                    st.session_state["post"]["caption"] = _post_ia["caption"]
-                    st.session_state["post"]["hook"] = _post_ia.get(
-                        "hook", st.session_state["post"]["hook"])
-                    st.session_state["post"]["corpo_ia"] = _post_ia.get(
-                        "corpo", [])
-                    st.session_state["post"]["cta_ia"] = _post_ia.get(
-                        "cta", "")
-                    st.session_state["post"]["momento_ia"] = _post_ia.get(
-                        "momento", {})
-                    st.session_state["post"]["riflessione"] = (
-                        (st.session_state.get("riflessione_ia") or {}).get(
-                            "riflessione", ""))
-                    st.session_state["caption"] = _post_ia["caption"]
-                    st.session_state["hook"] = _post_ia.get("hook", "")
-                st.rerun()
-
-
+# ==========================================================================
 # ---- CANZONE ORIGINALE: testo + musica + video TikTok ----
 with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
     html(
