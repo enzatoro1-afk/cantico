@@ -148,10 +148,14 @@ def treblo_disponibile() -> tuple:
     try:
         r = requests.get(f"{API}/credits/balance", headers=_headers(), timeout=25)
         if r.status_code == 200:
-            d = r.json()
-            crediti = d.get("credits")
+            d = r.json() or {}
+            crediti = d.get("num_credits")
             if crediti is None:
-                crediti = d.get("balance")
+                crediti = d.get("credits", d.get("balance"))
+            if not crediti:
+                return True, ("Treblo attivo, ma SENZA crediti: attiva il "
+                              "free trial nella scheda Plan (verifica la "
+                              "carta: non ti vengono addebitati soldi)")
             return True, f"crediti Treblo rimasti: {crediti}"
         if r.status_code in (401, 403):
             return False, "chiave Treblo non valida"
