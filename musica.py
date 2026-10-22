@@ -36,8 +36,8 @@ except ImportError:  # pragma: no cover
 
 # i motori gratuiti, in ordine di preferenza
 MOTORI_GRATUITI = (
+    "ACE-Step (canta il brano - automatico)",
     "Suno (i tuoi crediti gratuiti)",
-    "ACE-Step (open source, canta il testo)",
     "MusicGen (strumentale)",
     "Treblo (canta il testo - serve la carta)",
 )
@@ -73,7 +73,7 @@ def genera_canzone(lyrics: str, stile: str = "", modello: str = "",
     stile = (stile or STILE_DEFAULT).strip()
 
     scelte = ([modello] if modello else
-              ["suno", "ace-step", "musicgen", "treblo"])
+              ["ace-step", "suno", "musicgen", "treblo"])
     problemi = []
     for scelta in scelte:
         if scelta == "suno":
@@ -136,7 +136,51 @@ def token_huggingface() -> str:
             return v
     except Exception:
         pass
+    # il file locale dei secrets
+    try:
+        import tomllib
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         ".streamlit", "secrets.toml")
+        if os.path.exists(p):
+            with open(p, "rb") as f:
+                d = tomllib.load(f)
+            for nome in ("HF_TOKEN", "HUGGINGFACE_TOKEN",
+                         "HUGGING_FACE_HUB_TOKEN"):
+                v = str(d.get(nome, "") or "").strip()
+                if v:
+                    return v
+    except Exception:
+        pass
+    # la chiave condivisa sul server (per tutti)
+    try:
+        import json
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         ".chiave_hf_server.json")
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            v = str(d.get("HF_TOKEN", "") or "").strip()
+            if v:
+                return v
+    except Exception:
+        pass
     return ""
+
+
+def ricorda_token_hf(token: str) -> bool:
+    """Salva il token sul server, cosi' vale per TUTTI gli utenti dell'app."""
+    token = (token or "").strip()
+    if not token:
+        return False
+    try:
+        import json
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         ".chiave_hf_server.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump({"HF_TOKEN": token}, f)
+        return True
+    except Exception:
+        return False
 
 
 def _gradio_client(space: str):
@@ -145,11 +189,17 @@ def _gradio_client(space: str):
         from gradio_client import Client
     except ImportError:
         return None
+    # il token Hugging Face: alcune versioni di gradio_client lo leggono
+    # solo dalla variabile d'ambiente
+    _tok = token_huggingface()
+    if _tok:
+        os.environ["HF_TOKEN"] = _tok
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = _tok
     try:
-        tok = token_huggingface()
-        if tok:
-            return Client(space, verbose=False, hf_token=tok)
-        return Client(space, verbose=False)
+        try:
+            return Client(space, verbose=False, hf_token=_tok or None)
+        except TypeError:
+            return Client(space, verbose=False)
     except Exception:
         return None
 
@@ -253,8 +303,12 @@ def _genera_musicgen(stile: str, durata: int, timeout: int) -> dict:
 def _percorso_audio(risultato) -> str:
     """Dalla risposta di Gradio estrae il percorso del file audio."""
     try:
+        # ACE-Step risponde con una tupla: [percorso_file, parametri]
         if isinstance(risultato, (list, tuple)) and risultato:
-            risultato = risultato[0]
+            _primo = risultato[0]
+            if isinstance(_primo, str) and os.path.exists(_primo):
+                return _primo
+            risultato = _primo
         if isinstance(risultato, dict):
             p = risultato.get("path") or risultato.get("name")
             if p and os.path.exists(p):
@@ -270,6 +324,8 @@ def _percorso_audio(risultato) -> str:
                             if pezzo:
                                 f.write(pezzo)
                 return out
+        if isinstance(risultato, str) and os.path.exists(risultato):
+            return risultato
         p = getattr(risultato, "path", None)
         if p and os.path.exists(p):
             return p

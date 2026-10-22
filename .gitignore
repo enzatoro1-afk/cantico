@@ -7,6 +7,7 @@ venv/
 .secrets/
 .chiave_gemini_server.json
 .chiave_treblo_server.json
+.chiave_hf_server.json
 .suno_cookie.txt
 suno-api/
 node_modules/

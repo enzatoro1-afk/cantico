@@ -272,8 +272,18 @@ def pannello(st, html_fn, esc_fn):
                                    key="condividi_" + _s["sessione"],
                                    value=False):
                         if _valore.strip():
-                            import treblo as _treblo_mod
-                            if _treblo_mod.ricorda_chiave(_valore.strip()):
+                            _ok2 = False
+                            try:
+                                if _s["sessione"] == "chiave_treblo":
+                                    import treblo as _mod
+                                    _ok2 = _mod.ricorda_chiave(_valore.strip())
+                                else:
+                                    import musica as _mod
+                                    _ok2 = _mod.ricorda_token_hf(
+                                        _valore.strip())
+                            except Exception:
+                                _ok2 = False
+                            if _ok2:
                                 st.success("\u2705 Chiave salvata sul server: da "
                                            "ora in poi tutti possono fare le "
                                            "canzoni senza configurare nulla.")

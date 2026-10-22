@@ -2609,10 +2609,10 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
         'Suno (le istruzioni sono nella barra laterale) oppure un '
         'modello open source.</div>')
     html('<div class="note" style="opacity:.75">Motori disponibili: '
-         '<b>Suno</b> (i crediti gratuiti del tuo account), '
-         '<b>ACE-Step</b> e <b>MusicGen</b> (open source, gratis), '
-         '<b>Treblo</b> (audio scaricabile, ma chiede la carta). '
-         '<b>Niente pagamenti, niente carte</b> per usare l\'app.</div>')
+         '<b>ACE-Step</b> (open source: canta il brano e l\'audio si '
+         'scarica, tutto automatico), <b>Suno</b> (i crediti gratuiti del tuo '
+         'account), <b>MusicGen</b> (strumentale), <b>Treblo</b> (chiede la '
+         'carta). <b>Niente pagamenti, niente carte</b> per usare l\'app.</div>')
 
     _stile = st.text_input(
         "Stile musicale", value=STILE_DEFAULT, key="stile_musica",
