@@ -94,9 +94,16 @@ INTERPRETAZIONE (la riflessione si scrive SU QUESTA, non su un'altra):
 Rispondi con questo formato esatto, e non aggiungere altro:
 HOOK: <massimo 7 parole: la frase che appare a schermo nei primi 3 secondi>
 CORPO:
-- <riga 1: una frase, massimo 12 parole>
-- <riga 2: una frase, massimo 12 parole>
-- <riga 3: una frase, massimo 12 parole>
+- <riga 1: una frase, massimo 10 parole>
+- <riga 2: una frase, massimo 10 parole>
+- <riga 3: una frase, massimo 10 parole>
+- <riga 4: una frase, massimo 10 parole>
+- <riga 5: una frase, massimo 10 parole>
+- <riga 6: una frase, massimo 10 parole>
+- <riga 7: una frase, massimo 10 parole>
+- <riga 8: una frase, massimo 10 parole>
+- <riga 9: una frase, massimo 10 parole>
+- <riga 10: una frase, massimo 10 parole>
 CAPTION: <massimo 220 caratteri: la caption, con dentro il versetto o un pezzo di versetto, e un invito. Niente hashtag: li aggiunge l'app.>
 CTA: <una riga sola: cosa fare (commenta, salva, condividi, scrivi nei commenti)>
 GIORNO: <il giorno della settimana migliore per pubblicare: lunedi, martedi, mercoledi, giovedi, venerdi, sabato o domenica>
@@ -104,7 +111,14 @@ FASCIA: <la fascia oraria: mattina presto, mattina, pausa pranzo, pomeriggio, se
 MOTIVO: <due frasi: perche' questo giorno e questa fascia funzionano per un contenuto spirituale come questo>
 CONSIGLIO: <una riga sola: un accorgimento pratico per la pubblicazione>
 
-Regole della parte 2: solo italiano, frasi semplici, niente emoji, niente titoli. Il CORPO non ripete l'HOOK: tre idee diverse, in ordine. Non citare altri versetti ne' canzoni. GIORNO e FASCIA devono essere una scelta concreta, non "dipende": considera il tono (un contenuto di consolazione funziona meglio la sera o nel fine settimana, un contenuto di incoraggiamento meglio la mattina).
+Regole della parte 2: solo italiano, frasi semplici, niente emoji, niente titoli.
+Il CORPO e' lo script che il creator LEGGE AD ALTA VOCE durante il video:
+- 8-12 righe, una idea per riga, in ordine (la prima riprende l'HOOK, poi
+  spieghi, poi arrivi alla risposta, poi chiudi con l'invito);
+- ogni riga si capisce da sola, anche se la persona guarda solo il video;
+- non ripetere l'HOOK nella prima riga: comincia subito con il cuore;
+- NON citare altri versetti ne' canzoni.
+GIORNO e FASCIA devono essere una scelta concreta, non "dipende": considera il tono (un contenuto di consolazione funziona meglio la sera o nel fine settimana, un contenuto di incoraggiamento meglio la mattina).
 
 Alla fine della parte 1 (non alla fine di tutto) scrivi la riga:
 'Parole chiave: Parola1, Parola2, Parola3'"""
@@ -121,9 +135,16 @@ RIFLESSIONE DA RIDURRE:
 Rispondi ESATTAMENTE con questo formato (nient'altro):
 HOOK: <massimo 7 parole: la frase che appare a schermo nei primi 3 secondi>
 CORPO:
-- <riga 1: una frase, massimo 12 parole>
-- <riga 2: una frase, massimo 12 parole>
-- <riga 3: una frase, massimo 12 parole>
+- <riga 1: una frase, massimo 10 parole>
+- <riga 2: una frase, massimo 10 parole>
+- <riga 3: una frase, massimo 10 parole>
+- <riga 4: una frase, massimo 10 parole>
+- <riga 5: una frase, massimo 10 parole>
+- <riga 6: una frase, massimo 10 parole>
+- <riga 7: una frase, massimo 10 parole>
+- <riga 8: una frase, massimo 10 parole>
+- <riga 9: una frase, massimo 10 parole>
+- <riga 10: una frase, massimo 10 parole>
 CAPTION: <massimo 220 caratteri: la caption, con dentro il versetto o un pezzo di versetto, e un invito. Niente hashtag: li aggiunge l'app.>
 CTA: <una riga sola: cosa fare (commenta, salva, condividi, scrivi nei commenti)>
 GIORNO: <il giorno della settimana migliore per pubblicare: lunedi, martedi, mercoledi, giovedi, venerdi, sabato o domenica>
@@ -133,7 +154,9 @@ CONSIGLIO: <una riga sola: un accorgimento pratico per la pubblicazione>
 
 REGOLE:
 - Solo italiano, frasi semplici, niente emoji, niente titoli.
-- Il CORPO non ripete l'HOOK: tre idee diverse, in ordine.
+- Il CORPO e' lo script che il creator LEGGE AD ALTA VOCE: 8-12 righe, una idea
+  per riga, in ordine. Ogni riga si capisce da sola. Non ripetere l'HOOK
+  nella prima riga.
 - Non citare altri versetti, non citare canzoni, non inventare nomi.
 - GIORNO e FASCIA devono essere una scelta concreta, non "dipende": considera il tono (consolazione -> sera o fine settimana, incoraggiamento -> mattina).
 - Scrivi tutto in italiano, senza prefazioni e senza ragionamenti."""
@@ -337,10 +360,32 @@ def genera_riflessione(testo_versetto: str, interpretazione: str,
 # --------------------------------------------------------------------------
 
 def _post_locale(riflessione: str, testo_versetto: str = "") -> dict:
-    """Riduzione fatta in locale (quando l'IA non risponde)."""
+    """
+    Riduzione fatta in locale (quando l'IA non risponde).
+
+    Il CORPO viene spezzato in righe brevi da leggere ad alta voce, come
+    lo script di un video da 20-30 secondi.
+    """
     _r = re.sub(r"\s+", " ", (riflessione or "")).strip()
+    # 1) le frasi
     _frasi = [f.strip() for f in re.split(r"(?<=[.!?])\s+", _r) if f.strip()]
-    _corpo = [f for f in _frasi[:3]] or ["La Parola di oggi parla al tuo cuore."]
+    # 2) ogni frase lunga diventa piu' righe da 8-12 parole
+    _righe: list[str] = []
+    for _f in _frasi:
+        _parti = _f.split(", ")
+        _buff = ""
+        for _p in _parti:
+            _cand = (_buff + " " + _p).strip() if _buff else _p.strip()
+            if len(_cand.split()) > 12 and _buff:
+                _righe.append(_buff.strip())
+                _buff = _p.strip()
+            else:
+                _buff = _cand
+        if _buff.strip():
+            _righe.append(_buff.strip())
+    if not _righe:
+        _righe = ["La Parola di oggi parla al tuo cuore."]
+    _corpo = _righe[:12]
     _hook = " ".join((_r.split()[:7])) or "Fermati un secondo"
     _cap = _r[:220].strip()
     if testo_versetto and testo_versetto not in _cap:
@@ -391,7 +436,7 @@ def riduci_per_post(riflessione: str, testo_versetto: str = "",
     _corpo_raw = _estrai_blocco(_t, "CORPO")
     _corpo = [re.sub(r"^[\-\*\u2022]\s*", "", r).strip()
               for r in _corpo_raw.split("\n") if r.strip()]
-    _corpo = [c for c in _corpo if c][:3]
+    _corpo = [c for c in _corpo if c][:12]
     _caption = _estrai_blocco(_t, "CAPTION").strip().strip('"')
     _cta = _estrai_blocco(_t, "CTA").strip()
 
@@ -574,7 +619,7 @@ def _post_dalla_risposta(testo: str):
     _corpo_raw = _estrai_blocco(testo, "CORPO")
     _corpo = [re.sub(r"^[\-\*\u2022]\s*", "", r).strip()
               for r in _corpo_raw.split("\n") if r.strip()]
-    _corpo = [c for c in _corpo if c][:3]
+    _corpo = [c for c in _corpo if c][:12]
     _caption = _estrai_blocco(testo, "CAPTION").strip().strip('"')
     _cta = _estrai_blocco(testo, "CTA").strip()
     if not _hook or not _caption or len(_corpo) < 2:

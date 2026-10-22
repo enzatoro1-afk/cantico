@@ -361,9 +361,16 @@ def parole_chiave_dall_ia(testo: str, numero: int = 3) -> list[str]:
     m = re.findall(r"parole\s+chiave\s*:\s*(.+)", t, flags=re.IGNORECASE)
     if m:
         grezze = re.split(r"[,;·•]|\s+e\s+", m[-1])
-        parole = [p.strip(" .*-\n\t") for p in grezze]
-        parole = [p for p in parole if 2 < len(p) < 30]
-        if parole:
+        # l'IA a volte scrive "Lode Fede Adorazione" (solo spazi) o le
+        # attacca del tutto: in entrambi i casi le parole vanno separate
+        parole: list[str] = []
+        for _g in grezze:
+            for _p in re.split(r"\s+", _g.strip()):
+                _p = _p.strip(" .*-\n\t")
+                if 2 < len(_p) < 30:
+                    parole.append(_p)
+        # una parola sola e lunghissima = parole attaccate: non serve
+        if parole and not (len(parole) == 1 and len(parole[0]) > 14):
             return parole[:numero]
 
     # fallback: uso il lessico spirituale del progetto (gia' calibrato:

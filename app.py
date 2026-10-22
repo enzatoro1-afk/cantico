@@ -291,6 +291,9 @@ CSS = """
       display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: .8rem;
       background: #ecfdf5; color: #047857; font-weight: 600; margin: 0 6px 6px 0;
   }
+  /* le parole chiave: una dopo l'altra, con lo spazio TRA una e l'altra */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chips .chip { margin: 0; }
   .box {
       background: #f8fafc; border-left: 4px solid #7c3aed; border-radius: 10px;
       padding: 11px 13px; font-size: .88rem; word-break: break-word; line-height: 1.55;
@@ -414,6 +417,37 @@ def _esc_attr(testo: str) -> str:
     """Testo pronto per un attributo HTML (escape di &, <, >, ")."""
     return (testo.replace("&", "&amp;").replace("<", "&lt;")
             .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _parole_chiave_pulite(parole, numero: int = 3) -> list[str]:
+    """
+    Le parole chiave sempre separate e leggibili.
+
+    Se l'IA le scrive attaccate ("Lodefedeadorazione") le si divide; se le
+    scrive con virgole o spazi le si separa. Servono cosi' anche alla ricerca
+    della canzone: una parola sola e' un termine che YouTube non trova.
+    """
+    _out: list[str] = []
+    for _p in (parole or []):
+        for _q in re.split(r"[,;|·•\n\t]+|\s{2,}", str(_p).strip()):
+            _q = _q.strip(" .*-")
+            if 2 < len(_q) < 30 and _q.lower() not in [x.lower() for x in _out]:
+                _out.append(_q)
+            if len(_out) >= numero:
+                return _out
+    return _out
+
+
+def _md(testo: str) -> str:
+    """
+    Testo dell'IA pronto per l'HTML: scappa tutto e trasforma il grassetto
+    markdown (**parola**) in <b>parola</b>, cosi' i titoli delle sezioni si
+    vedono come titoli e non come due stelline.
+    """
+    t = esc(testo or "")
+    t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t, flags=re.S)
+    t = re.sub(r"(?<![\w*])\*([^*\n]{1,80})\*(?![\w*])", r"<i>\1</i>", t)
+    return t
 
 
 def blocco_copia(testo: str, chiave: str,
@@ -720,27 +754,50 @@ def _chiedi_ia(prompt: str, chiave_gemini: str = "",
             "errore": " | ".join(_problemi)}
 
 
+def _post_completo(_post_ia: dict) -> str:
+    """Tutto il post in un unico testo (per copiarlo con un tocco)."""
+    _parti = []
+    if _post_ia.get("hook"):
+        _parti.append("TESTO A SCHERMO:\n" + _post_ia["hook"])
+    if _post_ia.get("corpo"):
+        _parti.append("DA DIRE:\n" + "\n".join(_post_ia["corpo"]))
+    if _post_ia.get("caption"):
+        _parti.append("CAPTION:\n" + _post_ia["caption"])
+    if _post_ia.get("cta"):
+        _parti.append("INVITO:\n" + _post_ia["cta"])
+    _m = _post_ia.get("momento") or {}
+    if _m.get("giorno"):
+        _parti.append(f"QUANDO: {_m.get('giorno','')} - "
+                      f"{_m.get('fascia','')} ({_m.get('orario','')})")
+    return "\n\n".join(_parti)
+
+
 def _mostra_post_ia(_post_ia: dict, suffisso: str = "ia") -> None:
-    """Mostra il post ridotto dall'IA (hook, 3 righe, caption, CTA)."""
+    """Mostra il post ridotto dall'IA (hook, script, caption, CTA)."""
     if not (_post_ia.get("hook") or _post_ia.get("caption")):
         return
     html(
         '<div class="step">IL POST TIKTOK</div>'
         '<div class="note">La riflessione ridotta: quello che appare a '
-        'schermo e quello che dici. Tutto copiabile con un tocco.</div>')
+        'schermo e quello che dici. Copi quello che vuoi, o tutto in un '
+        'colpo con "Copia tutto il post".</div>')
     with st.container(border=True):
-        html('<div class="badge">TESTO A SCHERMO (0-3 secondi)</div>'
+        blocco_copia(_post_completo(_post_ia), f"copia_tutto_{suffisso}",
+                     "\U0001F4CB Copia tutto il post")
+        html('<div class="badge" style="margin-top:8px">TESTO A SCHERMO '
+             '(0-3 secondi)</div>'
              f'<div class="card-title">{esc(_post_ia.get("hook", ""))}</div>')
         blocco_copia(_post_ia.get("hook", ""), f"copia_hook_{suffisso}",
                      "\U0001F4CB Copia il testo a schermo")
         if _post_ia.get("corpo"):
-            html('<div class="badge" style="margin-top:8px">IL TESTO DA '
-                 'DIRE (3 righe)</div>')
+            _n_righe = len(_post_ia.get("corpo", []))
+            html(f'<div class="badge" style="margin-top:8px">IL TESTO DA '
+                 f'DIRE ({_n_righe} righe, da leggere ad alta voce)</div>')
             for _riga in _post_ia.get("corpo", []):
                 html(f'<div class="note">&bull; {esc(_riga)}</div>')
             blocco_copia("\n".join(_post_ia.get("corpo", [])),
                          f"copia_corpo_{suffisso}",
-                         "\U0001F4CB Copia le 3 righe")
+                         "\U0001F4CB Copia lo script da dire")
         if _post_ia.get("caption"):
             html('<div class="badge" style="margin-top:8px">CAPTION</div>'
                  f'<div class="card-title">{esc(_post_ia.get("caption",""))}'
@@ -1999,6 +2056,7 @@ with tab_riflessione:
                     _post_gia["caption"] = _post_mio_gia.get("caption", "")
                     _post_gia["hook"] = _post_mio_gia.get("hook", "")
                     _post_gia["corpo_ia"] = _post_mio_gia.get("corpo", [])
+                    _post_gia["cta_ia"] = _post_mio_gia.get("cta", "")
                     _post_gia["momento_ia"] = _post_mio_gia.get("momento", {})
                     _post_gia["riflessione"] = _riflessione.strip()
                     st.session_state["post"] = _post_gia
@@ -2349,9 +2407,22 @@ elif studio and studio.get("versetto"):
             f'<div class="note">Interpretazione presa da: <b>{esc(_fonte_int)}</b></div>',
         )
     html(
-        f'<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
+        '<div class="box"><b>{esc(interp.get("fonte", ""))}</b>'
         f' <span class="note">({totale:,} caratteri totali)</span><br>'
-        f'{esc(testo_interp)}</div>')
+        f'{_md(testo_interp)}</div>')
+
+    # ---- AVVISO: stai usando la IA GRATUITA (lenta)? ----
+    _fonte = (interp.get("fonte", "") or "").lower()
+    if "gratuita" in _fonte and not _chiave_gemini_attiva():
+        html(
+            '<div class="box box-warn"><b>\u26A0\uFE0F Stai usando la IA '
+            'gratuita</b> (veloce? no: puo\' aspettare qualche decina di '
+            'secondi). Con la chiave <b>Google Gemini</b> (gratis) tutto va '
+            'molto piu\' veloce e la scrittura e\' piu\' profonda.<br>'
+            'Prendila in 1 minuto su '
+            '<a href="https://aistudio.google.com/apikey" target="_blank">'
+            'aistudio.google.com/apikey</a> e incollala nella barra laterale, '
+            'poi premi <b>"Attiva subito (per me)"</b>.</div>')
 
     # COPIA l'interpretazione (sempre) + SCARICALA
     _nome_file = (f"interpretazione_{v.get('riferimento', 'versetto')}"
@@ -2376,12 +2447,14 @@ elif studio and studio.get("versetto"):
                           "prima non ti convince."):
             st.session_state["_ia_richiesta"] = "gratis"
             st.rerun()
-    parole = interp.get("parole_chiave", [])[:3]
+    parole = _parole_chiave_pulite(interp.get("parole_chiave", []))
     if parole:
         html(
             '<div class="note" style="margin-top:6px;">'
-            '<b>Le 3 parole chiave spirituali (usate nella ricerca musicale):</b></div>'
-            + "".join(f'<span class="chip">{esc(p)}</span>' for p in parole))
+            '<b>Le parole chiave spirituali (usate nella ricerca musicale):</b>'
+            '</div><div class="chips">'
+            + "".join(f'<span class="chip">{esc(p)}</span>' for p in parole)
+            + '</div>')
 
     # se l'utente ha incollato una nuova interpretazione, ricalcolo le canzoni
     if st.session_state.get("_ria_fase2"):
@@ -2727,6 +2800,7 @@ elif studio and studio.get("versetto"):
                 _post_gia["hook"] = _post_ia.get("hook", "")
                 _post_gia["riflessione"] = _rif_ia.get("riflessione", "")
                 _post_gia["corpo_ia"] = _post_ia.get("corpo", [])
+                _post_gia["cta_ia"] = _post_ia.get("cta", "")
                 _post_gia["momento_ia"] = _post_ia.get("momento", {})
                 st.session_state["post"] = _post_gia
                 # i campi del PASSAGGIO 3 prendono subito il testo dell'IA
@@ -2997,6 +3071,8 @@ if risultati:
                         "hook", st.session_state["post"]["hook"])
                     st.session_state["post"]["corpo_ia"] = _post_ia.get(
                         "corpo", [])
+                    st.session_state["post"]["cta_ia"] = _post_ia.get(
+                        "cta", "")
                     st.session_state["post"]["momento_ia"] = _post_ia.get(
                         "momento", {})
                     st.session_state["post"]["riflessione"] = (
@@ -3365,14 +3441,25 @@ if post:
             value=post.get("hook") or genera_hook(testo),
             height=70, key="hook")
 
-    # ---- LE 3 RIGHE SCRITTE DALL'IA (dal bottone "Riduci la mia riflessione")
+    # ---- LO SCRIPT DA DIRE, SCRITTO DALL'IA ----
     if post.get("corpo_ia"):
-        html('<div class="note" style="margin-top:10px;"><b>\U0001F3A4 Le 3 '
-             'righe da dire (scritte dall\'IA):</b></div>')
+        _n_r = len(post.get("corpo_ia", []))
+        html(f'<div class="note" style="margin-top:10px;"><b>\U0001F3A4 Lo '
+             f'script da dire ({_n_r} righe, scritte dall\'IA):</b></div>')
         for _riga in post.get("corpo_ia", []):
             html(f'<div class="note">&bull; {esc(_riga)}</div>')
-        blocco_copia("\n".join(post.get("corpo_ia", [])), "copia_corpo_post",
-                     "\U0001F4CB Copia le 3 righe")
+        _c_r1, _c_r2 = st.columns(2)
+        with _c_r1:
+            blocco_copia("\n".join(post.get("corpo_ia", [])), "copia_corpo_post",
+                         "\U0001F4CB Copia lo script da dire")
+        with _c_r2:
+            blocco_copia(_post_completo({
+                "hook": hook,
+                "corpo": post.get("corpo_ia", []),
+                "caption": caption,
+                "cta": post.get("cta_ia", ""),
+                "momento": post.get("momento_ia", {}),
+            }), "copia_tutto_post", "\U0001F4CB Copia tutto il post")
 
     # ---- Data e orario di pubblicazione ----
     html('<div class="note" style="margin-top:10px;"><b>\U0001F4C5 '

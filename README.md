@@ -557,14 +557,14 @@ Quando scrivi un **Salmo o un versetto** (es. `Salmo 23:1`), l'app lavora in due
    in prima persona, come se la scrivesse il creator.
 6. La **riduce** in un post pronto per TikTok:
    - **testo a schermo** (0-3 secondi, massimo 7 parole)
-   - **3 righe da dire** (una idea per riga)
+   - **lo script da dire** (8-12 righe, una idea per riga: è il testo che il
+     creator legge ad alta voce durante il video)
    - **caption** (massimo 220 caratteri, col versetto dentro)
    - **CTA** (l'invito finale)
    - **momento giusto per pubblicare** (giorno + fascia oraria, con il perchè
      e un consiglio pratico)
-7. Tutto è copiabile con un tocco, e il pulsante **"Usa questo post per il mio
-   TikTok"** lo mette direttamente nel PASSAGGIO 3 (caption, testo a schermo
-   e le 3 righe), con la data e l'ora già impostate sul momento consigliato.
+7. Tutto è copiabile con un tocco: c'è **"Copia tutto il post"** (hook +
+   script + caption + invito + momento) e la copia singola di ogni pezzo.
 
 > L'interruttore **"Fai anche la riflessione e il post TikTok"** (accanto a
 > "Studia con l'IA") accende o spegne questo passaggio. Entrambi sono **attivi
