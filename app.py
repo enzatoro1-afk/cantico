@@ -3269,19 +3269,20 @@ if risultati:
         '<div class="step">PASSAGGIO 2</div>'
         f'<h3>\U0001F3A4 {len(risultati)} canzoni trovate</h3>')
     html(
-        '<div class="note">Queste sono le <b>canzoni vere</b> che girano: '
-        'ti dicono lo stile giusto per il tuo versetto e il suono da usare.<br>'
-        '<b>Come si usa:</b> premi <b>"🔊 Prendi il suono su TikTok"</b> (ti '
-        'apre la libreria audio di TikTok col titolo esatto: scegli il suono '
-        'originale e usalo nel TUO video) e poi fai il video tuo.<br>'
-        'La ricerca guarda anche in <b>inglese e spagnolo</b> e nelle '
-        '<b>collezioni di lode</b> (Elevation Worship, Hillsong, Chris Adan, '
-        'MUSICA CRISTIANA ITALIANA...): i brani moderni dei cantanti, che su '
-        'TikTok funzionano di piu\'.<br>'
-        '<b>Attenzione:</b> la musica di un artista non la puoi ricaricare '
-        'copiandola: su TikTok si usa il <b>suono originale</b> della '
-        'libreria. Se preferisci zero pensieri, l\'app ti prepara anche una '
-        '<b>canzone originale</b> tua (sezione "Crea una canzone ORIGINALE").'
+        '<div class="note box-ok"><b>Le due strade (scegli tu):</b><br>'
+        '<b>Strada 1 (zero pensieri):</b> vai in "Crea una canzone '
+        'ORIGINALE" -> "FAI TUTTO: parole + canzone + poster + video": '
+        'l\'app ti fa tutto (parole, voce cantata, poster, video 9:16) e tu '
+        'pubblichi. Zero ricerche, zero problemi di diritti.<br>'
+        '<b>Strada 2 (canzone vera di un artista):</b> le canzoni qui sotto '
+        'ti dicono lo stile giusto. Per usarne una, premi "Prendi il suono '
+        'su TikTok" (ti copia il titolo esatto): su TikTok cerchi quel '
+        'titolo nella libreria audio e scegli il suono originale. La musica '
+        'di un artista non si ricarica (TikTok te la toglie).<br><br>'
+        'Le canzoni qui sotto vengono da YouTube e ti servono per capire lo '
+        'stile e per sapere il titolo da cercare su TikTok. L\'app non puo\' '
+        'scaricarle e caricarle per te: sarebbero mute da TikTok. Se '
+        'preferisci zero pensieri, usa la Strada 1: l\'app ti prepara tutto.'
         '</div>')
 
     # ---- LE CANZONI DI TIKTOK: le aggiungi tu, l'app le tratta come tutte
