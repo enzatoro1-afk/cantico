@@ -3091,61 +3091,62 @@ elif studio and studio.get("versetto"):
 
 versetti = st.session_state.get("versetti") or []
 if versetti:
-    _da_riflessione = bool(st.session_state.get("riflessione_giornaliera")) and \
-        st.session_state.get("versetti_da_riflessione")
-    _titolo_blocco = ("\U0001F4DD Versetti che parlano alla TUA riflessione"
-                      if _da_riflessione else
-                      "\U0001F4D6 Versetti che parlano al tuo pensiero")
-    _nota_blocco = ("Scegli il versetto che ti risuona: l\'app lo mette nella "
-                    "casella e cerca subito la canzone. La tua riflessione "
-                    "diventa la caption del post."
-                    if _da_riflessione else
-                    "Scegli il versetto che ti risuona: l\'app lo mette nella "
-                    "casella e cerca subito la canzone.")
-    html(
-        '<div class="step">Il testo biblico</div>'
-        f'<h3>{_titolo_blocco}</h3>'
-        f'<div class="note">Testo di riferimento: {esc(NOME_TRADUZIONE)}. '
-        f'{_nota_blocco}</div>')
-    for i, v in enumerate(versetti, start=1):
-        with st.container(border=True):
-            chip = "".join(f'<span class="chip">{esc(t)}</span>' for t in v["temi"])
-            _scelta_ia = (st.session_state.get("scelta_ia_versetto") or {})
-            _scelto = (_scelta_ia.get("indice") == i - 1) or (
-                bool(_scelta_ia.get("riferimento")) and i == 1)
-            _badge_ia = ('<span class="chip" style="background:#fde68a;color:#92400e;'
-                         'font-weight:700">&#127775; scelto dall\'IA</span> ') \
-                if _scelto else ""
-            _badge_esatto = ('<span class="chip" style="background:#bbf7d0;'
-                             'color:#065f46;font-weight:700">&#9989; esatto: '
-                             'e\' quello che hai scritto</span> ') \
-                if v.get("esatto") else ""
-            html(
-                f'<div class="badge">#{i}</div>'
-                f'<div class="card-title">{esc(v["riferimento"])}</div>'
-                f'<div class="card-meta" style="font-size:.92rem;opacity:.85;">'
-                f'┬½{esc(v["testo"])}┬╗</div>{chip}{_badge_esatto}{_badge_ia}')
-            if _scelto and _scelta_ia.get("motivo"):
+    with st.expander("\U0001F4D6 Altri versetti trovati (opzionale - non serve nel flusso normale)", expanded=False):
+        _da_riflessione = bool(st.session_state.get("riflessione_giornaliera")) and \
+            st.session_state.get("versetti_da_riflessione")
+        _titolo_blocco = ("\U0001F4DD Versetti che parlano alla TUA riflessione"
+                          if _da_riflessione else
+                          "\U0001F4D6 Versetti che parlano al tuo pensiero")
+        _nota_blocco = ("Scegli il versetto che ti risuona: l\'app lo mette nella "
+                        "casella e cerca subito la canzone. La tua riflessione "
+                        "diventa la caption del post."
+                        if _da_riflessione else
+                        "Scegli il versetto che ti risuona: l\'app lo mette nella "
+                        "casella e cerca subito la canzone.")
+        html(
+            '<div class="step">Il testo biblico</div>'
+            f'<h3>{_titolo_blocco}</h3>'
+            f'<div class="note">Testo di riferimento: {esc(NOME_TRADUZIONE)}. '
+            f'{_nota_blocco}</div>')
+        for i, v in enumerate(versetti, start=1):
+            with st.container(border=True):
+                chip = "".join(f'<span class="chip">{esc(t)}</span>' for t in v["temi"])
+                _scelta_ia = (st.session_state.get("scelta_ia_versetto") or {})
+                _scelto = (_scelta_ia.get("indice") == i - 1) or (
+                    bool(_scelta_ia.get("riferimento")) and i == 1)
+                _badge_ia = ('<span class="chip" style="background:#fde68a;color:#92400e;'
+                             'font-weight:700">&#127775; scelto dall\'IA</span> ') \
+                    if _scelto else ""
+                _badge_esatto = ('<span class="chip" style="background:#bbf7d0;'
+                                 'color:#065f46;font-weight:700">&#9989; esatto: '
+                                 'e\' quello che hai scritto</span> ') \
+                    if v.get("esatto") else ""
                 html(
-                    '<div class="note box-ok"><b>Perche\' questo:</b> '
-                    f'{esc(_scelta_ia["motivo"])}</div>')
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.button(
-                    "\u2705 Usa questo testo",
-                    key=f"usa_versetto_{i}",
-                    use_container_width=True,
-                    on_click=_imposta_testo,
-                    args=(v["testo"],),
-                )
-            with col_b:
-                st.button(
-                    "\U0001F50E Trova la canzone",
-                    key=f"canzone_versetto_{i}",
-                    use_container_width=True,
-                    on_click=_imposta_testo,
-                    args=(v["testo"],),
-                )
+                    f'<div class="badge">#{i}</div>'
+                    f'<div class="card-title">{esc(v["riferimento"])}</div>'
+                    f'<div class="card-meta" style="font-size:.92rem;opacity:.85;">'
+                    f'┬½{esc(v["testo"])}┬╗</div>{chip}{_badge_esatto}{_badge_ia}')
+                if _scelto and _scelta_ia.get("motivo"):
+                    html(
+                        '<div class="note box-ok"><b>Perche\' questo:</b> '
+                        f'{esc(_scelta_ia["motivo"])}</div>')
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.button(
+                        "\u2705 Usa questo testo",
+                        key=f"usa_versetto_{i}",
+                        use_container_width=True,
+                        on_click=_imposta_testo,
+                        args=(v["testo"],),
+                    )
+                with col_b:
+                    st.button(
+                        "\U0001F50E Trova la canzone",
+                        key=f"canzone_versetto_{i}",
+                        use_container_width=True,
+                        on_click=_imposta_testo,
+                        args=(v["testo"],),
+                    )
 
 # --------------------------------------------------------------------------
 # Studio biblico: i 4 passi + le interpretazioni dei pastori
