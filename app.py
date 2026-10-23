@@ -2324,6 +2324,7 @@ with tab_riflessione:
                          type="primary", use_container_width=True,
                          key="usa_post_riflessione"):
                 _post_gia = st.session_state.get("post")
+                _post_gia = st.session_state.get("post")
                 if not _post_gia:
                     # niente canzone scelta: il post si fa da solo, con le
                     # parole della riflessione (non serve scegliere una
@@ -2348,8 +2349,6 @@ with tab_riflessione:
                     st.session_state["hook"] = _post_mio_gia["hook"]
                 st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
                            "il testo a schermo.")
-            # FORZA il riavvio dell'app per rendere effettivi i cambiamenti di session state
-            st.rerun()
 
     # i versetti trovati dalla riflessione vengono mostrati sotto
     # (riutilizzo lo stesso blocco della scheda 1)
@@ -3085,8 +3084,6 @@ elif studio and studio.get("versetto"):
                     st.session_state["hook"] = _post_ia["hook"]
                 st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
                            "il testo a schermo scritti dall'IA.")
-            # FORZA il riavvio dell'app per rendere effettivi i cambiamenti di session state
-            st.rerun()
 
 
 # --------------------------------------------------------------------------
