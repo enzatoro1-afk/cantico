@@ -1948,7 +1948,7 @@ with tab_verso:
                         + ("" if not _esatto else " (esatto: quello che hai scritto)")
                         + f" \u2014 e altri {_n_v - 1} versetti simili qui sotto."
                         + " Scegli quello che ti parla e premi "
-                          "\u201cUsa questo testo\u201d o \u201cTrova la canzone\u201d.")
+                          "\u201cUsa questo testo\u201d.")
 
     # la ricerca delle canzoni vere su YouTube e' stata tolta: l'app d├á
     # solo il titolo da cercare su TikTok (la libreria audio di TikTok non
@@ -3130,23 +3130,13 @@ if versetti:
                     html(
                         '<div class="note box-ok"><b>Perche\' questo:</b> '
                         f'{esc(_scelta_ia["motivo"])}</div>')
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.button(
-                        "\u2705 Usa questo testo",
-                        key=f"usa_versetto_{i}",
-                        use_container_width=True,
-                        on_click=_imposta_testo,
-                        args=(v["testo"],),
-                    )
-                with col_b:
-                    st.button(
-                        "\U0001F50E Trova la canzone",
-                        key=f"canzone_versetto_{i}",
-                        use_container_width=True,
-                        on_click=_imposta_testo,
-                        args=(v["testo"],),
-                    )
+                st.button(
+                    "\u2705 Usa questo testo",
+                    key=f"usa_versetto_{i}",
+                    use_container_width=True,
+                    on_click=_imposta_testo,
+                    args=(v["testo"],),
+                )
 
 # --------------------------------------------------------------------------
 # Studio biblico: i 4 passi + le interpretazioni dei pastori
@@ -3762,29 +3752,6 @@ if post:
     html(
         f'<div class="box"><b>\U0001F3B5 Canzone scelta:</b> {esc(post["titolo"])}'
         f'<br><span class="note">Canale: {esc(post["canale"])}</span></div>')
-
-    # ---- CAMBIARE / ANNULLARE LA CANZONE ----
-    _c1, _c2 = st.columns(2)
-    with _c1:
-        if st.button("\U0001F504 Scegli un'altra canzone",
-                     use_container_width=True, key="cambia_canzone"):
-            st.session_state["post"] = None
-            st.session_state["scelta"] = None
-            st.rerun()
-    with _c2:
-        if st.button("\U0001F6D1 Annulla tutto (canzone e post)",
-                     use_container_width=True, key="annulla_post"):
-            st.session_state["post"] = None
-            st.session_state["scelta"] = None
-            st.session_state["risultati"] = []
-            st.session_state["query_usate"] = []
-            st.session_state["visti"] = []
-            st.session_state["quante_mostrate"] = 0
-            st.rerun()
-    html(
-        '<div class="note">Non ti piace? <b>Scegli un\'altra canzone</b> ti '
-        'riporta alla lista: ne scegli un\'altra e prepari il post. '
-        '<b>Annulla tutto</b> azzera la ricerca e cominci da capo.</div>')
 
     formato = st.selectbox("Come vuoi impostare il post?", list(FORMATI_POST),
                             index=list(FORMATI_POST).index(post["formato"])
