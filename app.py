@@ -2347,6 +2347,8 @@ with tab_riflessione:
                     st.session_state["caption"] = _post_mio_gia["caption"]
                 if _post_mio_gia.get("hook"):
                     st.session_state["hook"] = _post_mio_gia["hook"]
+                # FORZA il riavvio dell'app per rendere effettivi i cambiamenti di session state
+                st.rerun()
                 st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
                            "il testo a schermo.")
 
