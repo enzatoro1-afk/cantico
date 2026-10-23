@@ -3315,7 +3315,8 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                 st.warning(_res.get("errore", ""))
     with _b2:
         _motore = st.selectbox(
-            "Motore musicale", list(MOTORI_GRATUITI), key="motore_scelto",
+            "Motore musicale", list(MOTORI_GRATUITI), index=1,
+            key="motore_scelto",
             help="Suno usa i crediti gratuiti giornalieri del TUO account "
                  "(serve il servizio open source attivo + il cookie). "
                  "ACE-Step e MusicGen sono open source e gratis, ma hanno "
