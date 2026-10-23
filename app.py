@@ -2324,7 +2324,6 @@ with tab_riflessione:
                          type="primary", use_container_width=True,
                          key="usa_post_riflessione"):
                 _post_gia = st.session_state.get("post")
-                _post_gia = st.session_state.get("post")
                 if not _post_gia:
                     # niente canzone scelta: il post si fa da solo, con le
                     # parole della riflessione (non serve scegliere una
@@ -2347,8 +2346,7 @@ with tab_riflessione:
                     st.session_state["caption"] = _post_mio_gia["caption"]
                 if _post_mio_gia.get("hook"):
                     st.session_state["hook"] = _post_mio_gia["hook"]
-                # FORZA il riavvio dell'app per rendere effettivi i cambiamenti di session state
-                st.rerun()
+                # i campi del PASSAGGIO 3 si aggiornano subito, senza ricaricare
                 st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
                            "il testo a schermo.")
 
@@ -3070,22 +3068,21 @@ elif studio and studio.get("versetto"):
                     "formato": "Versetto + domanda",
                     "caption": "", "hook": "",
                 }
-            else:
-                _post_gia = dict(_post_gia)
-                _post_gia["caption"] = _post_ia.get("caption", "")
-                _post_gia["hook"] = _post_ia.get("hook", "")
-                _post_gia["riflessione"] = _rif_ia.get("riflessione", "")
-                _post_gia["corpo_ia"] = _post_ia.get("corpo", [])
-                _post_gia["cta_ia"] = _post_ia.get("cta", "")
-                _post_gia["momento_ia"] = _post_ia.get("momento", {})
-                st.session_state["post"] = _post_gia
-                # i campi del PASSAGGIO 3 prendono subito il testo dell'IA
-                if _post_ia.get("caption"):
-                    st.session_state["caption"] = _post_ia["caption"]
-                if _post_ia.get("hook"):
-                    st.session_state["hook"] = _post_ia["hook"]
-                st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
-                           "il testo a schermo scritti dall'IA.")
+            _post_gia = dict(_post_gia)
+            _post_gia["caption"] = _post_ia.get("caption", "")
+            _post_gia["hook"] = _post_ia.get("hook", "")
+            _post_gia["riflessione"] = _rif_ia.get("riflessione", "")
+            _post_gia["corpo_ia"] = _post_ia.get("corpo", [])
+            _post_gia["cta_ia"] = _post_ia.get("cta", "")
+            _post_gia["momento_ia"] = _post_ia.get("momento", {})
+            st.session_state["post"] = _post_gia
+            # i campi del PASSAGGIO 3 prendono subito il testo dell'IA
+            if _post_ia.get("caption"):
+                st.session_state["caption"] = _post_ia["caption"]
+            if _post_ia.get("hook"):
+                st.session_state["hook"] = _post_ia["hook"]
+            st.success("\u2705 Fatto: nel PASSAGGIO 3 trovi la caption e "
+                       "il testo a schermo scritti dall'IA.")
 
 
 # --------------------------------------------------------------------------
