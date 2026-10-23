@@ -3214,7 +3214,7 @@ html(
 html(
     '<div class="note box-ok"><b>Perche\' questo titolo?</b> L\'app lo ricava '
     'dall\'interpretazione del tuo versetto: sono le parole spirituali che '
-    'parlano del cuore del passaggio. Su TikTok cerca <b>questo titolo</b> '
+    'parlano spirituali del passaggio. Su TikTok cerca <b>questo titolo</b> '
     'nella libreria audio e trovi il suono originale.</div>')
 html(
     f'<div class="box"><b>Titolo da cercare:</b> {esc(_query_tiktok)}</div>')
