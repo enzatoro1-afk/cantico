@@ -1762,7 +1762,7 @@ html(
       <h1>\U0001F3B5 CANTICO</h1>
       <p><b>Dalla Parola alla Lode.</b> Scrivi un versetto o un pensiero:
          l'app trova il testo biblico, lo studia con la dottrina evangelica
-         pentecostale, cerca la canzone giusta e ti prepara il post
+         pentecostale e ti prepara il post
          per TikTok.</p>
     </div>
     """)
@@ -2134,7 +2134,7 @@ with tab_riflessione:
         '<div class="note">Ogni giorno, quando leggi la Bibbia, annota quello '
         'che ti ha toccato il cuore. Scrivilo qui: l\'app <b>lo cerca in tutta '
         'la Bibbia</b>, trova il versetto che parla proprio a te, lo studia, '
-        'cerca la canzone giusta e ti prepara il post da pubblicare.</div>'
+        'ti prepara il post da pubblicare.</div>'
         + NOTA_TRADUZIONE +
         '</div>')
 
@@ -3057,9 +3057,17 @@ elif studio and studio.get("versetto"):
                      key="usa_post_ia"):
             _post_gia = st.session_state.get("post")
             if not _post_gia:
-                st.info("Prima scegli la canzone (pulsante "
-                        "'\u2B50 Scegli questa canzone per il post'): poi "
-                        "torna qui e usa la caption dell'IA.")
+                # niente canzone scelta: il post si fa da solo, con le
+                # parole della riflessione (non serve scegliere una
+                # canzone su YouTube)
+                _hashtag = genera_hashtag(_riflessione,
+                                      estrai_parole_chiave(_riflessione, 3))
+                _post_gia = {
+                    "titolo": "il tuo versetto", "video_id": "",
+                    "canale": "", "hashtag": _hashtag,
+                    "formato": "Versetto + domanda",
+                    "caption": "", "hook": "",
+                }
             else:
                 _post_gia = dict(_post_gia)
                 _post_gia["caption"] = _post_ia.get("caption", "")
