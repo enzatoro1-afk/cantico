@@ -3945,17 +3945,18 @@ html('<div class="note box-ok"><b>Il post è pronto.</b><br>'
      '<b>2)</b> Scarica il video qui sotto.<br>'
      '<b>3)</b> Apri TikTok sul telefono, incolla e pubblica.</div>')
 
-_video_gia = st.session_state.get("canzone_video") or ""
-if _video_gia and os.path.exists(_video_gia):
-    with open(_video_gia, "rb") as _f:
-        st.download_button(
-            "\U0001F4BE Scarica il video (.mp4)", data=_f.read(),
-            file_name="cantico_tiktok.mp4", mime="video/mp4",
-            use_container_width=True, key="dl_video_semplice")
-else:
-    st.info("Il video non è ancora pronto. Usa \"🏛 FAI TUTTO\" per crearlo.")
+if post:
+    _video_gia = st.session_state.get("canzone_video") or ""
+    if _video_gia and os.path.exists(_video_gia):
+        with open(_video_gia, "rb") as _f:
+            st.download_button(
+                "\U0001F4BE Scarica il video (.mp4)", data=_f.read(),
+                file_name="cantico_tiktok.mp4", mime="video/mp4",
+                use_container_width=True, key="dl_video_semplice")
+    else:
+        st.info("Il video non è ancora pronto. Usa \"🏛 FAI TUTTO\" per crearlo.")
 
-    if isinstance(post, dict) and post.get("video_id"):
+    if post.get("video_id"):
         with st.expander("\U0001F3A7 Anteprima della canzone"):
             embed_youtube(post["video_id"])
     else:
@@ -3965,7 +3966,7 @@ else:
         html(
             f"""
             <div class="timeline">
-            <b>0-3 secondi</b> &rarr; testo a schermo: <i>┬½{esc(post.get("hook", "") or genera_hook(testo))}┬╗</i><br>
+            <b>0-3 secondi</b> &rarr; testo a schermo: <i>┬½{esc(hook)}┬╗</i><br>
             <b>3-8 secondi</b> &rarr; inquadra il versetto / il cielo / un libro<br>
             <b>8-20 secondi</b> &rarr; parte la canzone: <i>{esc(post["titolo"])}</i><br>
             <b>20-25 secondi</b> &rarr; schermata finale con la domanda + CTA<br>
@@ -3974,6 +3975,8 @@ else:
             cos\u00ec il suono su TikTok si riconosce subito.
             </div>
             """)
+else:
+    st.info("Nessun post creato ancora. Completa i Passaggi 1-2 per iniziare.")
 
     with st.expander("\U0001F4F1 Come si pubblica dal telefono (5 passaggi)"):
         html(
