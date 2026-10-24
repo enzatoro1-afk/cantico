@@ -3965,7 +3965,7 @@ else:
         html(
             f"""
             <div class="timeline">
-            <b>0-3 secondi</b> &rarr; testo a schermo: <i>┬½{esc(hook)}┬╗</i><br>
+            <b>0-3 secondi</b> &rarr; testo a schermo: <i>┬½{esc(post.get("hook", "") or genera_hook(testo))}┬╗</i><br>
             <b>3-8 secondi</b> &rarr; inquadra il versetto / il cielo / un libro<br>
             <b>8-20 secondi</b> &rarr; parte la canzone: <i>{esc(post["titolo"])}</i><br>
             <b>20-25 secondi</b> &rarr; schermata finale con la domanda + CTA<br>
