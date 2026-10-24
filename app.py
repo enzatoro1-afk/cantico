@@ -3955,7 +3955,7 @@ if _video_gia and os.path.exists(_video_gia):
 else:
     st.info("Il video non è ancora pronto. Usa \"🏛 FAI TUTTO\" per crearlo.")
 
-    if post.get("video_id"):
+    if isinstance(post, dict) and post.get("video_id"):
         with st.expander("\U0001F3A7 Anteprima della canzone"):
             embed_youtube(post["video_id"])
     else:
