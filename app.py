@@ -3955,8 +3955,11 @@ if _video_gia and os.path.exists(_video_gia):
 else:
     st.info("Il video non è ancora pronto. Usa \"🏛 FAI TUTTO\" per crearlo.")
 
-    with st.expander("\U0001F3A7 Anteprima della canzone"):
-        embed_youtube(post["video_id"])
+    if post.get("video_id"):
+        with st.expander("\U0001F3A7 Anteprima della canzone"):
+            embed_youtube(post["video_id"])
+    else:
+        st.info("Nessuna canzone creata: l'anteprima non è disponibile.")
 
     with st.expander("\U0001F4D7 Piano del video (come girarlo)"):
         html(
