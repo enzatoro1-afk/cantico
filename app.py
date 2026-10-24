@@ -3954,17 +3954,11 @@ if post:
     _file_up = None
     if not _nome_video:
         html(
-            '<div class="note">L\'app ha gia\' la caption, il testo a schermo '
-            'e l\'ora giusta. Per il <b>video</b> ci sono due strade:<br>'
-            '<b>1) Canzone gia\' su YouTube</b>: il video lo fai <b>tu</b> '
-            '(CapCut, Canva, o sul telefono: la tua voce o la musica + il '
-            'testo a schermo). Poi o lo <b>carichi qui sopra</b> (l\'app lo '
-            'tiene per l\'auto-pubblicazione) o lo scegli da TikTok Studio.'
-            '<br><b>2) Vuoi che l\'app prepari tutto</b>: vai in "Crea una '
-            'canzone ORIGINALE" -> "FAI TUTTO: parole + canzone + poster + video": '
-            'l\'app scrive il testo, lo fa cantare e ti prepara il video '
-            'verticale 9:16. Poi qui sotto compare "1) Scarica il video".'
-            '</div>')
+            '<div class="note box-ok"><b>Il tuo post è pronto.</b><br>'
+            '<b>1)</b> Scarica il video qui sotto.<br>'
+            '<b>2)</b> Apri TikTok sul telefono.<br>'
+            '<b>3)</b> Incolla la caption (copiala col pulsante sopra).<br>'
+            '<b>4)</b> Pubblica.</div>')
         _file_up = st.file_uploader("Il tuo video (mp4, verticale 9:16)",
                                     type=["mp4", "mov", "webm"],
                                     key="video_da_pubblicare")
