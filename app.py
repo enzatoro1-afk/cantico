@@ -3357,19 +3357,24 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
                 st.stop()
             st.session_state["canzone_testi"] = _res_t["testo"]
         # 2) la musica
+        _canzone_pronta = False
         with st.spinner("2 di 4 - Il motore musicale sta componendo il "
                         "brano (1-3 minuti)..."):
             _res_m = _genera_musica(
                 _motore, struttura_canzone(st.session_state["canzone_testi"]),
                 _tag_finali, _stile)
         if not _res_m.get("ok"):
-            st.error(_res_m.get("errore", "Composizione fallita."))
+            st.warning("La canzone non e' stata creata: "
+                       + str(_res_m.get("errore", "errore sconosciuto"))[:120]
+                       + ". Procedo senza canzone.")
             if _res_m.get("protegto"):
                 st.session_state["suno_protegto"] = True
-            st.stop()
-        st.session_state["canzone_audio"] = _res_m["file"]
-        st.session_state["canzone_audio_url"] = _res_m.get("url", "")
-        st.session_state["canzone_modello"] = _res_m.get("motore", "")
+        else:
+            st.session_state["canzone_audio"] = _res_m["file"]
+            st.session_state["canzone_audio_url"] = _res_m.get("url", "")
+            st.session_state["canzone_modello"] = _res_m.get("motore", "")
+            _canzone_pronta = True
+
         # 3) il POSTER: l'immagine che l'AI disegna sul versetto
         _poster = ""
         with st.spinner("3 di 4 - Sto disegnando il poster del post..."):
@@ -3384,23 +3389,28 @@ with st.expander("\U0001F3B6 Crea una canzone ORIGINALE per il tuo post"):
             _poster = _res_img["file"]
             st.session_state["immagine_ai"] = _poster
             st.session_state["immagine_ai_fonte"] = _res_img.get("fonte", "")
-        # 4) il video: poster + mp3 + testo
-        with st.spinner("4 di 4 - Sto montando il video verticale..."):
-            _rif_v = ((st.session_state.get("riferimento") or {}).get(
-                "riferimento", "") or testo or "")[:160]
-            _res_v = crea_video_tiktok(
-                _res_m["file"],
-                testo=_rif_v,
-                sfondo=("foto" if _poster else "immagine"),
-                immagine_propria=_poster,
-                muovo=True)
-        if _res_v.get("ok"):
-            st.session_state["canzone_video"] = _res_v["file"]
-            st.success("\u2705 \u2705 \u2705 Fatto tutto: parole, canzone, "
-                       "poster e video! Il video e' gia' qui sotto.")
+
+        # 4) il video: solo se c'e' la canzone
+        if _canzone_pronta:
+            with st.spinner("4 di 4 - Sto montando il video verticale..."):
+                _rif_v = ((st.session_state.get("riferimento") or {}).get(
+                    "riferimento", "") or testo or "")[:160]
+                _res_v = crea_video_tiktok(
+                    _res_m["file"],
+                    testo=_rif_v,
+                    sfondo=("foto" if _poster else "immagine"),
+                    immagine_propria=_poster,
+                    muovo=True)
+            if _res_v.get("ok"):
+                st.session_state["canzone_video"] = _res_v["file"]
+                st.success("\u2705 Fatto tutto: parole, canzone, poster e "
+                           "video! Il video e' gia' qui sotto.")
+            else:
+                st.warning("Il video non e' uscito: "
+                           + str(_res_v.get("errore", ""))[:120])
         else:
-            st.warning("La canzone e' pronta ma il video non e' uscito: "
-                       + str(_res_v.get("errore", ""))[:120])
+            st.info("Video non creato: manca la canzone. "
+                    "Puoi comunque usare il testo, il poster e il post.")
         # il POST (caption, hook, hashtag) viene preparato qui, cosi' non
         # serve scegliere una canzone su YouTube per avere la caption
         _post_esistente = st.session_state.get("post")
